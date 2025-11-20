@@ -1,0 +1,28 @@
+{
+  "extends": "@tsconfig/node-lts/tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "Node16",
+    "module": "NodeNext",
+    "declaration": true,
+    "composite": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "lib": ["ES2022", "DOM"],
+    "baseUrl": ".",
+    "paths": {
+      "@lytics/dev-agent-core": ["packages/core/src"],
+      "@lytics/dev-agent-core/*": ["packages/core/src/*"],
+      "@lytics/dev-agent-subagents": ["packages/subagents/src"],
+      "@lytics/dev-agent-subagents/*": ["packages/subagents/src/*"],
+      "@lytics/dev-agent-cli": ["packages/cli/src"],
+      "@lytics/dev-agent-cli/*": ["packages/cli/src/*"],
+      "@lytics/dev-agent-integrations": ["packages/integrations/src"],
+      "@lytics/dev-agent-integrations/*": ["packages/integrations/src/*"]
+    }
+  },
+  "exclude": ["node_modules"],
+  "files": []
+}

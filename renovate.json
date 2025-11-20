@@ -1,0 +1,64 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "baseBranches": ["main"],
+  "rangeStrategy": "bump",
+  "dependencyDashboard": true,
+  "schedule": ["after 10pm and before 5am every weekday", "every weekend"],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  
+  "packageRules": [
+    {
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "matchPackagePatterns": ["*"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "all non-major dependencies",
+      "groupSlug": "all-minor-patch"
+    },
+    {
+      "matchPackagePatterns": ["^@biomejs/", "^typescript"],
+      "groupName": "typescript and formatting dependencies",
+      "groupSlug": "typescript-formatting"
+    },
+    {
+      "matchPackagePatterns": ["^vitest", "^@vitest/"],
+      "groupName": "testing dependencies",
+      "groupSlug": "testing-deps"
+    },
+    {
+      "matchPackagePatterns": ["^@changesets/", "turbo"],
+      "groupName": "monorepo tooling",
+      "groupSlug": "monorepo-tools"
+    },
+    {
+      "matchDepTypes": ["peerDependencies"],
+      "rangeStrategy": "widen"
+    }
+  ],
+  
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 5am on monday"]
+  },
+  
+  "ignoreDeps": [
+    "pnpm"
+  ],
+  
+  "commitMessagePrefix": "chore(deps):",
+  "commitMessageAction": "update",
+  "commitMessageTopic": "{{depName}}",
+  "commitBodyTable": true,
+  
+  "pnpmShrinkwrap": true,
+  "npmrc": "@lytics:registry=https://registry.npmjs.org/"
+}
