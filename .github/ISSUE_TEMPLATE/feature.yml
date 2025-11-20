@@ -1,0 +1,86 @@
+name: Feature
+description: A new feature request
+title: "Feature: "
+labels: ["type: feature", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! Please provide as much detail as possible to help us understand your idea.
+
+  - type: input
+    id: branch
+    attributes:
+      label: Branch
+      description: The branch name for this feature (e.g., feat/new-feature)
+      placeholder: "feat/feature-name"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: The priority level for this feature
+      options:
+        - Highest
+        - High
+        - Medium
+        - Low
+        - Lowest
+      default: 2
+    validations:
+      required: true
+
+  - type: input
+    id: estimate
+    attributes:
+      label: Estimate
+      description: The estimated time to implement this feature (e.g., 5 days)
+      placeholder: "5 days"
+    validations:
+      required: true
+
+  - type: input
+    id: parent-epic
+    attributes:
+      label: Parent Epic
+      description: The parent epic this feature belongs to, if any (e.g., #123)
+      placeholder: "#123"
+    validations:
+      required: false
+      
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Detailed description of the feature and what problem it solves
+      placeholder: "This feature will provide..."
+    validations:
+      required: true
+      
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: List the criteria that must be met for this feature to be considered complete
+      placeholder: |
+        - [ ] Feature supports...
+        - [ ] UI includes...
+        - [ ] Performance meets...
+    validations:
+      required: true
+      
+  - type: textarea
+    id: technical-requirements
+    attributes:
+      label: Technical Requirements
+      description: Technical details and requirements for implementation
+      placeholder: |
+        - Use React for UI components
+        - Implement caching for improved performance
+        - Follow existing code patterns
+    validations:
+      required: true

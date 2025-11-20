@@ -1,0 +1,102 @@
+name: Bug
+description: Report a bug to help us improve
+title: "Bug: "
+labels: ["type: bug", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please provide as much detail as possible to help us fix it quickly.
+
+  - type: input
+    id: branch
+    attributes:
+      label: Branch
+      description: The branch name for the fix (e.g., fix/bug-description)
+      placeholder: "fix/bug-name"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How severe is this bug?
+      options:
+        - Critical (System unusable)
+        - High (Major functionality broken)
+        - Medium (Significant issue)
+        - Low (Minor issue)
+        - Trivial (Cosmetic issue)
+      default: 2
+    validations:
+      required: true
+
+  - type: input
+    id: estimate
+    attributes:
+      label: Estimate
+      description: The estimated time to fix this bug (e.g., 1 day)
+      placeholder: "2 days"
+    validations:
+      required: true
+      
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of the bug
+      placeholder: "When I..."
+    validations:
+      required: true
+      
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this issue?
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+    validations:
+      required: true
+      
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: "I expected..."
+    validations:
+      required: true
+      
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: "Instead, I saw..."
+    validations:
+      required: true
+      
+  - type: textarea
+    id: fix-approach
+    attributes:
+      label: Proposed Fix
+      description: If you have ideas on how to fix this bug, please share them
+      placeholder: "I think this could be fixed by..."
+    validations:
+      required: false
+      
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Information
+      description: Any other context about the bug (environment, logs, screenshots)
+      placeholder: "Node.js version: 22.0.0\nOS: macOS 14.0\n..."
+    validations:
+      required: false

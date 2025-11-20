@@ -1,0 +1,81 @@
+name: Epic
+description: A large body of work that can be broken down into smaller stories/tasks
+title: "Epic: "
+labels: ["type: epic", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for creating an Epic! Please provide as much detail as possible to help with planning.
+        
+  - type: input
+    id: epic-id
+    attributes:
+      label: Epic ID
+      description: A unique identifier for this epic (e.g., CORE-1)
+      placeholder: "CORE-1"
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Detailed description of this epic and what it aims to accomplish
+      placeholder: "This epic focuses on..."
+    validations:
+      required: true
+      
+  - type: textarea
+    id: goals
+    attributes:
+      label: Goals
+      description: List the primary goals of this epic
+      placeholder: |
+        1. Implement...
+        2. Integrate...
+        3. Ensure...
+    validations:
+      required: true
+      
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: List the criteria that must be met for this epic to be considered complete
+      placeholder: |
+        - [ ] All components...
+        - [ ] System correctly...
+        - [ ] Documentation is...
+    validations:
+      required: true
+      
+  - type: textarea
+    id: definition-of-done
+    attributes:
+      label: Definition of Done
+      description: Specific requirements that signify completion of this epic
+      placeholder: |
+        - [ ] All code passes linting and formatting
+        - [ ] Test coverage is at least 80%
+        - [ ] Documentation is complete
+        - [ ] All sub-tasks are completed
+    validations:
+      required: true
+      
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: The priority level for this epic
+      options:
+        - Highest
+        - High
+        - Medium
+        - Low
+        - Lowest
+      default: 2
+    validations:
+      required: true

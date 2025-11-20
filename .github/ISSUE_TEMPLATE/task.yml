@@ -1,0 +1,86 @@
+name: Task
+description: A technical task that needs to be completed
+title: ""
+labels: ["type: task", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for creating a Task! Please provide as much detail as possible to help with implementation.
+
+  - type: input
+    id: branch
+    attributes:
+      label: Branch
+      description: The branch name for this task (e.g., chore/refactor-utils)
+      placeholder: "chore/task-name"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: The priority level for this task
+      options:
+        - Highest
+        - High
+        - Medium
+        - Low
+        - Lowest
+      default: 2
+    validations:
+      required: true
+
+  - type: input
+    id: estimate
+    attributes:
+      label: Estimate
+      description: The estimated time to complete this task (e.g., 1 day)
+      placeholder: "2 days"
+    validations:
+      required: true
+
+  - type: input
+    id: parent-epic-or-story
+    attributes:
+      label: Parent Epic or Story
+      description: The parent epic or story this task belongs to (e.g., #123)
+      placeholder: "#123"
+    validations:
+      required: false
+      
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Detailed description of this task and what it aims to accomplish
+      placeholder: "Implement a utility function for..."
+    validations:
+      required: true
+      
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: List the criteria that must be met for this task to be considered complete
+      placeholder: |
+        - [ ] Function correctly handles...
+        - [ ] Edge cases are covered...
+        - [ ] Tests are implemented...
+    validations:
+      required: true
+      
+  - type: textarea
+    id: technical-requirements
+    attributes:
+      label: Technical Requirements
+      description: Technical details and requirements for implementation
+      placeholder: |
+        - Use TypeScript for implementation
+        - Create unit tests with vitest
+        - Follow existing code style
+    validations:
+      required: true

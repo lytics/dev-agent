@@ -1,0 +1,86 @@
+name: Story
+description: A user story describing functionality from the user's perspective
+title: ""
+labels: ["type: story", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for creating a Story! Please provide as much detail as possible to help with implementation.
+
+  - type: input
+    id: branch
+    attributes:
+      label: Branch
+      description: The branch name for this story (e.g., feat/repository-scanner)
+      placeholder: "feat/feature-name"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: The priority level for this story
+      options:
+        - Highest
+        - High
+        - Medium
+        - Low
+        - Lowest
+      default: 2
+    validations:
+      required: true
+
+  - type: input
+    id: estimate
+    attributes:
+      label: Estimate
+      description: The estimated time to complete this story (e.g., 2 days)
+      placeholder: "3 days"
+    validations:
+      required: true
+
+  - type: input
+    id: parent-epic
+    attributes:
+      label: Parent Epic
+      description: The parent epic this story belongs to (e.g., #123)
+      placeholder: "#123"
+    validations:
+      required: true
+      
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Detailed description of this story and what it aims to accomplish
+      placeholder: "Implement a..."
+    validations:
+      required: true
+      
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: List the criteria that must be met for this story to be considered complete
+      placeholder: |
+        - [ ] System correctly...
+        - [ ] Integration with...
+        - [ ] Error handling for...
+    validations:
+      required: true
+      
+  - type: textarea
+    id: technical-requirements
+    attributes:
+      label: Technical Requirements
+      description: Technical details and requirements for implementation
+      placeholder: |
+        - Use TypeScript Compiler API for parsing
+        - Implement caching mechanism
+        - Create utility functions for...
+    validations:
+      required: true

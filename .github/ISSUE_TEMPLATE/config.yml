@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Dev-Agent Documentation
+    url: https://github.com/lytics/dev-agent/blob/main/docs/README.md
+    about: Check the documentation before creating an issue.
+  - name: Contribution Guidelines
+    url: https://github.com/lytics/dev-agent/blob/main/CONTRIBUTING.md
+    about: Please read the contribution guidelines before creating an issue.
