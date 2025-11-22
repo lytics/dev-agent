@@ -8,7 +8,7 @@ import * as path from 'node:path';
 import { scanRepository } from '../scanner';
 import type { Document } from '../scanner/types';
 import { VectorStorage } from '../vector';
-import type { EmbeddingDocument, SearchOptions, SearchResult } from '../vector/types';
+import type { SearchOptions, SearchResult } from '../vector/types';
 import type {
   FileMetadata,
   IndexError,
@@ -18,6 +18,7 @@ import type {
   IndexStats,
   UpdateOptions,
 } from './types';
+import { getExtensionForLanguage, prepareDocumentsForEmbedding } from './utils';
 
 const INDEXER_VERSION = '1.0.0';
 const DEFAULT_STATE_PATH = '.dev-agent/indexer-state.json';
@@ -83,7 +84,7 @@ export class RepositoryIndexer {
 
       const scanResult = await scanRepository({
         repoRoot: this.config.repositoryPath,
-        include: options.languages?.map((lang) => `**/*.${this.getExtensionForLanguage(lang)}`),
+        include: options.languages?.map((lang) => `**/*.${getExtensionForLanguage(lang)}`),
         exclude: [...this.config.excludePatterns, ...(options.excludePatterns || [])],
         languages: options.languages,
       });
@@ -100,7 +101,7 @@ export class RepositoryIndexer {
         percentComplete: 33,
       });
 
-      const embeddingDocuments = this.prepareDocumentsForEmbedding(scanResult.documents);
+      const embeddingDocuments = prepareDocumentsForEmbedding(scanResult.documents);
 
       // Phase 3: Batch embed and store
       onProgress?.({
@@ -231,7 +232,7 @@ export class RepositoryIndexer {
     }
 
     // Index new documents
-    const embeddingDocuments = this.prepareDocumentsForEmbedding(scanResult.documents);
+    const embeddingDocuments = prepareDocumentsForEmbedding(scanResult.documents);
     await this.vectorStorage.addDocuments(embeddingDocuments);
 
     // Update state
@@ -291,41 +292,6 @@ export class RepositoryIndexer {
   /**
    * Prepare scanner documents for embedding
    */
-  private prepareDocumentsForEmbedding(documents: Document[]): EmbeddingDocument[] {
-    return documents.map((doc) => ({
-      id: doc.id,
-      text: this.formatDocumentText(doc),
-      metadata: {
-        path: doc.metadata.file,
-        type: doc.type,
-        language: doc.language,
-        name: doc.metadata.name,
-        startLine: doc.metadata.startLine,
-        endLine: doc.metadata.endLine,
-        exported: doc.metadata.exported,
-        signature: doc.metadata.signature,
-        docstring: doc.metadata.docstring,
-      },
-    }));
-  }
-
-  /**
-   * Format document text for better embedding quality
-   */
-  private formatDocumentText(doc: Document): string {
-    // Combine name and content for better semantic understanding
-    const parts: string[] = [];
-
-    if (doc.metadata.name) {
-      parts.push(`${doc.type}: ${doc.metadata.name}`);
-    }
-
-    if (doc.text) {
-      parts.push(doc.text);
-    }
-
-    return parts.join('\n\n');
-  }
 
   /**
    * Load indexer state from disk
@@ -469,18 +435,6 @@ export class RepositoryIndexer {
   /**
    * Get file extension for a language
    */
-  private getExtensionForLanguage(language: string): string {
-    const extensions: Record<string, string> = {
-      typescript: 'ts',
-      javascript: 'js',
-      python: 'py',
-      go: 'go',
-      rust: 'rs',
-      markdown: 'md',
-    };
-
-    return extensions[language.toLowerCase()] || language;
-  }
 }
 
 export * from './types';
