@@ -1,9 +1,11 @@
 // Export all modules
+
+export * from './api';
+export * from './context';
+export * from './github';
+export * from './indexer';
 export * from './scanner';
 export * from './vector';
-export * from './github';
-export * from './context';
-export * from './api';
 
 export interface CoreConfig {
   apiKey: string;
