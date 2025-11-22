@@ -1,35 +1,43 @@
-import type { Subagent, SubagentMessage, SubagentOptions } from '..';
+/**
+ * Planner Subagent = Prefrontal Cortex
+ * Plans and breaks down complex tasks (future implementation)
+ */
 
-export class PlannerSubagent implements Subagent {
-  private name: string = '';
-  private capabilities: string[] = [];
-  private active: boolean = false;
+import type { Agent, AgentContext, Message } from '../types';
 
-  async initialize(options: SubagentOptions): Promise<boolean> {
-    this.name = options.name;
-    this.capabilities = options.capabilities;
-    this.active = true;
-    return true;
+export class PlannerAgent implements Agent {
+  name: string = 'planner';
+  capabilities: string[] = ['plan', 'break-down-tasks'];
+
+  private context?: AgentContext;
+
+  async initialize(context: AgentContext): Promise<void> {
+    this.context = context;
+    this.name = context.agentName;
+    context.logger.info('Planner agent initialized');
   }
 
-  async handleMessage(message: SubagentMessage): Promise<SubagentMessage | null> {
-    if (!this.active) {
-      console.warn(`Planner subagent ${this.name} received message while inactive`);
-      return null;
+  async handleMessage(message: Message): Promise<Message | null> {
+    if (!this.context) {
+      throw new Error('Planner not initialized');
     }
 
-    if (message.type === 'request' && message.payload.action === 'plan') {
+    // TODO: Implement actual planning logic (ticket #8)
+    // For now, just acknowledge
+    this.context.logger.debug('Received message', { type: message.type });
+
+    if (message.type === 'request') {
       return {
+        id: `${message.id}-response`,
         type: 'response',
         sender: this.name,
         recipient: message.sender,
+        correlationId: message.id,
         payload: {
-          plan: [
-            { id: '1', task: 'Initial analysis', status: 'pending' },
-            { id: '2', task: 'Implementation plan', status: 'pending' },
-            { id: '3', task: 'Task breakdown', status: 'pending' },
-          ],
+          status: 'stub',
+          message: 'Planner stub - implementation pending',
         },
+        priority: message.priority,
         timestamp: Date.now(),
       };
     }
@@ -37,7 +45,12 @@ export class PlannerSubagent implements Subagent {
     return null;
   }
 
+  async healthCheck(): Promise<boolean> {
+    return !!this.context;
+  }
+
   async shutdown(): Promise<void> {
-    this.active = false;
+    this.context?.logger.info('Planner agent shutting down');
+    this.context = undefined;
   }
 }

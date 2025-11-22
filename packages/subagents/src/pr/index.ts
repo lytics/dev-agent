@@ -1,36 +1,43 @@
-import type { Subagent, SubagentMessage, SubagentOptions } from '..';
+/**
+ * PR/GitHub Subagent = Motor Cortex
+ * Manages GitHub PRs and issues (future implementation)
+ */
 
-export class PrSubagent implements Subagent {
-  private name: string = '';
-  private capabilities: string[] = [];
-  private active: boolean = false;
+import type { Agent, AgentContext, Message } from '../types';
 
-  async initialize(options: SubagentOptions): Promise<boolean> {
-    this.name = options.name;
-    this.capabilities = options.capabilities;
-    this.active = true;
-    return true;
+export class PrAgent implements Agent {
+  name: string = 'pr';
+  capabilities: string[] = ['create-pr', 'update-pr', 'manage-issues', 'comment'];
+
+  private context?: AgentContext;
+
+  async initialize(context: AgentContext): Promise<void> {
+    this.context = context;
+    this.name = context.agentName;
+    context.logger.info('PR agent initialized');
   }
 
-  async handleMessage(message: SubagentMessage): Promise<SubagentMessage | null> {
-    if (!this.active) {
-      console.warn(`PR subagent ${this.name} received message while inactive`);
-      return null;
+  async handleMessage(message: Message): Promise<Message | null> {
+    if (!this.context) {
+      throw new Error('PR agent not initialized');
     }
 
-    if (message.type === 'request' && message.payload.action === 'createPR') {
-      // This will use GitHub CLI in the real implementation
+    // TODO: Implement actual GitHub integration logic (ticket #10)
+    // For now, just acknowledge
+    this.context.logger.debug('Received message', { type: message.type });
+
+    if (message.type === 'request') {
       return {
+        id: `${message.id}-response`,
         type: 'response',
         sender: this.name,
         recipient: message.sender,
+        correlationId: message.id,
         payload: {
-          success: true,
-          prNumber: 123,
-          url: 'https://github.com/org/repo/pull/123',
-          title: message.payload.title || 'Automated PR',
-          description: message.payload.description || 'PR created by dev-agent',
+          status: 'stub',
+          message: 'PR agent stub - implementation pending',
         },
+        priority: message.priority,
         timestamp: Date.now(),
       };
     }
@@ -38,7 +45,12 @@ export class PrSubagent implements Subagent {
     return null;
   }
 
+  async healthCheck(): Promise<boolean> {
+    return !!this.context;
+  }
+
   async shutdown(): Promise<void> {
-    this.active = false;
+    this.context?.logger.info('PR agent shutting down');
+    this.context = undefined;
   }
 }
