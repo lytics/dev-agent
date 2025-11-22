@@ -13,6 +13,13 @@ out
 # TypeScript
 *.tsbuildinfo
 
+# Build artifacts in src (should only be in dist/)
+packages/*/src/**/*.js
+packages/*/src/**/*.d.ts
+packages/*/src/**/*.map
+!packages/*/src/**/*.test.js
+!packages/*/src/**/*.spec.js
+
 # Testing
 coverage
 

@@ -1,11 +1,17 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
 # Get staged files
-files=$(git diff --cached --name-only --diff-filter=ACMR "*.ts" "*.tsx" "*.js" "*.jsx" | xargs)
+files=$(git diff --cached --name-only --diff-filter=ACMR "*.ts" "*.tsx" "*.js" "*.jsx")
 
 if [ -n "$files" ]; then
-  echo "Running Biome on staged files: $files"
-  pnpm lint-staged $files
-  git add $files
+  echo "Running Biome on staged files..."
+  echo "$files" | xargs pnpm lint-staged
+  
+  # Re-add files after formatting
+  echo "$files" | xargs git add
 fi
 
 # Run TypeScript type check
+echo "Running type check..."
 pnpm typecheck

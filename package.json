@@ -15,7 +15,7 @@
     "format": "turbo format",
     "typecheck": "turbo typecheck",
     "prepare": "husky",
-    "lint-staged": "biome check --write --no-errors-on-unmatched --files",
+    "lint-staged": "biome check --write --no-errors-on-unmatched",
     "changeset": "changeset",
     "version": "changeset version",
     "release": "pnpm build && changeset publish"
