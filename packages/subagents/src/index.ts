@@ -1,25 +1,35 @@
-// Subagents package entry point
-export * from './coordinator';
-export * from './planner';
-export * from './explorer';
-export * from './pr';
+/**
+ * Subagent Coordinator Package
+ * Central Nervous System for orchestrating specialized AI agents
+ *
+ * Self-contained modules:
+ * - coordinator/  - Central nervous system
+ * - logger/       - Observability (future: @lytics/croak)
+ * - planner/      - Planning agent
+ * - explorer/     - Code exploration agent
+ * - pr/           - GitHub PR agent
+ */
 
-// Shared interfaces
-export interface SubagentOptions {
-  name: string;
-  capabilities: string[];
-}
+// Main coordinator module
+export { ContextManagerImpl, SubagentCoordinator, TaskQueue } from './coordinator';
+export { ExplorerAgent } from './explorer';
+// Logger module
+export { CoordinatorLogger } from './logger';
+// Agent modules (stubs for now)
+export { PlannerAgent } from './planner';
+export { PrAgent } from './pr';
 
-export interface SubagentMessage {
-  type: 'request' | 'response' | 'event';
-  sender: string;
-  recipient: string;
-  payload: Record<string, unknown>;
-  timestamp: number;
-}
-
-export interface Subagent {
-  initialize(options: SubagentOptions): Promise<boolean>;
-  handleMessage(message: SubagentMessage): Promise<SubagentMessage | null>;
-  shutdown(): Promise<void>;
-}
+// Types
+export type {
+  Agent,
+  AgentContext,
+  ContextManager,
+  CoordinatorOptions,
+  CoordinatorStats,
+  Logger,
+  LogLevel,
+  Message,
+  MessageType,
+  Task,
+  TaskStatus,
+} from './types';

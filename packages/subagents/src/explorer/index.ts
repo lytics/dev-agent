@@ -1,39 +1,43 @@
-import type { Subagent, SubagentMessage, SubagentOptions } from '..';
+/**
+ * Explorer Subagent = Visual Cortex
+ * Explores and analyzes code patterns (future implementation)
+ */
 
-export class ExplorerSubagent implements Subagent {
-  private name: string = '';
-  private capabilities: string[] = [];
-  private active: boolean = false;
+import type { Agent, AgentContext, Message } from '../types';
 
-  async initialize(options: SubagentOptions): Promise<boolean> {
-    this.name = options.name;
-    this.capabilities = options.capabilities;
-    this.active = true;
-    return true;
+export class ExplorerAgent implements Agent {
+  name: string = 'explorer';
+  capabilities: string[] = ['explore', 'analyze-patterns', 'find-similar'];
+
+  private context?: AgentContext;
+
+  async initialize(context: AgentContext): Promise<void> {
+    this.context = context;
+    this.name = context.agentName;
+    context.logger.info('Explorer agent initialized');
   }
 
-  async handleMessage(message: SubagentMessage): Promise<SubagentMessage | null> {
-    if (!this.active) {
-      console.warn(`Explorer subagent ${this.name} received message while inactive`);
-      return null;
+  async handleMessage(message: Message): Promise<Message | null> {
+    if (!this.context) {
+      throw new Error('Explorer not initialized');
     }
 
-    if (message.type === 'request' && message.payload.action === 'explore') {
+    // TODO: Implement actual exploration logic (ticket #9)
+    // For now, just acknowledge
+    this.context.logger.debug('Received message', { type: message.type });
+
+    if (message.type === 'request') {
       return {
+        id: `${message.id}-response`,
         type: 'response',
         sender: this.name,
         recipient: message.sender,
+        correlationId: message.id,
         payload: {
-          relatedFiles: [
-            { path: 'src/index.ts', relevance: 0.95 },
-            { path: 'src/utils/helpers.ts', relevance: 0.85 },
-            { path: 'src/components/main.ts', relevance: 0.75 },
-          ],
-          patterns: [
-            { name: 'Factory pattern', confidence: 0.9 },
-            { name: 'Singleton pattern', confidence: 0.8 },
-          ],
+          status: 'stub',
+          message: 'Explorer stub - implementation pending',
         },
+        priority: message.priority,
         timestamp: Date.now(),
       };
     }
@@ -41,7 +45,12 @@ export class ExplorerSubagent implements Subagent {
     return null;
   }
 
+  async healthCheck(): Promise<boolean> {
+    return !!this.context;
+  }
+
   async shutdown(): Promise<void> {
-    this.active = false;
+    this.context?.logger.info('Explorer agent shutting down');
+    this.context = undefined;
   }
 }
