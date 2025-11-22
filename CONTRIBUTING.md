@@ -1,6 +1,13 @@
-# Contributing to TS Monorepo
+# Contributing to Dev-Agent
 
-Thank you for considering contributing to our TypeScript monorepo! This document outlines the process for contributing and the standards we follow.
+Thank you for considering contributing to dev-agent! This document outlines the process for contributing and the standards we follow.
+
+## 🎯 **Core Values**
+
+1. **Testability First** - If it's hard to test, refactor it
+2. **Modularity** - Small, focused, reusable modules
+3. **100% Coverage on Utilities** - Pure functions should be fully tested
+4. **Atomic Commits** - Each commit should build and test independently
 
 ## Development Process
 
@@ -46,11 +53,56 @@ feat(core): add new API method for authentication
 3. Add the package to relevant workspace configurations.
 4. Update path mappings in the root `tsconfig.json`.
 
-## Testing
+## Testing & Testability
 
-- Write tests for all new features and bug fixes.
-- Run existing tests to ensure your changes don't break existing functionality.
-- Aim for good test coverage.
+### 📖 **Read First:** [TESTABILITY.md](./docs/TESTABILITY.md)
+
+Our comprehensive testability guide covers:
+- When and how to extract utilities
+- Organization patterns
+- Coverage targets
+- Real-world examples
+
+### **Quick Rules:**
+
+1. **Extract Pure Functions** to `utils/` modules
+   - ✅ DO: `utils/formatting.ts` with `formatDocument(doc: Document)`
+   - ❌ DON'T: Private methods in 500-line classes
+
+2. **Aim for 100% on Utilities**
+   - Pure functions are easy to test
+   - No mocks needed
+   - Foundation for everything else
+
+3. **No Non-Null Assertions (`!`)**
+   - Use guard clauses or optional chaining
+   - Makes code safer and more testable
+
+4. **Organize by Domain**
+   - ✅ `utils/strings.ts`, `utils/dates.ts`, `utils/validation.ts`
+   - ❌ `utils.ts` (500 lines of everything)
+
+### **Coverage Targets:**
+
+| Code Type | Target | Example |
+|-----------|--------|---------|
+| **Pure Utilities** | 100% | `formatDocument()`, `calculateCoverage()` |
+| **Integration** | >80% | `RepositoryIndexer`, `ExplorerAgent` |
+| **CLI/UI** | >60% | Command handlers, spinners |
+
+### **Before Submitting:**
+
+```bash
+# Run tests with coverage
+pnpm vitest run --coverage
+
+# Check specific package
+pnpm vitest run packages/core/src/indexer --coverage
+```
+
+- Write tests for all new features and bug fixes
+- Run existing tests to ensure your changes don't break existing functionality
+- See [TESTABILITY.md](./docs/TESTABILITY.md) for detailed guidelines
 
 ## Code Style
 
