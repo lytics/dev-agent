@@ -73,7 +73,7 @@ export interface ScanError {
 
 export interface ScanOptions {
   repoRoot: string;
-  exclude?: string[]; // Glob patterns to exclude
-  include?: string[]; // Glob patterns to include
-  languages?: string[]; // Limit to specific languages
+  exclude?: string[]; // Glob patterns to exclude (default: see getDefaultExclusions() - deps, build, cache, IDE, etc.)
+  include?: string[]; // Glob patterns to include (default: all supported extensions)
+  languages?: string[]; // Limit to specific languages (default: all registered scanners)
 }

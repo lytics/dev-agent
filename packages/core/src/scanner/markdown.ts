@@ -17,7 +17,7 @@ export class MarkdownScanner implements Scanner {
   };
 
   canHandle(filePath: string): boolean {
-    const ext = path.extname(filePath);
+    const ext = path.extname(filePath).toLowerCase();
     return ext === '.md' || ext === '.mdx';
   }
 

@@ -41,6 +41,20 @@ export class ScannerRegistry {
   }
 
   /**
+   * Get all supported file extensions
+   */
+  getSupportedExtensions(): Set<string> {
+    const extensions = new Set<string>();
+    for (const scanner of this.scanners.values()) {
+      const langExtensions = this.getExtensionsForLanguage(scanner.language);
+      for (const ext of langExtensions) {
+        extensions.add(ext);
+      }
+    }
+    return extensions;
+  }
+
+  /**
    * Scan repository with all registered scanners
    */
   async scanRepository(options: ScanOptions): Promise<ScanResult> {
@@ -53,7 +67,7 @@ export class ScannerRegistry {
     // Find all files
     const files = await globby(patterns, {
       cwd: options.repoRoot,
-      ignore: options.exclude || ['node_modules', 'dist', 'build', '.git'],
+      ignore: options.exclude || this.getDefaultExclusions(),
       absolute: false,
     });
 
@@ -117,10 +131,82 @@ export class ScannerRegistry {
     return Array.from(extensions).map((ext) => `**/*${ext}`);
   }
 
+  /**
+   * Get default exclusion patterns based on industry best practices
+   * Excludes dependencies, build artifacts, caches, IDE files, and other non-source files
+   */
+  private getDefaultExclusions(): string[] {
+    return [
+      // Dependencies
+      '**/node_modules/**',
+      '**/bower_components/**',
+      '**/vendor/**',
+      '**/third_party/**',
+
+      // Build outputs
+      '**/dist/**',
+      '**/build/**',
+      '**/out/**',
+      '**/target/**',
+      '**/.next/**',
+      '**/.turbo/**',
+      '**/.nuxt/**',
+
+      // Version control
+      '**/.git/**',
+      '**/.svn/**',
+      '**/.hg/**',
+
+      // IDE/Editor
+      '**/.vscode/**',
+      '**/.idea/**',
+      '**/.vs/**',
+      '**/.fleet/**',
+
+      // Cache
+      '**/.cache/**',
+      '**/.parcel-cache/**',
+      '**/.vite/**',
+      '**/.eslintcache',
+
+      // Test coverage
+      '**/coverage/**',
+      '**/.nyc_output/**',
+
+      // Logs & temp
+      '**/logs/**',
+      '**/tmp/**',
+      '**/temp/**',
+      '**/*.log',
+      '**/*.tmp',
+
+      // Lock files (large, not useful for semantic search)
+      '**/package-lock.json',
+      '**/yarn.lock',
+      '**/pnpm-lock.yaml',
+      '**/Cargo.lock',
+      '**/Gemfile.lock',
+
+      // OS files
+      '**/.DS_Store',
+      '**/Thumbs.db',
+
+      // Test fixtures & snapshots
+      '**/__fixtures__/**',
+      '**/__snapshots__/**',
+      '**/fixtures/**',
+
+      // Analysis/Reports (common in AI agent projects)
+      '**/analysis-reports/**',
+      '**/.research/**',
+      '**/benchmarks/**',
+    ];
+  }
+
   private getExtensionsForLanguage(language: string): string[] {
     const extensionMap: Record<string, string[]> = {
-      typescript: ['.ts', '.tsx'],
-      javascript: ['.js', '.jsx'],
+      typescript: ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'], // TypeScript scanner handles JS too
+      javascript: ['.js', '.jsx', '.mjs', '.cjs'],
       go: ['.go'],
       python: ['.py'],
       rust: ['.rs'],

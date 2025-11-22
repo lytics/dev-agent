@@ -28,8 +28,15 @@ export class TypeScriptScanner implements Scanner {
   private project: Project | null = null;
 
   canHandle(filePath: string): boolean {
-    const ext = path.extname(filePath);
-    return ext === '.ts' || ext === '.tsx';
+    const ext = path.extname(filePath).toLowerCase();
+    return (
+      ext === '.ts' ||
+      ext === '.tsx' ||
+      ext === '.js' ||
+      ext === '.jsx' ||
+      ext === '.mjs' ||
+      ext === '.cjs'
+    );
   }
 
   async scan(files: string[], repoRoot: string): Promise<Document[]> {
