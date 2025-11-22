@@ -27,6 +27,8 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "@lancedb/lancedb": "^0.22.3",
+    "@xenova/transformers": "^2.17.2",
     "globby": "^16.0.0",
     "remark": "^15.0.1",
     "remark-parse": "^11.0.0",
