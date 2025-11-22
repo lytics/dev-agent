@@ -3,6 +3,7 @@
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { cleanCommand } from './commands/clean.js';
+import { exploreCommand } from './commands/explore.js';
 import { indexCommand } from './commands/index.js';
 import { initCommand } from './commands/init.js';
 import { searchCommand } from './commands/search.js';
@@ -20,6 +21,7 @@ program
 program.addCommand(initCommand);
 program.addCommand(indexCommand);
 program.addCommand(searchCommand);
+program.addCommand(exploreCommand);
 program.addCommand(updateCommand);
 program.addCommand(statsCommand);
 program.addCommand(cleanCommand);
