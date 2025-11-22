@@ -12,6 +12,7 @@
     "lint": "turbo lint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "clean": "turbo clean && rm -rf node_modules",
     "format": "turbo format",
     "typecheck": "turbo typecheck",
