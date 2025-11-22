@@ -120,6 +120,9 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.1
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
