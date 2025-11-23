@@ -33,8 +33,29 @@ export type {
 } from './explorer/types';
 // Logger module
 export { CoordinatorLogger } from './logger';
-// Agent modules (stubs for now)
+// Agent modules
 export { PlannerAgent } from './planner';
+// Planner utilities
+export {
+  addEstimatesToTasks,
+  breakdownIssue,
+  calculateTotalEstimate,
+  cleanDescription,
+  estimateTaskHours,
+  extractAcceptanceCriteria,
+  extractEstimate,
+  extractTechnicalRequirements,
+  fetchGitHubIssue,
+  formatEstimate,
+  formatJSON,
+  formatMarkdown,
+  formatPretty,
+  groupTasksByPhase,
+  inferPriority,
+  isGhInstalled,
+  isGitHubRepo,
+  validateTasks,
+} from './planner/utils';
 export { PrAgent } from './pr';
 // Types - Coordinator
 export type {

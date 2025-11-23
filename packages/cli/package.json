@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@lytics/dev-agent-core": "workspace:*",
+    "@lytics/dev-agent-subagents": "workspace:*",
     "chalk": "^5.3.0",
     "ora": "^8.0.1"
   },
