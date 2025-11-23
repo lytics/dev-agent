@@ -354,33 +354,209 @@ const response = await explorer.handleMessage({
 
 ## Integration with Coordinator
 
-The Explorer works seamlessly with the Subagent Coordinator:
+The Explorer integrates seamlessly with the Subagent Coordinator, allowing it to work alongside other agents in a coordinated system.
+
+### Complete Integration Example
 
 ```typescript
-import { SubagentCoordinator, ExplorerAgent } from '@lytics/dev-agent-subagents';
+import { 
+  SubagentCoordinator, 
+  ExplorerAgent, 
+  ContextManagerImpl 
+} from '@lytics/dev-agent-subagents';
+import { RepositoryIndexer } from '@lytics/dev-agent-core';
 
-const coordinator = new SubagentCoordinator();
-await coordinator.initialize({
+// 1. Initialize Repository Indexer
+const indexer = new RepositoryIndexer({
   repositoryPath: './my-repo',
   vectorStorePath: './.dev-agent/vectors',
 });
+await indexer.initialize();
 
-// Register Explorer
-coordinator.registerAgent(new ExplorerAgent());
+// Index the repository
+await indexer.index({ force: false });
 
-// Send exploration request via coordinator
+// 2. Create Coordinator
+const coordinator = new SubagentCoordinator({
+  maxConcurrentTasks: 5,
+  logLevel: 'info',
+  healthCheckInterval: 60000, // Health checks every minute
+});
+
+// 3. Share Indexer Context
+coordinator.getContextManager().setIndexer(indexer);
+
+// 4. Register Explorer Agent
+const explorer = new ExplorerAgent();
+await coordinator.registerAgent(explorer);
+
+// 5. Start Coordinator
+coordinator.start();
+
+// 6. Send Exploration Requests via Coordinator
 const response = await coordinator.sendMessage({
-  id: 'explore-1',
   type: 'request',
-  sender: 'user',
+  sender: 'app',
   recipient: 'explorer',
   payload: {
     action: 'pattern',
-    query: 'authentication',
+    query: 'authentication logic',
+    limit: 10,
   },
-  timestamp: Date.now(),
+});
+
+console.log(response?.payload);
+
+// 7. Or Submit Tasks for Async Execution
+const taskId = coordinator.submitTask({
+  type: 'exploration',
+  agentName: 'explorer',
+  payload: {
+    action: 'similar',
+    filePath: 'src/auth/login.ts',
+  },
+  priority: 8, // Higher priority
+});
+
+// Check task status
+const task = coordinator.getTask(taskId);
+console.log('Task status:', task?.status);
+
+// 8. Monitor Health
+setInterval(async () => {
+  const stats = coordinator.getStats();
+  console.log('Coordinator stats:', stats);
+  
+  const healthy = await explorer.healthCheck();
+  console.log('Explorer healthy:', healthy);
+}, 30000);
+
+// 9. Graceful Shutdown
+process.on('SIGINT', async () => {
+  await coordinator.stop();
+  await indexer.close();
+  process.exit(0);
 });
 ```
+
+### Benefits of Coordinator Integration
+
+✅ **Shared Context** - Indexer and other resources shared across agents
+✅ **Task Queue** - Async execution with priority and retries
+✅ **Health Monitoring** - Automated health checks
+✅ **Error Handling** - Centralized error responses
+✅ **Message Routing** - Automatic routing to correct agents
+✅ **Statistics** - Track message counts, response times, task status
+
+### Task-Based Exploration
+
+Submit exploration tasks for async execution:
+
+```typescript
+// Pattern search task
+const taskId1 = coordinator.submitTask({
+  type: 'pattern-search',
+  agentName: 'explorer',
+  payload: {
+    action: 'pattern',
+    query: 'error handling',
+  },
+  priority: 10,      // High priority
+  maxRetries: 3,     // Retry on failure
+});
+
+// Similar code task
+const taskId2 = coordinator.submitTask({
+  type: 'similar-code',
+  agentName: 'explorer',
+  payload: {
+    action: 'similar',
+    filePath: 'src/handlers/api.ts',
+  },
+  priority: 5,
+});
+
+// Check task completion
+const task = coordinator.getTask(taskId1);
+if (task?.status === 'completed') {
+  console.log('Results:', task.result);
+}
+```
+
+### Coordinator Statistics
+
+Monitor system health and performance:
+
+```typescript
+const stats = coordinator.getStats();
+
+console.log({
+  agentCount: stats.agentCount,           // Number of registered agents
+  messagesSent: stats.messagesSent,       // Total messages sent
+  messagesReceived: stats.messagesReceived,
+  messageErrors: stats.messageErrors,
+  tasksCompleted: stats.tasksCompleted,
+  tasksFailed: stats.tasksFailed,
+  avgResponseTime: stats.avgResponseTime, // In milliseconds
+  uptime: stats.uptime,                   // In milliseconds
+});
+```
+
+### Multi-Agent Coordination
+
+Explorer works with other agents:
+
+```typescript
+// Register multiple agents
+await coordinator.registerAgent(new ExplorerAgent());
+await coordinator.registerAgent(new PlannerAgent());
+await coordinator.registerAgent(new PrAgent());
+
+// Explorer can send messages to other agents
+const response = await coordinator.sendMessage({
+  type: 'request',
+  sender: 'explorer',
+  recipient: 'planner',
+  payload: {
+    action: 'analyze',
+    codePatterns: explorerResults,
+  },
+});
+```
+
+### Coordinator Health Checks
+
+The coordinator automatically performs health checks:
+
+```typescript
+const coordinator = new SubagentCoordinator({
+  healthCheckInterval: 60000, // Check every minute
+});
+
+// Health checks run automatically
+// Logs warnings if agents become unhealthy
+
+// Manual health check
+const healthy = await explorer.healthCheck();
+```
+
+### Integration Tests
+
+The Coordinator→Explorer integration is fully tested:
+
+```bash
+# Run integration tests
+pnpm test packages/subagents/src/coordinator/coordinator.integration.test.ts
+```
+
+**Test Coverage:**
+- ✅ Agent registration and initialization
+- ✅ Message routing (pattern, similar, relationships, insights)
+- ✅ Task execution via task queue
+- ✅ Health checks and monitoring
+- ✅ Context sharing (indexer access)
+- ✅ Error handling and edge cases
+- ✅ Graceful shutdown
 
 ## Error Handling
 
