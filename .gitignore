@@ -56,3 +56,7 @@ pnpm-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Dev-agent local data
+.dev-agent.json
+.dev-agent/
