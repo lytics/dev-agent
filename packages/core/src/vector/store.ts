@@ -93,15 +93,28 @@ export class LanceDBVectorStore implements VectorStore {
 
     try {
       // Perform vector search
+      // LanceDB uses L2 distance by default, returning lower values for more similar vectors
       const results = await this.table.search(queryEmbedding).limit(limit).toArray();
 
       // Transform results
+      // Convert L2 distance to a similarity score (0-1 range)
+      // For normalized embeddings, L2 distance ≈ sqrt(2 * (1 - cosine_similarity))
+      // So cosine_similarity ≈ 1 - (L2_distance^2 / 2)
+      // We'll use an exponential decay to convert distance to similarity
       return results
-        .map((result) => ({
-          id: result.id as string,
-          score: result._distance ? 1 - result._distance : 0, // Convert distance to similarity
-          metadata: JSON.parse(result.metadata as string) as Record<string, unknown>,
-        }))
+        .map((result) => {
+          const distance =
+            result._distance !== undefined ? result._distance : Number.POSITIVE_INFINITY;
+          // Use exponential decay: score = e^(-distance^2)
+          // This gives scores close to 1 for distance≈0, and approaches 0 for large distances
+          const score = Math.exp(-(distance * distance));
+
+          return {
+            id: result.id as string,
+            score,
+            metadata: JSON.parse(result.metadata as string) as Record<string, unknown>,
+          };
+        })
         .filter((result) => result.score >= scoreThreshold);
     } catch (error) {
       throw new Error(

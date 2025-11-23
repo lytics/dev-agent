@@ -62,9 +62,9 @@ export const searchCommand = new Command('search')
         const metadata = result.metadata;
         const score = (result.score * 100).toFixed(1);
 
-        // Extract file info
-        const file = metadata.file as string;
-        const relativePath = path.relative(config.repositoryPath, file);
+        // Extract file info (metadata uses 'path', not 'file')
+        const filePath = (metadata.path || metadata.file) as string;
+        const relativePath = filePath ? path.relative(config.repositoryPath, filePath) : 'unknown';
         const startLine = metadata.startLine as number;
         const endLine = metadata.endLine as number;
         const name = metadata.name as string;
