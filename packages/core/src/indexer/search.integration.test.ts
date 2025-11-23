@@ -1,13 +1,20 @@
 /**
  * Integration tests for search functionality
  * Tests against the dev-agent repository's indexed data
+ *
+ * These tests are skipped in CI by default (require pre-indexed data).
+ * Set RUN_INTEGRATION=true to run them in CI.
+ *
+ * To run locally: `dev index .` first, then run tests.
  */
 
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RepositoryIndexer } from './index';
 
-describe('RepositoryIndexer Search Integration', () => {
+const shouldSkip = process.env.CI === 'true' && !process.env.RUN_INTEGRATION;
+
+describe.skipIf(shouldSkip)('RepositoryIndexer Search Integration', () => {
   let indexer: RepositoryIndexer;
   const repoRoot = path.resolve(__dirname, '../../../..');
   const vectorPath = path.join(repoRoot, '.dev-agent/vectors.lance');
