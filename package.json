@@ -28,11 +28,11 @@
     "@commitlint/cli": "^20.1.0",
     "@commitlint/config-conventional": "^20.0.0",
     "@tsconfig/node-lts": "^22.0.0",
+    "@vitest/coverage-v8": "^4.0.3",
     "husky": "^9.0.11",
     "turbo": "^2.5.8",
     "typescript": "^5.3.3",
-    "vitest": "^4.0.3",
-    "@vitest/coverage-v8": "^4.0.3"
+    "vitest": "^4.0.3"
   },
   "packageManager": "pnpm@8.15.4",
   "engines": {
