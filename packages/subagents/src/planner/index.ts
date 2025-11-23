@@ -87,30 +87,110 @@ export class PlannerAgent implements Agent {
       throw new Error('Planner not initialized');
     }
 
-    const { logger } = this.context;
+    const { logger, contextManager } = this.context;
+    const useExplorer = request.useExplorer ?? true;
+    const detailLevel = request.detailLevel ?? 'simple';
 
-    // TODO: Implement plan creation
-    // 1. Fetch GitHub issue using gh CLI
+    logger.info('Creating plan for issue', {
+      issueNumber: request.issueNumber,
+      useExplorer,
+      detailLevel,
+    });
+
+    // Import utilities
+    const {
+      fetchGitHubIssue,
+      extractAcceptanceCriteria,
+      extractTechnicalRequirements,
+      inferPriority,
+      cleanDescription,
+      breakdownIssue,
+      addEstimatesToTasks,
+      calculateTotalEstimate,
+    } = await import('./utils/index.js');
+
+    // 1. Fetch GitHub issue
+    const issue = await fetchGitHubIssue(request.issueNumber);
+
     // 2. Parse issue content
+    const acceptanceCriteria = extractAcceptanceCriteria(issue.body);
+    const technicalReqs = extractTechnicalRequirements(issue.body);
+    const priority = inferPriority(issue.labels);
+    const description = cleanDescription(issue.body);
+
+    logger.debug('Parsed issue', {
+      criteriaCount: acceptanceCriteria.length,
+      reqsCount: technicalReqs.length,
+      priority,
+    });
+
     // 3. Break down into tasks
+    let tasks = breakdownIssue(issue, acceptanceCriteria, {
+      detailLevel,
+      maxTasks: detailLevel === 'simple' ? 8 : 15,
+      includeEstimates: false,
+    });
+
     // 4. If useExplorer, find relevant code for each task
-    // 5. Estimate effort
+    if (useExplorer) {
+      const indexer = contextManager.getIndexer();
+      if (indexer) {
+        logger.debug('Finding relevant code with Explorer');
+
+        for (const task of tasks) {
+          try {
+            // Search for relevant code using task description
+            const results = await indexer.search(task.description, {
+              limit: 3,
+              scoreThreshold: 0.6,
+            });
+
+            task.relevantCode = results.map((r) => ({
+              path: (r.metadata as { path?: string }).path || '',
+              reason: 'Similar pattern found',
+              score: r.score,
+              type: (r.metadata as { type?: string }).type,
+              name: (r.metadata as { name?: string }).name,
+            }));
+
+            logger.debug('Found relevant code', {
+              task: task.description,
+              matches: task.relevantCode.length,
+            });
+          } catch (error) {
+            logger.warn('Failed to find relevant code for task', {
+              task: task.description,
+              error: (error as Error).message,
+            });
+            // Continue without Explorer context
+          }
+        }
+      } else {
+        logger.warn('Explorer requested but indexer not available');
+      }
+    }
+
+    // 5. Add effort estimates
+    tasks = addEstimatesToTasks(tasks);
+    const totalEstimate = calculateTotalEstimate(tasks);
+
+    logger.info('Plan created', {
+      taskCount: tasks.length,
+      totalEstimate,
+    });
+
     // 6. Return structured plan
-
-    logger.info('Creating plan for issue', { issueNumber: request.issueNumber });
-
-    // Placeholder implementation
     const plan: Plan = {
       issueNumber: request.issueNumber,
-      title: 'Placeholder',
-      description: 'TODO: Implement',
-      tasks: [],
-      totalEstimate: '0 days',
-      priority: 'medium',
+      title: issue.title,
+      description,
+      tasks,
+      totalEstimate,
+      priority,
       metadata: {
         generatedAt: new Date().toISOString(),
-        explorerUsed: request.useExplorer ?? true,
-        strategy: 'sequential',
+        explorerUsed: useExplorer && !!contextManager.getIndexer(),
+        strategy: request.strategy || 'sequential',
       },
     };
 
