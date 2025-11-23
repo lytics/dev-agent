@@ -72,6 +72,7 @@ explore
   .description('Find code similar to a file')
   .argument('<file>', 'File path')
   .option('-l, --limit <number>', 'Number of results', '5')
+  .option('-t, --threshold <number>', 'Similarity threshold (0-1)', '0.5')
   .action(async (file: string, options) => {
     const spinner = ora('Finding similar code...').start();
 
@@ -84,19 +85,34 @@ explore
         return;
       }
 
+      // Prepare file for search (read content, resolve paths)
+      spinner.text = 'Reading file content...';
+      const { prepareFileForSearch } = await import('../utils/file.js');
+
+      let fileInfo: Awaited<ReturnType<typeof prepareFileForSearch>>;
+      try {
+        fileInfo = await prepareFileForSearch(config.repositoryPath, file);
+      } catch (error) {
+        spinner.fail((error as Error).message);
+        process.exit(1);
+        return;
+      }
+
       const indexer = new RepositoryIndexer(config);
       await indexer.initialize();
 
-      const results = await indexer.search(file, {
+      // Search using file content, not filename
+      spinner.text = 'Searching for similar code...';
+      const results = await indexer.search(fileInfo.content, {
         limit: Number.parseInt(options.limit, 10) + 1,
-        scoreThreshold: 0.7,
+        scoreThreshold: Number.parseFloat(options.threshold),
       });
 
-      // Filter out the file itself
+      // Filter out the file itself (exact path match)
       const similar = results
         .filter((r) => {
           const meta = r.metadata as { path: string };
-          return !meta.path.includes(file);
+          return meta.path !== fileInfo.relativePath;
         })
         .slice(0, Number.parseInt(options.limit, 10));
 
