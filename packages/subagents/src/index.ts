@@ -13,13 +13,30 @@
 // Main coordinator module
 export { ContextManagerImpl, SubagentCoordinator, TaskQueue } from './coordinator';
 export { ExplorerAgent } from './explorer';
+// Types - Explorer
+export type {
+  CodeInsights,
+  CodeRelationship,
+  ExplorationAction,
+  ExplorationError,
+  ExplorationRequest,
+  ExplorationResult,
+  InsightsRequest,
+  InsightsResult,
+  PatternFrequency,
+  PatternResult,
+  PatternSearchRequest,
+  RelationshipRequest,
+  RelationshipResult,
+  SimilarCodeRequest,
+  SimilarCodeResult,
+} from './explorer/types';
 // Logger module
 export { CoordinatorLogger } from './logger';
 // Agent modules (stubs for now)
 export { PlannerAgent } from './planner';
 export { PrAgent } from './pr';
-
-// Types
+// Types - Coordinator
 export type {
   Agent,
   AgentContext,
