@@ -156,39 +156,64 @@ pnpm build
 
 ### Quick Start
 
+**For Local Development:**
+
+```bash
+# Link the CLI globally for local testing
+cd packages/cli
+npm link
+
+# Now you can use 'dev' anywhere
+cd ~/your-project
+dev init
+dev index .
+```
+
+**Basic Commands:**
+
 ```bash
 # Index your repository
-dev-agent index
+dev index .
 
-# Search with beautiful output
-dev-agent search "authentication logic"
+# Semantic search (natural language queries work!)
+dev search "how do agents communicate"
+dev search "vector embeddings"
+dev search "error handling" --threshold 0.3
 
-# Get AI help planning work
-dev-agent plan --issue 42
+# Explore code patterns
+dev explore pattern "test coverage utilities" --limit 5
+dev explore similar path/to/file.ts
 
-# Discover patterns in your codebase  
-dev-agent explore "error handling patterns"
-
-# Create PR with AI-generated description
-dev-agent pr create
-
-# JSON output for scripting
-dev-agent search "auth" --json | jq '.results[].file'
+# View statistics
+dev stats
 ```
 
-**Example output:**
-```
-🔍 Searching for "authentication"...
+**Real Example Output:**
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📄 auth/oauth.ts:45-67 (score: 0.92)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   export class OAuth2Service {
-     authenticate(code: string) { ... }
-   }
+```bash
+$ dev search "vector embeddings" --threshold 0.3 --limit 3
 
-✨ Found 5 results in 42ms
+1. EmbeddingProvider (58.5% match)
+   File: packages/core/src/vector/types.ts:36-54
+   Signature: interface EmbeddingProvider
+   Doc: Generates vector embeddings from text
+
+2. EmbeddingDocument (51.0% match)
+   File: packages/core/src/vector/types.ts:8-12
+   Signature: interface EmbeddingDocument
+
+3. VectorStore (47.9% match)
+   File: packages/core/src/vector/types.ts:60-97
+   Signature: interface VectorStore
+   Doc: Stores and retrieves vector embeddings
+
+✔ Found 3 result(s)
 ```
+
+**Tips for Better Results:**
+- **Use natural language**: "how do agents communicate" works better than "agent message"
+- **Adjust thresholds**: Default is 0.7 (precise), use 0.25-0.4 for exploration
+- **Exact matches score 70-90%**: Semantic matches score 25-60%
 
 ### Current Status
 
