@@ -71,7 +71,7 @@ export function inferPriority(labels: string[]): 'low' | 'medium' | 'high' {
  * Looks for patterns like "2 days", "3h", "1 week"
  */
 export function extractEstimate(text: string): string | null {
-  const patterns = [/(\d+)\s*(day|days|d)/i, /(\d+)\s*(hour|hours|h)/i, /(\d+)\s*(week|weeks|w)/i];
+  const patterns = [/\d+\s*(?:days?|d)/i, /\d+\s*(?:hours?|h)/i, /\d+\s*(?:weeks?|w)/i];
 
   for (const pattern of patterns) {
     const match = text.match(pattern);
