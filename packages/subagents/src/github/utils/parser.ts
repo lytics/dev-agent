@@ -15,7 +15,7 @@ export function extractIssueReferences(text: string): number[] {
 
   for (const match of matches) {
     const num = Number.parseInt(match[1] || match[2], 10);
-    if (!Number.isNaN(num)) {
+    if (!Number.isNaN(num) && num > 0) {
       numbers.add(num);
     }
   }
@@ -45,12 +45,10 @@ export function extractFilePaths(text: string): string[] {
     const matches = text.matchAll(pattern);
     for (const match of matches) {
       const path = match[1] || match[0];
-      if (path?.includes('/')) {
-        // Clean up the path
-        const cleaned = path.trim().replace(/^[`'"]+|[`'"]+$/g, '');
-        if (cleaned.length > 3 && cleaned.length < 200) {
-          paths.add(cleaned);
-        }
+      // Clean up the path
+      const cleaned = path.trim().replace(/^[`'"]+|[`'"]+$/g, '');
+      if (cleaned.length > 3 && cleaned.length < 200) {
+        paths.add(cleaned);
       }
     }
   }
@@ -67,6 +65,23 @@ export function extractMentions(text: string): string[] {
   const mentions = new Set<string>();
 
   for (const match of matches) {
+    const index = match.index || 0;
+    const fullMatch = match[0];
+
+    // Don't match if preceded by alphanumeric (email)
+    if (index > 0) {
+      const prevChar = text.charAt(index - 1);
+      if (/[a-zA-Z0-9]/.test(prevChar)) {
+        continue;
+      }
+    }
+
+    // Don't match if followed by a dot (email domain)
+    const nextChar = text.charAt(index + fullMatch.length);
+    if (nextChar === '.') {
+      continue;
+    }
+
     mentions.add(match[1]);
   }
 
@@ -93,10 +108,10 @@ export function extractUrls(text: string): string[] {
  */
 export function extractGitHubReferences(urls: string[]): {
   issues: number[];
-  prs: number[];
+  pullRequests: number[];
 } {
   const issues = new Set<number>();
-  const prs = new Set<number>();
+  const pullRequests = new Set<number>();
 
   for (const url of urls) {
     // Match issue URLs: https://github.com/owner/repo/issues/123
@@ -108,13 +123,13 @@ export function extractGitHubReferences(urls: string[]): {
     // Match PR URLs: https://github.com/owner/repo/pull/123
     const prMatch = url.match(/github\.com\/[^/]+\/[^/]+\/pull\/(\d+)/);
     if (prMatch) {
-      prs.add(Number.parseInt(prMatch[1], 10));
+      pullRequests.add(Number.parseInt(prMatch[1], 10));
     }
   }
 
   return {
     issues: Array.from(issues).sort((a, b) => a - b),
-    prs: Array.from(prs).sort((a, b) => a - b),
+    pullRequests: Array.from(pullRequests).sort((a, b) => a - b),
   };
 }
 
@@ -139,7 +154,7 @@ export function enrichDocument(document: GitHubDocument): GitHubDocument {
 
   // Combine all issue/PR references
   const allIssues = [...new Set([...issueRefs, ...githubRefs.issues])];
-  const allPRs = [...new Set(githubRefs.prs)];
+  const allPRs = [...new Set(githubRefs.pullRequests)];
 
   // Remove self-reference
   const relatedIssues = allIssues.filter((n) => n !== document.number);
@@ -159,7 +174,14 @@ export function enrichDocument(document: GitHubDocument): GitHubDocument {
  */
 export function matchesQuery(document: GitHubDocument, query: string): boolean {
   const lowerQuery = query.toLowerCase();
-  const searchableText = [document.title, document.body, ...document.labels, document.author]
+  const searchableText = [
+    document.title,
+    document.body,
+    ...document.labels,
+    document.author,
+    document.number.toString(),
+    `#${document.number}`,
+  ]
     .join(' ')
     .toLowerCase();
 
@@ -173,20 +195,21 @@ export function calculateRelevance(document: GitHubDocument, query: string): num
   const lowerQuery = query.toLowerCase();
   let score = 0;
 
-  // Title match (highest weight)
-  if (document.title.toLowerCase().includes(lowerQuery)) {
-    score += 10;
-  }
+  const titleLower = document.title.toLowerCase();
+  const bodyLower = document.body.toLowerCase();
 
-  // Body match
-  if (document.body.toLowerCase().includes(lowerQuery)) {
-    score += 5;
-  }
+  // Count occurrences in title (highest weight: 20 per match)
+  const titleMatches = (titleLower.match(new RegExp(lowerQuery, 'g')) || []).length;
+  score += titleMatches * 20;
+
+  // Count occurrences in body (5 per match)
+  const bodyMatches = (bodyLower.match(new RegExp(lowerQuery, 'g')) || []).length;
+  score += bodyMatches * 5;
 
   // Label match
   for (const label of document.labels) {
     if (label.toLowerCase().includes(lowerQuery)) {
-      score += 3;
+      score += 10;
     }
   }
 
@@ -259,7 +282,7 @@ export function extractKeywords(text: string, maxKeywords = 10): string[] {
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, ' ')
     .split(/\s+/)
-    .filter((word) => word.length > 3 && !stopWords.has(word));
+    .filter((word) => word.length >= 3 && !stopWords.has(word));
 
   // Count frequency
   const frequency = new Map<string, number>();
