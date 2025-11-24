@@ -6,40 +6,58 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { RepositoryIndexer } from '@lytics/dev-agent-core';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GitHubAgentConfig } from '../github/agent';
 import { GitHubAgent } from '../github/agent';
-import type { GitHubContextRequest, GitHubContextResult } from '../github/types';
+import type { GitHubContextRequest, GitHubContextResult, GitHubDocument } from '../github/types';
 import { SubagentCoordinator } from './coordinator';
+
+// Mock GitHub utilities to avoid actual gh CLI calls
+vi.mock('../github/utils/index', () => ({
+  fetchAllDocuments: vi.fn(() => [
+    {
+      type: 'issue',
+      number: 1,
+      title: 'Test Issue',
+      body: 'Test body',
+      state: 'open',
+      author: 'testuser',
+      labels: [],
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-01T00:00:00Z',
+      url: 'https://github.com/test/repo/issues/1',
+      relatedIssues: [],
+      relatedPRs: [],
+      linkedFiles: [],
+      mentions: [],
+    },
+  ]),
+  enrichDocument: vi.fn((doc: GitHubDocument) => doc),
+  getCurrentRepository: vi.fn(() => 'lytics/dev-agent'),
+  calculateRelevance: vi.fn(() => 0.8),
+  matchesQuery: vi.fn(() => true),
+}));
 
 describe('Coordinator → GitHub Integration', () => {
   let coordinator: SubagentCoordinator;
   let github: GitHubAgent;
   let tempDir: string;
-  let codeIndexer: RepositoryIndexer;
 
   beforeEach(async () => {
     // Create temp directory
     tempDir = await mkdtemp(join(tmpdir(), 'gh-coordinator-test-'));
-
-    // Initialize code indexer
-    codeIndexer = new RepositoryIndexer({
-      repositoryPath: process.cwd(),
-      vectorStorePath: join(tempDir, '.vectors'),
-    });
-    await codeIndexer.initialize();
 
     // Create coordinator
     coordinator = new SubagentCoordinator({
       logLevel: 'error', // Reduce noise in tests
     });
 
-    // Create GitHub agent
+    // Create GitHub agent with vector storage config
     const config: GitHubAgentConfig = {
       repositoryPath: process.cwd(),
-      codeIndexer,
-      storagePath: join(tempDir, '.github-index'),
+      vectorStorePath: join(tempDir, '.github-vectors'),
+      statePath: join(tempDir, 'github-state.json'),
+      autoUpdate: false, // Disable for tests
     };
     github = new GitHubAgent(config);
 
@@ -49,7 +67,6 @@ describe('Coordinator → GitHub Integration', () => {
 
   afterEach(async () => {
     await coordinator.stop();
-    await codeIndexer.close();
     await rm(tempDir, { recursive: true, force: true });
   });
 
@@ -67,7 +84,7 @@ describe('Coordinator → GitHub Integration', () => {
     it('should prevent duplicate registration', async () => {
       const duplicate = new GitHubAgent({
         repositoryPath: process.cwd(),
-        codeIndexer,
+        vectorStorePath: join(tempDir, '.github-vectors-dup'),
       });
       await expect(coordinator.registerAgent(duplicate)).rejects.toThrow('already registered');
     });
@@ -101,6 +118,17 @@ describe('Coordinator → GitHub Integration', () => {
     });
 
     it('should route search request to GitHub agent', async () => {
+      // Index first (required for search)
+      await coordinator.sendMessage({
+        type: 'request',
+        sender: 'test',
+        recipient: 'github',
+        payload: {
+          action: 'index',
+          indexOptions: {},
+        } as GitHubContextRequest,
+      });
+
       const response = await coordinator.sendMessage({
         type: 'request',
         sender: 'test',

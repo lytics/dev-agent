@@ -3,7 +3,6 @@
  * Provides rich context from GitHub issues, PRs, and discussions
  */
 
-import type { RepositoryIndexer } from '@lytics/dev-agent-core';
 import type { Agent, AgentContext, Message } from '../types';
 import { GitHubIndexer } from './indexer';
 import type {
@@ -15,8 +14,10 @@ import type {
 
 export interface GitHubAgentConfig {
   repositoryPath: string;
-  codeIndexer: RepositoryIndexer;
-  storagePath?: string;
+  vectorStorePath: string; // Path to LanceDB storage for GitHub data
+  statePath?: string; // Path to state file (default: .dev-agent/github-state.json)
+  autoUpdate?: boolean; // Enable auto-updates (default: true)
+  staleThreshold?: number; // Stale threshold in ms (default: 15 minutes)
 }
 
 export class GitHubAgent implements Agent {
@@ -35,7 +36,17 @@ export class GitHubAgent implements Agent {
     this.context = context;
     this.name = context.agentName;
 
-    this.indexer = new GitHubIndexer(this.config.codeIndexer, this.config.repositoryPath);
+    this.indexer = new GitHubIndexer(
+      {
+        vectorStorePath: this.config.vectorStorePath,
+        statePath: this.config.statePath,
+        autoUpdate: this.config.autoUpdate,
+        staleThreshold: this.config.staleThreshold,
+      },
+      this.config.repositoryPath
+    );
+
+    await this.indexer.initialize();
 
     context.logger.info('GitHub agent initialized', {
       capabilities: this.capabilities,
@@ -69,10 +80,18 @@ export class GitHubAgent implements Agent {
           result = await this.handleSearch(request.query || '', request.searchOptions);
           break;
         case 'context':
-          result = await this.handleGetContext(request.issueNumber!);
+          if (typeof request.issueNumber !== 'number') {
+            result = { action: 'context', error: 'issueNumber is required' };
+          } else {
+            result = await this.handleGetContext(request.issueNumber);
+          }
           break;
         case 'related':
-          result = await this.handleFindRelated(request.issueNumber!);
+          if (typeof request.issueNumber !== 'number') {
+            result = { action: 'related', error: 'issueNumber is required' };
+          } else {
+            result = await this.handleFindRelated(request.issueNumber);
+          }
           break;
         default:
           result = {
@@ -114,7 +133,8 @@ export class GitHubAgent implements Agent {
   }
 
   private async handleIndex(options?: GitHubIndexOptions): Promise<GitHubContextResult> {
-    const stats = await this.indexer!.index(options);
+    if (!this.indexer) throw new Error('Indexer not initialized');
+    const stats = await this.indexer.index(options);
     return {
       action: 'index',
       stats,
@@ -125,7 +145,8 @@ export class GitHubAgent implements Agent {
     query: string,
     options?: { limit?: number }
   ): Promise<GitHubContextResult> {
-    const results = await this.indexer!.search(query, options);
+    if (!this.indexer) throw new Error('Indexer not initialized');
+    const results = await this.indexer.search(query, options);
     return {
       action: 'search',
       results,
@@ -133,7 +154,8 @@ export class GitHubAgent implements Agent {
   }
 
   private async handleGetContext(issueNumber: number): Promise<GitHubContextResult> {
-    const context = await this.indexer!.getContext(issueNumber);
+    if (!this.indexer) throw new Error('Indexer not initialized');
+    const context = await this.indexer.getContext(issueNumber);
     return {
       action: 'context',
       context: context || undefined,
@@ -141,7 +163,8 @@ export class GitHubAgent implements Agent {
   }
 
   private async handleFindRelated(issueNumber: number): Promise<GitHubContextResult> {
-    const related = await this.indexer!.findRelated(issueNumber);
+    if (!this.indexer) throw new Error('Indexer not initialized');
+    const related = await this.indexer.findRelated(issueNumber);
     return {
       action: 'related',
       related,

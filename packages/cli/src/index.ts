@@ -1,4 +1,4 @@
-import { CoreService, type CoreConfig } from '@lytics/dev-agent-core';
+import { type CoreConfig, CoreService } from '@lytics/dev-agent-core';
 
 export interface CliConfig {
   coreConfig: CoreConfig;

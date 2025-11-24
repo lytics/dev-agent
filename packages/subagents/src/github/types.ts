@@ -85,6 +85,28 @@ export interface GitHubContext {
 }
 
 /**
+ * GitHub indexer configuration
+ */
+export interface GitHubIndexerConfig {
+  vectorStorePath: string; // Path to LanceDB vector storage
+  statePath?: string; // Path to state file (default: .dev-agent/github-state.json)
+  autoUpdate?: boolean; // Enable auto-updates (default: true)
+  staleThreshold?: number; // Stale threshold in ms (default: 15 minutes)
+}
+
+/**
+ * GitHub indexer state (persisted to disk)
+ */
+export interface GitHubIndexerState {
+  version: string; // State format version
+  repository: string;
+  lastIndexed: string; // ISO date
+  totalDocuments: number;
+  byType: Record<GitHubDocumentType, number>;
+  byState: Record<GitHubState, number>;
+}
+
+/**
  * GitHub indexing options
  */
 export interface GitHubIndexOptions {
