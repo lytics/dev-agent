@@ -42,19 +42,37 @@ await coordinator.initialize({
 #### Agent Registration
 
 ```typescript
-import { PlannerAgent, ExplorerAgent, PrAgent } from '@lytics/dev-agent-subagents';
+import { 
+  PlannerAgent, 
+  ExplorerAgent, 
+  GitHubAgent,
+  PrAgent 
+} from '@lytics/dev-agent-subagents';
+import { RepositoryIndexer } from '@lytics/dev-agent-core';
+
+// Initialize code indexer (required for Explorer and GitHub agents)
+const codeIndexer = new RepositoryIndexer({
+  repositoryPath: '/path/to/repo',
+  vectorStorePath: '/path/to/.dev-agent/vectors',
+});
+await codeIndexer.initialize();
 
 // Register agents
 coordinator.registerAgent(new PlannerAgent());
 coordinator.registerAgent(new ExplorerAgent());
+coordinator.registerAgent(new GitHubAgent({
+  repositoryPath: '/path/to/repo',
+  codeIndexer,
+  storagePath: '/path/to/.github-index',
+}));
 coordinator.registerAgent(new PrAgent());
 
 // Check registered agents
 const agents = coordinator.getAgentNames();
-// => ['planner', 'explorer', 'pr']
+// => ['planner', 'explorer', 'github', 'pr']
 
-const plannerConfig = coordinator.getAgentConfig('planner');
-// => { name: 'planner', capabilities: ['plan', 'break-down-tasks'] }
+const githubConfig = coordinator.getAgentConfig('github');
+// => { name: 'github', capabilities: ['github-index', 'github-search', 'github-context', 'github-related'] }
 ```
 
 #### Message Routing
@@ -390,24 +408,33 @@ import {
   SubagentCoordinator,
   PlannerAgent,
   ExplorerAgent,
+  GitHubAgent,
   CoordinatorLogger,
 } from '@lytics/dev-agent-subagents';
+import { RepositoryIndexer } from '@lytics/dev-agent-core';
 
 async function main() {
   // 1. Initialize logger
   const logger = new CoordinatorLogger('dev-agent', 'info');
   
-  // 2. Initialize coordinator
-  const coordinator = new SubagentCoordinator();
-  await coordinator.initialize({
+  // 2. Initialize code indexer
+  const codeIndexer = new RepositoryIndexer({
     repositoryPath: '/path/to/repo',
     vectorStorePath: '/path/to/.dev-agent/vectors',
-    maxConcurrentTasks: 5,
   });
+  await codeIndexer.initialize();
   
-  // 3. Register agents
+  // 3. Initialize coordinator
+  const coordinator = new SubagentCoordinator();
+  
+  // 4. Register agents
   coordinator.registerAgent(new PlannerAgent());
   coordinator.registerAgent(new ExplorerAgent());
+  coordinator.registerAgent(new GitHubAgent({
+    repositoryPath: '/path/to/repo',
+    codeIndexer,
+    storagePath: '/path/to/.github-index',
+  }));
   
   logger.info('Coordinator ready', {
     agents: coordinator.getAgentNames(),
@@ -450,12 +477,35 @@ async function main() {
     }
   }
   
-  // 6. Check system stats
+  // 6. Search GitHub for related context
+  const githubResponse = await coordinator.sendMessage({
+    id: 'github-001',
+    type: 'request',
+    sender: 'user',
+    recipient: 'github',
+    payload: {
+      action: 'search',
+      query: 'rate limiting implementation',
+      searchOptions: { limit: 5 },
+    },
+    timestamp: Date.now(),
+    priority: 7,
+  });
+  
+  if (githubResponse?.payload.results) {
+    logger.info('GitHub context found', {
+      count: githubResponse.payload.results.length,
+      results: githubResponse.payload.results,
+    });
+  }
+  
+  // 7. Check system stats
   const stats = coordinator.getStats();
   logger.info('System stats', stats);
   
-  // 7. Shutdown gracefully
-  await coordinator.shutdown();
+  // 8. Shutdown gracefully
+  await coordinator.stop();
+  await codeIndexer.close();
 }
 
 main().catch(console.error);
