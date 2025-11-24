@@ -6,7 +6,7 @@
 import * as readline from 'readline';
 import { JSONRPCHandler } from '../protocol/jsonrpc';
 import type { JSONRPCNotification, JSONRPCResponse } from '../protocol/types';
-import { Transport, type TransportMessage } from './Transport';
+import { Transport, type TransportMessage } from './transport';
 
 export class StdioTransport extends Transport {
   private messageHandler?: (message: TransportMessage) => void | Promise<void>;

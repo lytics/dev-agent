@@ -4,22 +4,22 @@
  */
 
 // Adapter exports
-export { Adapter } from './adapters/Adapter';
-export { AdapterRegistry, type RegistryConfig } from './adapters/AdapterRegistry';
-export { ToolAdapter } from './adapters/ToolAdapter';
+export { Adapter } from './adapters/adapter';
+export { AdapterRegistry, type RegistryConfig } from './adapters/adapter-registry';
+export { ToolAdapter } from './adapters/tool-adapter';
 export * from './adapters/types';
 // Core exports
-export { MCPServer, type MCPServerConfig } from './server/MCPServer';
+export { MCPServer, type MCPServerConfig } from './server/mcp-server';
 // Protocol exports
 export { JSONRPCHandler } from './server/protocol/jsonrpc';
 export * from './server/protocol/types';
-export { StdioTransport } from './server/transport/StdioTransport';
+export { StdioTransport } from './server/transport/stdio-transport';
 // Transport exports
 export {
   Transport,
   type TransportConfig,
   type TransportMessage,
-} from './server/transport/Transport';
+} from './server/transport/transport';
 
 // Utility exports
 export { ConsoleLogger } from './utils/logger';

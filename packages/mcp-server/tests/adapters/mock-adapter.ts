@@ -3,7 +3,7 @@
  * Simple echo adapter that returns what you send it
  */
 
-import { ToolAdapter } from '../../src/adapters/ToolAdapter';
+import { ToolAdapter } from '../../src/adapters/tool-adapter';
 import type {
   AdapterContext,
   ToolDefinition,

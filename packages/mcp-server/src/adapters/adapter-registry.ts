@@ -4,7 +4,7 @@
  */
 
 import { ErrorCode } from '../server/protocol/types';
-import type { ToolAdapter } from './ToolAdapter';
+import type { ToolAdapter } from './tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from './types';
 
 export interface RegistryConfig {
