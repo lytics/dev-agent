@@ -3,39 +3,78 @@
  * Indexes GitHub issues, PRs, and discussions for semantic search
  */
 
-import type { RepositoryIndexer } from '@lytics/dev-agent-core';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import { VectorStorage } from '@lytics/dev-agent-core';
 import type {
   GitHubContext,
   GitHubDocument,
+  GitHubIndexerConfig,
+  GitHubIndexerState,
   GitHubIndexOptions,
   GitHubIndexStats,
   GitHubSearchOptions,
   GitHubSearchResult,
 } from './types';
 import {
-  calculateRelevance,
   enrichDocument,
   fetchAllDocuments,
   getCurrentRepository,
-  matchesQuery,
 } from './utils/index';
+
+const INDEXER_VERSION = '1.0.0';
+const DEFAULT_STATE_PATH = '.dev-agent/github-state.json';
+const DEFAULT_STALE_THRESHOLD = 15 * 60 * 1000; // 15 minutes
 
 /**
  * GitHub Document Indexer
- * Stores GitHub documents and provides search functionality
+ * Stores GitHub documents and provides semantic search functionality
  *
- * Note: Currently uses in-memory storage with text search.
- * Future: Integrate with VectorStorage for semantic search.
+ * Uses VectorStorage for persistent semantic search and maintains state for incremental updates.
  */
 export class GitHubIndexer {
-  private codeIndexer: RepositoryIndexer;
+  private vectorStorage: VectorStorage;
   private repository: string;
-  private documents: Map<string, GitHubDocument> = new Map();
-  private lastIndexed?: Date;
+  private state: GitHubIndexerState | null = null;
+  private readonly config: Required<GitHubIndexerConfig>;
+  private readonly statePath: string;
 
-  constructor(codeIndexer: RepositoryIndexer, repository?: string) {
-    this.codeIndexer = codeIndexer;
+  constructor(config: GitHubIndexerConfig, repository?: string) {
     this.repository = repository || getCurrentRepository();
+
+    // Set defaults
+    this.config = {
+      autoUpdate: true,
+      staleThreshold: DEFAULT_STALE_THRESHOLD,
+      statePath: DEFAULT_STATE_PATH,
+      ...config,
+    };
+
+    // Resolve state path
+    const repoRoot = process.cwd(); // TODO: Get from git root
+    this.statePath = path.isAbsolute(this.config.statePath)
+      ? this.config.statePath
+      : path.join(repoRoot, this.config.statePath);
+
+    // Initialize vector storage
+    this.vectorStorage = new VectorStorage({
+      storePath: this.config.vectorStorePath,
+    });
+  }
+
+  /**
+   * Initialize the indexer (load state and vector storage)
+   */
+  async initialize(): Promise<void> {
+    await this.vectorStorage.initialize();
+    await this.loadState();
+  }
+
+  /**
+   * Close the indexer and cleanup resources
+   */
+  async close(): Promise<void> {
+    await this.vectorStorage.close();
   }
 
   /**
@@ -53,14 +92,30 @@ export class GitHubIndexer {
     // Enrich with relationships
     const enrichedDocs = documents.map((doc) => enrichDocument(doc));
 
-    // Store in memory
-    this.documents.clear();
-    for (const doc of enrichedDocs) {
-      const key = `${doc.type}-${doc.number}`;
-      this.documents.set(key, doc);
-    }
+    // Convert to vector storage format
+    const vectorDocs = enrichedDocs.map((doc) => ({
+      id: `${doc.type}-${doc.number}`,
+      text: `${doc.title}\n\n${doc.body}`, // Use 'text' not 'content'
+      metadata: {
+        type: doc.type,
+        number: doc.number,
+        title: doc.title,
+        state: doc.state,
+        author: doc.author,
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt,
+        url: doc.url,
+        labels: doc.labels,
+        repository: this.repository,
+        // Store full document as JSON
+        document: JSON.stringify(doc),
+      },
+    }));
 
-    this.lastIndexed = new Date();
+    // Store in vector storage
+    // Note: LanceDB doesn't support clearing, so we just add new documents
+    // Duplicates are handled by ID (overwrites existing)
+    await this.vectorStorage.addDocuments(vectorDocs);
 
     // Calculate stats
     const byType = enrichedDocs.reduce(
@@ -79,12 +134,25 @@ export class GitHubIndexer {
       {} as Record<string, number>
     );
 
+    // Update state
+    this.state = {
+      version: INDEXER_VERSION,
+      repository: this.repository,
+      lastIndexed: new Date().toISOString(),
+      totalDocuments: enrichedDocs.length,
+      byType: byType as Record<'issue' | 'pull_request' | 'discussion', number>,
+      byState: byState as Record<'open' | 'closed' | 'merged', number>,
+    };
+
+    // Save state to disk
+    await this.saveState();
+
     return {
       repository: this.repository,
       totalDocuments: enrichedDocs.length,
       byType: byType as Record<'issue' | 'pull_request' | 'discussion', number>,
       byState: byState as Record<'open' | 'closed' | 'merged', number>,
-      lastIndexed: this.lastIndexed.toISOString(),
+      lastIndexed: this.state.lastIndexed,
       indexDuration: Date.now() - startTime,
     };
   }
@@ -93,25 +161,40 @@ export class GitHubIndexer {
    * Search GitHub documents
    */
   async search(query: string, options: GitHubSearchOptions = {}): Promise<GitHubSearchResult[]> {
+    // Auto-update if stale
+    if (this.config.autoUpdate && this.isStale()) {
+      // Background update (non-blocking)
+      this.index({ since: this.state?.lastIndexed }).catch((err) => {
+        console.warn('Background update failed:', err);
+      });
+    }
+
+    // Check if indexed
+    if (!this.state) {
+      throw new Error('GitHub data not indexed. Run "dev gh index" first.');
+    }
+
+    // Semantic search using vector storage
+    const vectorResults = await this.vectorStorage.search(query, {
+      limit: options.limit || 10,
+    });
+
+    // Convert back to GitHubSearchResult format and apply filters
     const results: GitHubSearchResult[] = [];
 
-    for (const doc of this.documents.values()) {
-      // Filter by type
+    for (const result of vectorResults) {
+      const doc = JSON.parse(result.metadata.document as string) as GitHubDocument;
+
+      // Apply filters
       if (options.type && doc.type !== options.type) continue;
-
-      // Filter by state
       if (options.state && doc.state !== options.state) continue;
+      if (options.author && doc.author !== options.author) continue;
 
-      // Filter by labels
       if (options.labels && options.labels.length > 0) {
         const hasLabel = options.labels.some((label) => doc.labels.includes(label));
         if (!hasLabel) continue;
       }
 
-      // Filter by author
-      if (options.author && doc.author !== options.author) continue;
-
-      // Filter by date
       if (options.since) {
         const createdAt = new Date(doc.createdAt);
         const since = new Date(options.since);
@@ -124,28 +207,27 @@ export class GitHubIndexer {
         if (createdAt > until) continue;
       }
 
-      // Check if matches query
-      if (!matchesQuery(doc, query)) continue;
-
-      // Calculate relevance score
-      const score = calculateRelevance(doc, query) / 100; // Normalize to 0-1
-
-      // Apply score threshold
-      if (options.scoreThreshold && score < options.scoreThreshold) continue;
+      if (options.scoreThreshold && result.score < options.scoreThreshold) continue;
 
       results.push({
         document: doc,
-        score,
+        score: result.score,
         matchedFields: ['title', 'body'],
       });
     }
 
-    // Sort by score descending
-    results.sort((a, b) => b.score - a.score);
+    return results;
+  }
 
-    // Apply limit
-    const limit = options.limit || 10;
-    return results.slice(0, limit);
+  /**
+   * Check if indexed data is stale
+   */
+  private isStale(): boolean {
+    if (!this.state?.lastIndexed) return true;
+
+    const lastIndexedTime = new Date(this.state.lastIndexed).getTime();
+    const now = Date.now();
+    return now - lastIndexedTime > this.config.staleThreshold;
   }
 
   /**
@@ -156,8 +238,7 @@ export class GitHubIndexer {
     type: 'issue' | 'pull_request' = 'issue'
   ): Promise<GitHubContext | null> {
     // Find the document
-    const key = `${type}-${number}`;
-    const document = this.documents.get(key);
+    const document = await this.getDocument(number, type);
 
     if (!document) {
       return null;
@@ -166,7 +247,7 @@ export class GitHubIndexer {
     // Find related issues
     const relatedIssues: GitHubDocument[] = [];
     for (const issueNum of document.relatedIssues) {
-      const related = this.documents.get(`issue-${issueNum}`);
+      const related = await this.getDocument(issueNum, 'issue');
       if (related) {
         relatedIssues.push(related);
       }
@@ -175,38 +256,18 @@ export class GitHubIndexer {
     // Find related PRs
     const relatedPRs: GitHubDocument[] = [];
     for (const prNum of document.relatedPRs) {
-      const related = this.documents.get(`pull_request-${prNum}`);
+      const related = await this.getDocument(prNum, 'pull_request');
       if (related) {
         relatedPRs.push(related);
       }
     }
 
-    // Find linked code files using the code indexer
+    // Find linked code files (skip for now - requires RepositoryIndexer integration)
     const linkedCodeFiles: Array<{
       path: string;
       reason: string;
       score: number;
     }> = [];
-
-    for (const filePath of document.linkedFiles.slice(0, 10)) {
-      try {
-        const codeResults = await this.codeIndexer.search(filePath, {
-          limit: 1,
-          scoreThreshold: 0.3,
-        });
-
-        if (codeResults.length > 0) {
-          const metadata = codeResults[0].metadata as { path?: string };
-          linkedCodeFiles.push({
-            path: metadata.path || filePath,
-            reason: 'Mentioned in issue/PR',
-            score: codeResults[0].score,
-          });
-        }
-      } catch {
-        // Ignore errors finding code files
-      }
-    }
 
     return {
       document,
@@ -234,56 +295,88 @@ export class GitHubIndexer {
   /**
    * Get a specific document by number
    */
-  getDocument(number: number, type: 'issue' | 'pull_request' = 'issue'): GitHubDocument | null {
-    const key = `${type}-${number}`;
-    return this.documents.get(key) || null;
+  async getDocument(
+    number: number,
+    type: 'issue' | 'pull_request' = 'issue'
+  ): Promise<GitHubDocument | null> {
+    const id = `${type}-${number}`;
+
+    try {
+      const results = await this.vectorStorage.search(id, { limit: 1 });
+      if (results.length === 0) return null;
+
+      return JSON.parse(results[0].metadata.document as string) as GitHubDocument;
+    } catch {
+      return null;
+    }
   }
 
   /**
    * Get all indexed documents
    */
-  getAllDocuments(): GitHubDocument[] {
-    return Array.from(this.documents.values());
+  async getAllDocuments(): Promise<GitHubDocument[]> {
+    // This is expensive - avoid using if possible
+    // For now, return empty array and recommend using search instead
+    console.warn('getAllDocuments() is expensive - use search() instead');
+    return [];
   }
 
   /**
    * Check if indexer has been initialized
    */
   isIndexed(): boolean {
-    return this.documents.size > 0;
+    return this.state !== null;
   }
 
   /**
    * Get indexing statistics
    */
   getStats(): GitHubIndexStats | null {
-    if (!this.lastIndexed) {
+    if (!this.state) {
       return null;
     }
 
-    const byType = Array.from(this.documents.values()).reduce(
-      (acc, doc) => {
-        acc[doc.type] = (acc[doc.type] || 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>
-    );
-
-    const byState = Array.from(this.documents.values()).reduce(
-      (acc, doc) => {
-        acc[doc.state] = (acc[doc.state] || 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>
-    );
-
     return {
       repository: this.repository,
-      totalDocuments: this.documents.size,
-      byType: byType as Record<'issue' | 'pull_request' | 'discussion', number>,
-      byState: byState as Record<'open' | 'closed' | 'merged', number>,
-      lastIndexed: this.lastIndexed.toISOString(),
+      totalDocuments: this.state.totalDocuments,
+      byType: this.state.byType,
+      byState: this.state.byState,
+      lastIndexed: this.state.lastIndexed,
       indexDuration: 0,
     };
+  }
+
+  /**
+   * Load indexer state from disk
+   */
+  private async loadState(): Promise<void> {
+    try {
+      const stateContent = await fs.readFile(this.statePath, 'utf-8');
+      this.state = JSON.parse(stateContent);
+
+      // Validate version compatibility
+      if (this.state?.version !== INDEXER_VERSION) {
+        console.warn(`State version mismatch: ${this.state?.version} !== ${INDEXER_VERSION}`);
+        this.state = null;
+      }
+    } catch {
+      // State file doesn't exist or is corrupted
+      this.state = null;
+    }
+  }
+
+  /**
+   * Save indexer state to disk
+   */
+  private async saveState(): Promise<void> {
+    if (!this.state) {
+      return;
+    }
+
+    // Ensure directory exists
+    await fs.mkdir(path.dirname(this.statePath), { recursive: true });
+
+    // Write state
+    await fs.writeFile(this.statePath, JSON.stringify(this.state, null, 2), 'utf-8');
   }
 }

@@ -5,7 +5,6 @@ export interface ContextProviderOptions {
 }
 
 export class ContextProvider {
-
   constructor(_options: ContextProviderOptions) {
     // Placeholder constructor
   }

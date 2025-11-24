@@ -3,7 +3,6 @@
  * CLI commands for indexing and searching GitHub data
  */
 
-import { RepositoryIndexer } from '@lytics/dev-agent-core';
 import { GitHubIndexer } from '@lytics/dev-agent-subagents';
 import chalk from 'chalk';
 import { Command } from 'commander';
@@ -34,12 +33,15 @@ export const ghCommand = new Command('gh')
 
           spinner.text = 'Initializing indexers...';
 
-          // Initialize code indexer
-          const codeIndexer = new RepositoryIndexer(config);
-          await codeIndexer.initialize();
+          // Create GitHub indexer with vector storage
+          const ghIndexer = new GitHubIndexer({
+            vectorStorePath: config.vectorStorePath + '-github', // Separate storage for GitHub data
+            statePath: '.dev-agent/github-state.json',
+            autoUpdate: true,
+            staleThreshold: 15 * 60 * 1000, // 15 minutes
+          });
 
-          // Create GitHub indexer
-          const ghIndexer = new GitHubIndexer(codeIndexer);
+          await ghIndexer.initialize();
 
           spinner.text = 'Fetching GitHub data...';
 
@@ -120,10 +122,14 @@ export const ghCommand = new Command('gh')
 
           spinner.text = 'Initializing...';
 
-          // Initialize indexers
-          const codeIndexer = new RepositoryIndexer(config);
-          await codeIndexer.initialize();
-          const ghIndexer = new GitHubIndexer(codeIndexer);
+          // Initialize GitHub indexer
+          const ghIndexer = new GitHubIndexer({
+            vectorStorePath: config.vectorStorePath + '-github',
+            statePath: '.dev-agent/github-state.json',
+            autoUpdate: true,
+            staleThreshold: 15 * 60 * 1000,
+          });
+          await ghIndexer.initialize();
 
           // Check if indexed
           if (!ghIndexer.isIndexed()) {
@@ -216,9 +222,13 @@ export const ghCommand = new Command('gh')
 
           spinner.text = 'Initializing...';
 
-          const codeIndexer = new RepositoryIndexer(config);
-          await codeIndexer.initialize();
-          const ghIndexer = new GitHubIndexer(codeIndexer);
+          const ghIndexer = new GitHubIndexer({
+            vectorStorePath: config.vectorStorePath + '-github',
+            statePath: '.dev-agent/github-state.json',
+            autoUpdate: true,
+            staleThreshold: 15 * 60 * 1000,
+          });
+          await ghIndexer.initialize();
 
           if (!ghIndexer.isIndexed()) {
             spinner.warn('GitHub data not indexed');
@@ -301,9 +311,13 @@ export const ghCommand = new Command('gh')
           return;
         }
 
-        const codeIndexer = new RepositoryIndexer(config);
-        await codeIndexer.initialize();
-        const ghIndexer = new GitHubIndexer(codeIndexer);
+        const ghIndexer = new GitHubIndexer({
+          vectorStorePath: config.vectorStorePath + '-github',
+          statePath: '.dev-agent/github-state.json',
+          autoUpdate: true,
+          staleThreshold: 15 * 60 * 1000,
+        });
+        await ghIndexer.initialize();
 
         const stats = ghIndexer.getStats();
 

@@ -4,7 +4,6 @@ export interface GitHubOptions {
 }
 
 export class GitHubIntegration {
-
   constructor(_options: GitHubOptions) {
     // Placeholder constructor
   }
