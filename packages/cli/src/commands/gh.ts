@@ -35,7 +35,7 @@ export const ghCommand = new Command('gh')
 
           // Create GitHub indexer with vector storage
           const ghIndexer = new GitHubIndexer({
-            vectorStorePath: config.vectorStorePath + '-github', // Separate storage for GitHub data
+            vectorStorePath: `${config.vectorStorePath}-github`, // Separate storage for GitHub data
             statePath: '.dev-agent/github-state.json',
             autoUpdate: true,
             staleThreshold: 15 * 60 * 1000, // 15 minutes
@@ -124,7 +124,7 @@ export const ghCommand = new Command('gh')
 
           // Initialize GitHub indexer
           const ghIndexer = new GitHubIndexer({
-            vectorStorePath: config.vectorStorePath + '-github',
+            vectorStorePath: `${config.vectorStorePath}-github`,
             statePath: '.dev-agent/github-state.json',
             autoUpdate: true,
             staleThreshold: 15 * 60 * 1000,
@@ -223,7 +223,7 @@ export const ghCommand = new Command('gh')
           spinner.text = 'Initializing...';
 
           const ghIndexer = new GitHubIndexer({
-            vectorStorePath: config.vectorStorePath + '-github',
+            vectorStorePath: `${config.vectorStorePath}-github`,
             statePath: '.dev-agent/github-state.json',
             autoUpdate: true,
             staleThreshold: 15 * 60 * 1000,
@@ -312,7 +312,7 @@ export const ghCommand = new Command('gh')
         }
 
         const ghIndexer = new GitHubIndexer({
-          vectorStorePath: config.vectorStorePath + '-github',
+          vectorStorePath: `${config.vectorStorePath}-github`,
           statePath: '.dev-agent/github-state.json',
           autoUpdate: true,
           staleThreshold: 15 * 60 * 1000,

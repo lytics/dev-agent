@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GitHubAgentConfig } from '../github/agent';
 import { GitHubAgent } from '../github/agent';
-import type { GitHubContextRequest, GitHubContextResult } from '../github/types';
+import type { GitHubContextRequest, GitHubContextResult, GitHubDocument } from '../github/types';
 import { SubagentCoordinator } from './coordinator';
 
 // Mock GitHub utilities to avoid actual gh CLI calls
@@ -32,7 +32,7 @@ vi.mock('../github/utils/index', () => ({
       mentions: [],
     },
   ]),
-  enrichDocument: vi.fn((doc: any) => doc),
+  enrichDocument: vi.fn((doc: GitHubDocument) => doc),
   getCurrentRepository: vi.fn(() => 'lytics/dev-agent'),
   calculateRelevance: vi.fn(() => 0.8),
   matchesQuery: vi.fn(() => true),

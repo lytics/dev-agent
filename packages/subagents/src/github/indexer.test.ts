@@ -7,7 +7,7 @@ import * as path from 'node:path';
 import type { VectorStorage } from '@lytics/dev-agent-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GitHubIndexer } from './indexer';
-import type { GitHubDocument, GitHubIndexStats } from './types';
+import type { GitHubDocument } from './types';
 import * as utils from './utils/index';
 
 // Mock the utilities
@@ -26,10 +26,6 @@ vi.mock('@lytics/dev-agent-core', () => ({
     addDocuments = vi.fn().mockResolvedValue(undefined);
     search = vi.fn().mockResolvedValue([]);
     close = vi.fn().mockResolvedValue(undefined);
-
-    constructor(config: any) {
-      // Store config if needed
-    }
   },
 }));
 
@@ -160,7 +156,7 @@ describe('GitHubIndexer - Persistence', () => {
 
   describe('Vector Storage Integration', () => {
     it('should add documents to vector storage', async () => {
-      const vectorStorage = (indexer as any).vectorStorage as VectorStorage;
+      const vectorStorage = (indexer as unknown as { vectorStorage: VectorStorage }).vectorStorage;
 
       await indexer.index();
 
@@ -189,7 +185,7 @@ describe('GitHubIndexer - Persistence', () => {
     });
 
     it('should use vector search for queries', async () => {
-      const vectorStorage = (indexer as any).vectorStorage as VectorStorage;
+      const vectorStorage = (indexer as unknown as { vectorStorage: VectorStorage }).vectorStorage;
 
       // Mock vector search results
       vi.mocked(vectorStorage.search).mockResolvedValue([
@@ -220,20 +216,20 @@ describe('GitHubIndexer - Persistence', () => {
     it('should detect stale data', async () => {
       await indexer.index();
 
-      const isStale = (indexer as any).isStale();
+      const isStale = (indexer as unknown as { isStale: () => boolean }).isStale();
       expect(isStale).toBe(false);
 
       // Wait for data to become stale
       await new Promise((resolve) => setTimeout(resolve, 1100));
 
-      const isStaleAfter = (indexer as any).isStale();
+      const isStaleAfter = (indexer as unknown as { isStale: () => boolean }).isStale();
       expect(isStaleAfter).toBe(true);
     });
 
     it('should trigger background update on stale search', async () => {
       // Create indexer with auto-update enabled
       const autoIndexer = new GitHubIndexer({
-        vectorStorePath: testVectorPath + '-auto',
+        vectorStorePath: `${testVectorPath}-auto`,
         statePath: testStatePath.replace('.json', '-auto.json'),
         autoUpdate: true,
         staleThreshold: 100, // 100ms
@@ -248,7 +244,8 @@ describe('GitHubIndexer - Persistence', () => {
       const indexSpy = vi.spyOn(autoIndexer, 'index');
 
       // Mock vector search
-      const vectorStorage = (autoIndexer as any).vectorStorage as VectorStorage;
+      const vectorStorage = (autoIndexer as unknown as { vectorStorage: VectorStorage })
+        .vectorStorage;
       vi.mocked(vectorStorage.search).mockResolvedValue([]);
 
       // Search should trigger background update
@@ -270,7 +267,7 @@ describe('GitHubIndexer - Persistence', () => {
     });
 
     it('should return accurate stats after indexing', async () => {
-      const indexStats = await indexer.index();
+      await indexer.index();
 
       const stats = indexer.getStats();
       expect(stats).not.toBeNull();

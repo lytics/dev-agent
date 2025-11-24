@@ -16,11 +16,7 @@ import type {
   GitHubSearchOptions,
   GitHubSearchResult,
 } from './types';
-import {
-  enrichDocument,
-  fetchAllDocuments,
-  getCurrentRepository,
-} from './utils/index';
+import { enrichDocument, fetchAllDocuments, getCurrentRepository } from './utils/index';
 
 const INDEXER_VERSION = '1.0.0';
 const DEFAULT_STATE_PATH = '.dev-agent/github-state.json';
