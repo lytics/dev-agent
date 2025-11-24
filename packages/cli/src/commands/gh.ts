@@ -100,10 +100,10 @@ export const ghCommand = new Command('gh')
   )
   .addCommand(
     new Command('search')
-      .description('Search GitHub issues and PRs')
+      .description('Search GitHub issues and PRs (defaults to open issues)')
       .argument('<query>', 'Search query')
-      .option('--type <type>', 'Filter by type (issue, pull_request)')
-      .option('--state <state>', 'Filter by state (open, closed, merged)')
+      .option('--type <type>', 'Filter by type (default: issue)', 'issue')
+      .option('--state <state>', 'Filter by state (default: open)', 'open')
       .option('--author <author>', 'Filter by author')
       .option('--label <labels...>', 'Filter by labels')
       .option('--limit <number>', 'Number of results', Number.parseInt, 10)
@@ -142,10 +142,10 @@ export const ghCommand = new Command('gh')
 
           spinner.text = 'Searching...';
 
-          // Search
+          // Search with smart defaults (type: issue, state: open)
           const results = await ghIndexer.search(query, {
-            type: options.type as 'issue' | 'pull_request' | undefined,
-            state: options.state as 'open' | 'closed' | 'merged' | undefined,
+            type: options.type as 'issue' | 'pull_request',
+            state: options.state as 'open' | 'closed' | 'merged',
             author: options.author,
             labels: options.label,
             limit: options.limit,
