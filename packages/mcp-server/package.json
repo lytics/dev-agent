@@ -6,7 +6,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "dev-agent-mcp": "./dist/index.js"
+    "dev-agent-mcp": "./dist/bin/dev-agent-mcp.js"
   },
   "scripts": {
     "build": "tsc",
