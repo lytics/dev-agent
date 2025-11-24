@@ -31,10 +31,12 @@ export type {
   SimilarCodeRequest,
   SimilarCodeResult,
 } from './explorer/types';
-// GitHub Context
-export { GitHubIndexer } from './github/indexer.js';
+export type { GitHubAgentConfig } from './github/agent';
+// GitHub Context Agent
+export { GitHubAgent } from './github/agent';
+export { GitHubIndexer } from './github/indexer';
 export type * from './github/types';
-export * from './github/utils/index.js';
+export * from './github/utils';
 // Logger module
 export { CoordinatorLogger } from './logger';
 // Agent modules
