@@ -20,9 +20,9 @@ export class StdioTransport extends Transport {
     }
 
     // Create readline interface for line-by-line input
+    // Note: We don't specify 'output' to avoid readline echoing input to stdout
     this.readline = readline.createInterface({
       input: process.stdin,
-      output: process.stdout,
       terminal: false,
     });
 

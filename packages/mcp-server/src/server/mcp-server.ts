@@ -12,11 +12,9 @@ import type {
   ErrorCode,
   InitializeResult,
   JSONRPCRequest,
-  JSONRPCResponse,
   MCPMethod,
   ServerCapabilities,
   ServerInfo,
-  ToolCall,
 } from './protocol/types';
 import { StdioTransport } from './transport/stdio-transport';
 import type { Transport, TransportMessage } from './transport/transport';
@@ -32,9 +30,10 @@ export interface MCPServerConfig {
 export class MCPServer {
   private registry: AdapterRegistry;
   private transport: Transport;
-  private logger = new ConsoleLogger('[MCP Server]');
+  private logger = new ConsoleLogger('[MCP Server]', 'debug'); // Enable debug logging
   private config: Config;
   private serverInfo: ServerInfo;
+  private clientProtocolVersion?: string;
 
   constructor(config: MCPServerConfig) {
     this.config = config.config;
@@ -105,17 +104,39 @@ export class MCPServer {
    * Handle incoming MCP message
    */
   private async handleMessage(message: TransportMessage): Promise<void> {
-    // Only handle requests (not notifications for now)
+    this.logger.debug('Raw message received', {
+      type: typeof message,
+      isRequest: JSONRPCHandler.isRequest(message),
+      preview: JSON.stringify(message).substring(0, 200),
+    });
+
+    // Handle notifications
     if (!JSONRPCHandler.isRequest(message)) {
-      this.logger.debug('Ignoring notification', { method: message.method });
+      const method = (message as { method: string }).method;
+      this.logger.info('Received notification', { method });
+
+      // The 'initialized' notification is sent by the client after receiving
+      // the initialize response. We acknowledge it but don't need to respond.
+      if (method === 'initialized') {
+        this.logger.info('Client initialized successfully');
+      }
+
       return;
     }
 
     const request = message as JSONRPCRequest;
+    this.logger.info('Received request', { method: request.method, id: request.id });
 
     try {
       const result = await this.routeRequest(request);
-      const response = JSONRPCHandler.createResponse(request.id!, result);
+      // request.id is guaranteed to be defined for requests (checked by isRequest)
+      const requestId = request.id ?? 0;
+      const response = JSONRPCHandler.createResponse(requestId, result);
+      this.logger.debug('Sending response', {
+        id: request.id,
+        method: request.method,
+        responsePreview: JSON.stringify(response).substring(0, 200),
+      });
       await this.transport.send(response);
     } catch (error) {
       this.logger.error('Request handling failed', {
@@ -124,7 +145,8 @@ export class MCPServer {
       });
 
       const jsonrpcError = error as { code: ErrorCode; message: string; data?: unknown };
-      const errorResponse = JSONRPCHandler.createErrorResponse(request.id, jsonrpcError);
+      const requestId = request.id ?? 0;
+      const errorResponse = JSONRPCHandler.createErrorResponse(requestId, jsonrpcError);
       await this.transport.send(errorResponse);
     }
   }
@@ -137,7 +159,7 @@ export class MCPServer {
 
     switch (method) {
       case 'initialize':
-        return this.handleInitialize();
+        return this.handleInitialize(request.params as { protocolVersion?: string });
 
       case 'tools/list':
         return this.handleToolsList();
@@ -161,7 +183,16 @@ export class MCPServer {
   /**
    * Handle initialize request
    */
-  private handleInitialize(): InitializeResult {
+  private handleInitialize(params?: { protocolVersion?: string }): InitializeResult {
+    // Store the client's protocol version and echo it back
+    // MCP uses date-based versioning (e.g., "2025-06-18")
+    this.clientProtocolVersion = params?.protocolVersion || '1.0';
+
+    this.logger.debug('Initialize request', {
+      clientProtocolVersion: this.clientProtocolVersion,
+      clientParams: params,
+    });
+
     const capabilities: ServerCapabilities = {
       tools: { supported: true },
       resources: { supported: false }, // Not yet implemented
@@ -169,7 +200,7 @@ export class MCPServer {
     };
 
     return {
-      protocolVersion: '1.0',
+      protocolVersion: this.clientProtocolVersion,
       capabilities,
       serverInfo: this.serverInfo,
     };
