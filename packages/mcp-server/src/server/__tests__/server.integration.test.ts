@@ -4,9 +4,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { MCPServer } from '../../src/server/mcp-server';
-import type { JSONRPCRequest, JSONRPCResponse } from '../../src/server/protocol/types';
-import { MockAdapter } from '../adapters/mock-adapter';
+import { MockAdapter } from '../../adapters/__tests__/mock-adapter';
+import { MCPServer } from '../mcp-server';
 
 describe('MCP Server Integration', () => {
   let server: MCPServer;

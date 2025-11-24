@@ -3,8 +3,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { JSONRPCHandler } from '../../src/server/protocol/jsonrpc';
-import { ErrorCode } from '../../src/server/protocol/types';
+import { JSONRPCHandler } from '../jsonrpc';
+import { ErrorCode } from '../types';
 
 describe('JSONRPCHandler', () => {
   describe('parse', () => {
