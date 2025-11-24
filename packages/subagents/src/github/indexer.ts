@@ -177,9 +177,15 @@ export class GitHubIndexer {
 
     // Convert back to GitHubSearchResult format and apply filters
     const results: GitHubSearchResult[] = [];
+    const seenIds = new Set<string>();
 
     for (const result of vectorResults) {
       const doc = JSON.parse(result.metadata.document as string) as GitHubDocument;
+
+      // Deduplicate by document ID
+      const docId = `${doc.type}-${doc.number}`;
+      if (seenIds.has(docId)) continue;
+      seenIds.add(docId);
 
       // Apply filters
       if (options.type && doc.type !== options.type) continue;
