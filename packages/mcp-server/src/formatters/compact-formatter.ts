@@ -54,6 +54,15 @@ export class CompactFormatter implements ResultFormatter {
   }
 
   formatResults(results: SearchResult[]): FormattedResult {
+    // Handle empty results
+    if (results.length === 0) {
+      const content = 'No results found';
+      return {
+        content,
+        tokenEstimate: estimateTokensForText(content),
+      };
+    }
+
     // Respect max results
     const limitedResults = results.slice(0, this.options.maxResults);
 

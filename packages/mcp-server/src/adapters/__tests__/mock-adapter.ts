@@ -3,14 +3,14 @@
  * Simple echo adapter that returns what you send it
  */
 
-import { ToolAdapter } from '../../src/adapters/tool-adapter';
+import { ToolAdapter } from '../tool-adapter';
 import type {
   AdapterContext,
   ToolDefinition,
   ToolExecutionContext,
   ToolResult,
   ValidationResult,
-} from '../../src/adapters/types';
+} from '../types';
 
 export class MockAdapter extends ToolAdapter {
   readonly metadata = {

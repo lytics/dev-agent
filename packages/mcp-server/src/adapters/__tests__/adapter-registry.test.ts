@@ -3,8 +3,8 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { AdapterRegistry } from '../../src/adapters/adapter-registry';
-import type { AdapterContext } from '../../src/adapters/types';
+import { AdapterRegistry } from '../adapter-registry';
+import type { AdapterContext } from '../types';
 import { MockAdapter } from './mock-adapter';
 
 describe('AdapterRegistry', () => {

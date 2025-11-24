@@ -16,6 +16,11 @@ export function estimateTokensForText(text: string): number {
   // Remove extra whitespace
   const normalized = text.trim().replace(/\s+/g, ' ');
 
+  // Handle empty string
+  if (normalized.length === 0) {
+    return 0;
+  }
+
   // Estimate: 4 characters per token (conservative for code/technical text)
   const charBasedEstimate = Math.ceil(normalized.length / 4);
 

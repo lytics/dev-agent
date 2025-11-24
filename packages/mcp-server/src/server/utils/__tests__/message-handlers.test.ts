@@ -3,13 +3,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { ServerInfo } from '../../../src/server/protocol/types';
+import type { ServerInfo } from '../../protocol/types';
 import {
   createInitializeResult,
   extractToolCallParams,
   isSupportedMethod,
   validateRequest,
-} from '../../../src/server/utils/message-handlers';
+} from '../message-handlers';
 
 describe('messageHandlers', () => {
   describe('createInitializeResult', () => {
