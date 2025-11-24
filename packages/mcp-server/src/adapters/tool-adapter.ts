@@ -3,7 +3,7 @@
  * Extends Adapter to provide tool-specific functionality
  */
 
-import { Adapter } from './Adapter';
+import { Adapter } from './adapter';
 import type { ToolDefinition, ToolExecutionContext, ToolResult, ValidationResult } from './types';
 
 export abstract class ToolAdapter extends Adapter {

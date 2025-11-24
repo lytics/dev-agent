@@ -3,8 +3,8 @@
  * Handles protocol, routing, and adapter coordination
  */
 
-import { AdapterRegistry, type RegistryConfig } from '../adapters/AdapterRegistry';
-import type { ToolAdapter } from '../adapters/ToolAdapter';
+import { AdapterRegistry, type RegistryConfig } from '../adapters/adapter-registry';
+import type { ToolAdapter } from '../adapters/tool-adapter';
 import type { AdapterContext, Config, ToolExecutionContext } from '../adapters/types';
 import { ConsoleLogger } from '../utils/logger';
 import { JSONRPCHandler } from './protocol/jsonrpc';
@@ -18,8 +18,8 @@ import type {
   ServerInfo,
   ToolCall,
 } from './protocol/types';
-import { StdioTransport } from './transport/StdioTransport';
-import type { Transport, TransportMessage } from './transport/Transport';
+import { StdioTransport } from './transport/stdio-transport';
+import type { Transport, TransportMessage } from './transport/transport';
 
 export interface MCPServerConfig {
   serverInfo: ServerInfo;
@@ -35,7 +35,6 @@ export class MCPServer {
   private logger = new ConsoleLogger('[MCP Server]');
   private config: Config;
   private serverInfo: ServerInfo;
-  private initialized = false;
 
   constructor(config: MCPServerConfig) {
     this.config = config.config;
@@ -163,8 +162,6 @@ export class MCPServer {
    * Handle initialize request
    */
   private handleInitialize(): InitializeResult {
-    this.initialized = true;
-
     const capabilities: ServerCapabilities = {
       tools: { supported: true },
       resources: { supported: false }, // Not yet implemented
