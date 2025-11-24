@@ -4,13 +4,29 @@ Standard workflow for implementing features in dev-agent.
 
 ## The Drill™
 
-### 1. Start New Feature
+### 1. Find Next Work (Dogfooding! 🐕🍽️)
 
 ```bash
 # Update main branch
 git checkout main
 git pull origin main
 
+# Use GitHub Context to find what to work on next
+dev gh search "state:open label:\"Epic: MCP Integration\"" --type issue
+
+# Or use gh CLI directly
+gh issue list --milestone "Epic #3: MCP Integration" --state open
+
+# The tool helps you:
+# - Find open issues by epic/milestone
+# - See issue dependencies
+# - Prioritize based on labels
+# - Avoid duplicate work
+```
+
+### 2. Start New Feature
+
+```bash
 # Create feature branch (use feat/, fix/, docs/, etc.)
 git checkout -b feat/feature-name
 
@@ -18,12 +34,32 @@ git checkout -b feat/feature-name
 # Done via todo_write tool in Claude
 ```
 
-### 2. Implementation Phase
+### 3. Planning Phase (Dogfooding! 🐕🍽️)
 
 ```bash
 # Read the issue requirements
 gh issue view <issue-number>
 
+# Use the Planner to break down the work
+dev plan <issue-number> --json
+
+# Review the plan and adjust as needed
+# The planner will:
+# - Break issue into specific tasks
+# - Find relevant code locations
+# - Estimate effort
+# - Suggest implementation order
+```
+
+**Why dogfood the Planner?**
+- ✅ Tests our own tool in real scenarios
+- ✅ Identifies bugs and missing features
+- ✅ Improves estimation accuracy over time
+- ✅ Validates usefulness for end users
+
+### 4. Implementation Phase
+
+```bash
 # Design interfaces first (in comments or types)
 # Implement with test-driven development
 # Document with examples as you go
@@ -37,7 +73,7 @@ gh issue view <issue-number>
 - [ ] Create README if new module
 - [ ] Update related documentation
 
-### 3. Quality Checks
+### 5. Quality Checks
 
 ```bash
 # Build all packages
@@ -65,7 +101,7 @@ pnpm typecheck
 - ✅ No TypeScript errors
 - ✅ Documentation with examples
 
-### 4. Commit & PR
+### 6. Commit & PR
 
 ```bash
 # Stage all changes
