@@ -35,7 +35,7 @@ export class GitHubAgent implements Agent {
     this.context = context;
     this.name = context.agentName;
 
-    this.indexer = new GitHubIndexer(this.config.codeIndexer);
+    this.indexer = new GitHubIndexer(this.config.codeIndexer, this.config.repositoryPath);
 
     context.logger.info('GitHub agent initialized', {
       capabilities: this.capabilities,
