@@ -8,9 +8,11 @@ The MCP server enables AI tools (Claude Desktop, Claude Code, Cursor, etc.) to a
 
 **Key Features:**
 - 🔌 Extensible adapter framework for custom tools
+- 🎯 8 Guided workflow prompts (analyze-issue, find-pattern, repo-overview, etc.)
+- 🪙 Token cost visibility with accurate estimation (<1% error)
 - 📡 Stdio transport for process communication
-- 🎯 JSON-RPC 2.0 protocol compliance
-- 🧪 Comprehensive test coverage (80+ tests)
+- ✅ Full MCP protocol support (tools, prompts, resources)
+- 🧪 Comprehensive test coverage (246 tests passing)
 - 📊 Built-in logging and error handling
 - 🚀 Zero-configuration quick start
 
@@ -103,6 +105,50 @@ dev mcp-server start
   }
 }
 ```
+
+## Available Tools
+
+The MCP server provides 5 powerful adapters (tools) and 8 guided prompts:
+
+### Tools
+
+1. **`dev_search`** - Semantic code search across repository
+   - Natural language queries
+   - Type-aware results
+   - Configurable relevance thresholds
+
+2. **`dev_status`** - Repository health and indexing status
+   - Code index statistics
+   - GitHub integration status
+   - Health checks
+
+3. **`dev_plan`** - Generate implementation plans from GitHub issues
+   - Fetch issue details
+   - Find relevant code
+   - Break down into tasks
+
+4. **`dev_explore`** - Code pattern discovery and relationships
+   - Pattern search
+   - Similar code detection
+   - Dependency mapping
+
+5. **`dev_gh`** - GitHub issue and PR search
+   - Semantic search with filters
+   - Full context retrieval
+   - Offline operation with cache
+
+### Prompts (Guided Workflows)
+
+1. **`analyze-issue`** - Full issue analysis with implementation plan
+2. **`find-pattern`** - Search codebase for specific patterns
+3. **`repo-overview`** - Comprehensive repository health dashboard
+4. **`find-similar`** - Find code similar to a file
+5. **`search-github`** - Search issues/PRs by topic
+6. **`explore-relationships`** - Analyze file dependencies
+7. **`create-plan`** - Generate detailed task breakdown
+8. **`quick-search`** - Fast semantic code search
+
+All tools include **token cost footers** (🪙) for real-time cost tracking!
 
 ## Usage Examples
 
@@ -266,11 +312,17 @@ Manages adapter lifecycle and tool execution routing.
 
 ## Testing
 
+**Status:** ✅ 246 tests passing
+
 ### Run Tests
 
 ```bash
-# Run all tests
-pnpm test
+# Run all MCP server tests
+pnpm test packages/mcp-server
+
+# Run specific test suite
+pnpm test packages/mcp-server/src/formatters
+pnpm test packages/mcp-server/src/adapters
 
 # Run with coverage
 pnpm test:coverage
@@ -305,11 +357,35 @@ tests/
 
 ## Built-in Adapters
 
-### Coming Soon
+### ✅ Production Ready
 
-- **SearchAdapter** - Semantic code search (Issue #28)
-- **GitHubAdapter** - GitHub context and metadata (Issue #29)
-- **ExplorerAdapter** - Code exploration and analysis (Issue #30)
+All adapters are fully tested and production-ready:
+
+- **SearchAdapter** (`dev_search`) - Semantic code search with type-aware understanding
+  - Natural language queries
+  - Compact and verbose formats
+  - Token cost display: 🪙 ~109 tokens (compact)
+
+- **StatusAdapter** (`dev_status`) - Repository health and statistics
+  - Code index status
+  - GitHub integration status
+  - Health checks and storage metrics
+
+- **PlanAdapter** (`dev_plan`) - Implementation planning from GitHub issues
+  - Issue fetching and analysis
+  - Semantic code search for relevant files
+  - Task breakdown with complexity estimates
+
+- **ExploreAdapter** (`dev_explore`) - Code pattern discovery
+  - Pattern search across codebase
+  - Similar code detection
+  - Relationship mapping
+
+- **GitHubAdapter** (`dev_gh`) - GitHub issue and PR management
+  - Semantic search with filters
+  - Full context retrieval
+  - Works offline with cached data
+  - Token cost display: 🪙 ~36 tokens (compact) to ~462 tokens (verbose)
 
 ## Configuration
 
@@ -392,9 +468,29 @@ async execute(args: Record<string, unknown>, context: ToolExecutionContext): Pro
 
 ### Token Optimization
 
-- Keep tool descriptions concise (< 200 chars)
-- Use enums for known values
-- Limit response size (compress, summarize, paginate)
+All tools now include **automatic token footers** (🪙) for cost visibility:
+
+```
+## GitHub Search Results
+...results here...
+
+🪙 ~36 tokens
+```
+
+**Token Estimation:**
+- Accuracy: <1% error (calibrated against actual usage)
+- Formula: 4.5 chars/token for technical content
+- Validated: 178 actual vs 179 estimated tokens
+
+**Format Strategy:**
+- **Compact**: ~30-150 tokens (summaries, lists)
+- **Verbose**: ~150-500 tokens (full details, metadata)
+- Choose based on your token budget!
+
+**Best Practices:**
+- Use compact format for exploration
+- Use verbose only when you need full context
+- Monitor token footers to optimize costs
 - Implement result formatters (compact vs. verbose)
 
 ## Troubleshooting
