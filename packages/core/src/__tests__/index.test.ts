@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CoreService, createCoreService } from './index';
+import { CoreService, createCoreService } from '../index';
 
 describe('CoreService', () => {
   it('should create a CoreService instance', () => {

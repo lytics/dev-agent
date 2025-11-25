@@ -2,8 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { RepositoryIndexer } from './index';
-import type { IndexProgress } from './types';
+import { RepositoryIndexer } from '../index';
+import type { IndexProgress } from '../types';
 
 describe('RepositoryIndexer', () => {
   let testDir: string;

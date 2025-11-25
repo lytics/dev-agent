@@ -3,8 +3,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AsyncEventBus, createTypedEventBus } from './event-bus';
-import type { SystemEventMap } from './types';
+import { AsyncEventBus, createTypedEventBus } from '../event-bus';
+import type { SystemEventMap } from '../types';
 
 describe('AsyncEventBus', () => {
   let bus: AsyncEventBus;

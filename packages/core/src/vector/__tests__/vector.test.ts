@@ -2,8 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { VectorStorage } from './index';
-import type { EmbeddingDocument } from './types';
+import { VectorStorage } from '../index';
+import type { EmbeddingDocument } from '../types';
 
 describe('Vector Storage', () => {
   let vectorStorage: VectorStorage;

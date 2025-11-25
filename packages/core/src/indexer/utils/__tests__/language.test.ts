@@ -8,7 +8,7 @@ import {
   getLanguageFromExtension,
   getSupportedLanguages,
   isLanguageSupported,
-} from './language';
+} from '../language';
 
 describe('Language Utilities', () => {
   describe('getExtensionForLanguage', () => {

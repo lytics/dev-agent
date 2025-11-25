@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { TransformersEmbedder } from './embedder';
+import { TransformersEmbedder } from '../embedder';
 
 describe('TransformersEmbedder', () => {
   let embedder: TransformersEmbedder;
