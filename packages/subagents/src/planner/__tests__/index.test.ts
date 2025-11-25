@@ -8,9 +8,9 @@
 
 import type { RepositoryIndexer } from '@lytics/dev-agent-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AgentContext } from '../types';
-import { PlannerAgent } from './index';
-import type { PlanningRequest } from './types';
+import type { AgentContext } from '../../types';
+import { PlannerAgent } from '../index';
+import type { PlanningRequest } from '../types';
 
 describe('PlannerAgent', () => {
   let planner: PlannerAgent;
@@ -38,15 +38,12 @@ describe('PlannerAgent', () => {
       agentName: 'planner',
       contextManager: {
         getIndexer: () => mockIndexer,
-        setIndexer: vi.fn(),
         get: vi.fn(),
         set: vi.fn(),
         delete: vi.fn(),
-        getContext: vi.fn().mockReturnValue({}),
-        setContext: vi.fn(),
-        addToHistory: vi.fn(),
+        has: vi.fn(),
         getHistory: vi.fn().mockReturnValue([]),
-        clearHistory: vi.fn(),
+        addToHistory: vi.fn(),
       },
       sendMessage: vi.fn().mockResolvedValue(null),
       broadcastMessage: vi.fn().mockResolvedValue([]),
@@ -91,7 +88,7 @@ describe('PlannerAgent', () => {
         sender: 'test',
         recipient: 'planner',
         payload: { action: 'plan', issueNumber: 123 },
-        priority: 'normal' as const,
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -138,7 +135,7 @@ describe('PlannerAgent', () => {
         sender: 'test',
         recipient: 'planner',
         payload: {},
-        priority: 'normal' as const,
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -158,7 +155,7 @@ describe('PlannerAgent', () => {
         sender: 'test',
         recipient: 'planner',
         payload: { action: 'unknown' },
-        priority: 'normal' as const,
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -182,8 +179,8 @@ describe('PlannerAgent', () => {
         type: 'request' as const,
         sender: 'test',
         recipient: 'planner',
-        payload: request,
-        priority: 'normal' as const,
+        payload: request as unknown as Record<string, unknown>,
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -219,8 +216,8 @@ describe('PlannerAgent', () => {
         type: 'request' as const,
         sender: 'test',
         recipient: 'planner',
-        payload: request,
-        priority: 'normal' as const,
+        payload: request as unknown as Record<string, unknown>,
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -243,8 +240,8 @@ describe('PlannerAgent', () => {
         type: 'request' as const,
         sender: 'test',
         recipient: 'planner',
-        payload: request,
-        priority: 'normal' as const,
+        payload: request as unknown as Record<string, unknown>,
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -282,7 +279,7 @@ describe('PlannerAgent', () => {
         sender: 'test',
         recipient: 'planner',
         payload: {},
-        priority: 'normal' as const,
+        priority: 5,
         timestamp: Date.now(),
       };
 

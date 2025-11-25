@@ -6,14 +6,14 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { VectorStorage } from '@lytics/dev-agent-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { GitHubIndexer } from './indexer';
-import type { GitHubDocument } from './types';
-import * as utils from './utils/index';
+import { GitHubIndexer } from '../indexer';
+import type { GitHubDocument } from '../types';
+import * as utils from '../utils/index';
 
-// Mock the utilities
-vi.mock('./utils/index', () => ({
+// Mock the utilities (factory must be self-contained due to hoisting)
+vi.mock('../utils/index', () => ({
   fetchAllDocuments: vi.fn(),
-  enrichDocument: vi.fn((doc: GitHubDocument) => doc),
+  enrichDocument: vi.fn((doc: unknown) => doc),
   getCurrentRepository: vi.fn(() => 'lytics/dev-agent'),
   calculateRelevance: vi.fn(() => 0.8),
   matchesQuery: vi.fn(() => true),
@@ -46,6 +46,9 @@ describe('GitHubIndexer - Persistence', () => {
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
       url: 'https://github.com/lytics/dev-agent/issues/1',
+      repository: 'lytics/dev-agent',
+      comments: 0,
+      reactions: {},
       relatedIssues: [],
       relatedPRs: [],
       linkedFiles: [],
@@ -62,6 +65,9 @@ describe('GitHubIndexer - Persistence', () => {
       createdAt: '2024-01-02T00:00:00Z',
       updatedAt: '2024-01-02T00:00:00Z',
       url: 'https://github.com/lytics/dev-agent/pull/2',
+      repository: 'lytics/dev-agent',
+      comments: 0,
+      reactions: {},
       relatedIssues: [1],
       relatedPRs: [],
       linkedFiles: ['src/test.ts'],

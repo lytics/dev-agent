@@ -8,8 +8,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { RepositoryIndexer } from '@lytics/dev-agent-core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ExplorerAgent } from '../explorer';
-import { SubagentCoordinator } from './coordinator';
+import { ExplorerAgent } from '../../explorer';
+import { SubagentCoordinator } from '../coordinator';
 
 describe('Coordinator → Explorer Integration', () => {
   let coordinator: SubagentCoordinator;
@@ -71,6 +71,7 @@ describe('Coordinator → Explorer Integration', () => {
         sender: 'test',
         recipient: 'explorer',
         payload: { action: 'pattern', query: 'test' },
+        priority: 5,
       });
       expect(response).toBeDefined();
     });
@@ -93,6 +94,7 @@ describe('Coordinator → Explorer Integration', () => {
           limit: 5,
           threshold: 0.7,
         },
+        priority: 5,
       });
 
       expect(response).toBeDefined();
@@ -116,6 +118,7 @@ describe('Coordinator → Explorer Integration', () => {
           limit: 3,
           threshold: 0.5,
         },
+        priority: 5,
       });
 
       expect(response).toBeDefined();
@@ -139,6 +142,7 @@ describe('Coordinator → Explorer Integration', () => {
           component: 'RepositoryIndexer',
           depth: 1,
         },
+        priority: 5,
       });
 
       expect(response).toBeDefined();
@@ -159,6 +163,7 @@ describe('Coordinator → Explorer Integration', () => {
           scope: 'repository',
           includePatterns: true,
         },
+        priority: 5,
       });
 
       expect(response).toBeDefined();
@@ -177,6 +182,7 @@ describe('Coordinator → Explorer Integration', () => {
         payload: {
           action: 'unknown-action',
         },
+        priority: 5,
       });
 
       expect(response).toBeDefined();
@@ -193,6 +199,7 @@ describe('Coordinator → Explorer Integration', () => {
         sender: 'test',
         recipient: 'non-existent-agent',
         payload: {},
+        priority: 5,
       });
 
       expect(response).toBeDefined();
@@ -214,6 +221,7 @@ describe('Coordinator → Explorer Integration', () => {
           limit: 5,
         },
         priority: 10,
+        maxRetries: 3,
       });
 
       expect(taskId).toBeDefined();
@@ -234,6 +242,8 @@ describe('Coordinator → Explorer Integration', () => {
           action: 'insights',
           scope: 'repository',
         },
+        priority: 5,
+        maxRetries: 3,
       });
 
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -261,6 +271,7 @@ describe('Coordinator → Explorer Integration', () => {
           action: 'pattern',
           query: 'test',
         },
+        priority: 5,
       });
 
       const stats = coordinator.getStats();
@@ -285,6 +296,7 @@ describe('Coordinator → Explorer Integration', () => {
           action: 'pattern',
           query: 'test',
         },
+        priority: 5,
       });
 
       // Should succeed because indexer is in shared context

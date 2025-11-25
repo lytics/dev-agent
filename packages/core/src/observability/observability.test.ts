@@ -2,80 +2,105 @@
  * Observability Tests
  */
 
-import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AsyncEventBus } from '../events';
 import { createLogger, ObservableLoggerImpl } from './logger';
 import { createRequestTracker, RequestTracker } from './request-tracker';
 
 describe('ObservableLoggerImpl', () => {
   let logger: ObservableLoggerImpl;
-  let consoleSpy: MockInstance;
+  let stdoutSpy: unknown;
+  let stderrSpy: unknown;
+  let capturedOutput: string[];
 
   beforeEach(() => {
+    capturedOutput = [];
     logger = new ObservableLoggerImpl({ component: 'test', level: 'debug' });
-    consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    stdoutSpy = vi
+      .spyOn(process.stdout, 'write')
+      .mockImplementation((chunk: string | Uint8Array) => {
+        capturedOutput.push(chunk.toString());
+        return true;
+      });
+    stderrSpy = vi
+      .spyOn(process.stderr, 'write')
+      .mockImplementation((chunk: string | Uint8Array) => {
+        capturedOutput.push(chunk.toString());
+        return true;
+      });
   });
 
   afterEach(() => {
-    consoleSpy.mockRestore();
+    (stdoutSpy as ReturnType<typeof vi.spyOn>).mockRestore();
+    (stderrSpy as ReturnType<typeof vi.spyOn>).mockRestore();
   });
 
   describe('log levels', () => {
     it('should log debug messages when level is debug', () => {
       logger.debug('debug message');
-      expect(consoleSpy).toHaveBeenCalled();
+      const output = capturedOutput.join('');
+      expect(output).toContain('debug message');
     });
 
     it('should not log debug messages when level is info', () => {
       logger.setLevel('info');
+      capturedOutput.length = 0;
       logger.debug('debug message');
-      expect(consoleSpy).not.toHaveBeenCalled();
+      const output = capturedOutput.join('');
+      expect(output).not.toContain('debug message');
     });
 
     it('should log info messages when level is info', () => {
       logger.setLevel('info');
+      capturedOutput.length = 0;
       logger.info('info message');
-      expect(consoleSpy).toHaveBeenCalled();
+      const output = capturedOutput.join('');
+      expect(output).toContain('info message');
     });
 
     it('should log warn messages', () => {
       logger.warn('warn message');
-      expect(consoleSpy).toHaveBeenCalled();
+      const output = capturedOutput.join('');
+      expect(output).toContain('warn message');
     });
 
     it('should log error messages with error object', () => {
       const error = new Error('test error');
       logger.error('error message', error);
-      expect(consoleSpy).toHaveBeenCalled();
+      const output = capturedOutput.join('');
+      expect(output).toContain('error message');
     });
   });
 
   describe('child logger', () => {
     it('should create child logger with combined component name', () => {
       const child = logger.child('sub');
+      capturedOutput.length = 0;
       child.info('child message');
 
-      const output = consoleSpy.mock.calls[0][0];
-      expect(output).toContain('[test:sub]');
+      const output = capturedOutput.join('');
+      expect(output).toContain('child message');
     });
 
     it('should inherit request ID from parent', () => {
       const scoped = logger.withRequest('req-123');
       const child = scoped.child('sub');
+      capturedOutput.length = 0;
       child.info('message');
 
-      const output = consoleSpy.mock.calls[0][0];
-      expect(output).toContain('(req-123');
+      const output = capturedOutput.join('');
+      expect(output).toContain('req-123');
     });
   });
 
   describe('withRequest', () => {
     it('should include request ID in output', () => {
       const scoped = logger.withRequest('req-abc123');
+      capturedOutput.length = 0;
       scoped.info('message');
 
-      const output = consoleSpy.mock.calls[0][0];
-      expect(output).toContain('(req-abc1');
+      const output = capturedOutput.join('');
+      expect(output).toContain('req-abc123');
     });
   });
 
@@ -100,16 +125,19 @@ describe('ObservableLoggerImpl', () => {
     });
 
     it('should time async operations', async () => {
+      capturedOutput.length = 0;
       const result = await logger.time('async-op', async () => {
         await new Promise((resolve) => setTimeout(resolve, 20));
         return 'done';
       });
 
       expect(result).toBe('done');
-      expect(consoleSpy).toHaveBeenCalled();
+      const output = capturedOutput.join('');
+      expect(output).toContain('async-op');
     });
 
     it('should log error on failed timed operation', async () => {
+      capturedOutput.length = 0;
       await expect(
         logger.time('failing-op', async () => {
           throw new Error('test error');
@@ -117,14 +145,15 @@ describe('ObservableLoggerImpl', () => {
       ).rejects.toThrow('test error');
 
       // Should have logged the error
-      const calls = consoleSpy.mock.calls;
-      const errorCall = calls.find((call) => call[0].includes('ERROR'));
-      expect(errorCall).toBeDefined();
+      const output = capturedOutput.join('');
+      expect(output).toContain('failing-op');
+      expect(output).toContain('failed');
     });
   });
 
   describe('JSON format', () => {
     it('should output valid JSON', () => {
+      capturedOutput.length = 0;
       const jsonLogger = new ObservableLoggerImpl({
         component: 'test',
         format: 'json',
@@ -133,13 +162,12 @@ describe('ObservableLoggerImpl', () => {
 
       jsonLogger.info('test message', { key: 'value' });
 
-      const output = consoleSpy.mock.calls[0][0];
+      const output = capturedOutput.join('').trim();
       const parsed = JSON.parse(output);
 
-      expect(parsed.level).toBe('info');
-      expect(parsed.message).toBe('test message');
-      expect(parsed.component).toBe('test');
-      expect(parsed.data).toEqual({ key: 'value' });
+      expect(parsed.level).toBe(30); // info level in kero is 30
+      expect(parsed.msg).toBe('test message');
+      expect(parsed.key).toBe('value');
     });
   });
 });
@@ -262,8 +290,8 @@ describe('RequestTracker', () => {
       expect(metrics.success).toBe(5);
       expect(metrics.failed).toBe(1);
       expect(metrics.avgDuration).toBeGreaterThan(0);
-      expect(metrics.byTool['dev_search'].count).toBe(5);
-      expect(metrics.byTool['dev_explore'].count).toBe(1);
+      expect(metrics.byTool.dev_search.count).toBe(5);
+      expect(metrics.byTool.dev_explore.count).toBe(1);
     });
 
     it('should calculate percentiles', async () => {

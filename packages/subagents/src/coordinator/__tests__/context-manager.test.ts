@@ -3,9 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { RepositoryIndexer } from '@lytics/dev-agent-core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { Message } from '../types';
-import { ContextManagerImpl } from './context-manager';
-import { MemoryStorageAdapter } from './storage';
+import type { Message } from '../../types';
+import { ContextManagerImpl } from '../context-manager';
+import { MemoryStorageAdapter } from '../storage';
 
 describe('ContextManagerImpl', () => {
   let contextManager: ContextManagerImpl;

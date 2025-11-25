@@ -47,9 +47,9 @@ importers:
       '@lytics/dev-agent-subagents':
         specifier: workspace:*
         version: link:../subagents
-      chalk:
-        specifier: ^5.3.0
-        version: 5.6.2
+      '@lytics/kero':
+        specifier: workspace:*
+        version: link:../logger
       ora:
         specifier: ^8.0.1
         version: 8.2.0
@@ -57,6 +57,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.1
+      chalk:
+        specifier: ^5.6.2
+        version: 5.6.2
       commander:
         specifier: ^12.1.0
         version: 12.1.0
@@ -69,6 +72,9 @@ importers:
       '@lancedb/lancedb':
         specifier: ^0.22.3
         version: 0.22.3(apache-arrow@18.1.0)
+      '@lytics/kero':
+        specifier: workspace:*
+        version: link:../logger
       '@xenova/transformers':
         specifier: ^2.17.2
         version: 2.17.2
@@ -137,6 +143,9 @@ importers:
       '@lytics/dev-agent-subagents':
         specifier: workspace:*
         version: link:../subagents
+      '@lytics/kero':
+        specifier: workspace:*
+        version: link:../logger
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -153,6 +162,9 @@ importers:
       '@lytics/dev-agent-core':
         specifier: workspace:*
         version: link:../core
+      '@lytics/kero':
+        specifier: workspace:*
+        version: link:../logger
     devDependencies:
       '@types/node':
         specifier: ^22.0.0

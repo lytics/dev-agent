@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { CoordinatorLogger } from '../logger';
-import type { Task } from '../types';
-import { TaskQueue } from './task-queue';
+import { CoordinatorLogger } from '../../logger';
+import type { Task } from '../../types';
+import { TaskQueue } from '../task-queue';
 
 describe('TaskQueue', () => {
   let queue: TaskQueue;

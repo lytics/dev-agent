@@ -1,29 +1,38 @@
-import chalk from 'chalk';
+/**
+ * CLI Logger using @lytics/kero
+ */
 
+import { createLogger } from '@lytics/kero';
+
+// Create a logger with pretty output and icons
+const keroLogger = createLogger({
+  preset: 'development',
+  format: 'pretty',
+});
+
+// Export a simple interface for CLI usage
 export const logger = {
   info: (message: string) => {
-    console.log(chalk.blue('ℹ'), message);
+    keroLogger.info(message);
   },
 
   success: (message: string) => {
-    console.log(chalk.green('✔'), message);
+    keroLogger.success(message);
   },
 
   error: (message: string) => {
-    console.log(chalk.red('✖'), message);
+    keroLogger.error(message);
   },
 
   warn: (message: string) => {
-    console.log(chalk.yellow('⚠'), message);
+    keroLogger.warn(message);
   },
 
   log: (message: string) => {
-    console.log(message);
+    keroLogger.info(message);
   },
 
   debug: (message: string) => {
-    if (process.env.DEBUG) {
-      console.log(chalk.gray('🐛'), chalk.gray(message));
-    }
+    keroLogger.debug(message);
   },
 };

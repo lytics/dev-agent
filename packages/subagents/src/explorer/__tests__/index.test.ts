@@ -3,10 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { RepositoryIndexer } from '@lytics/dev-agent-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ContextManagerImpl } from '../coordinator/context-manager';
-import { CoordinatorLogger } from '../logger';
-import type { AgentContext, Message } from '../types';
-import { ExplorerAgent } from './index';
+import { ContextManagerImpl } from '../../coordinator/context-manager';
+import { CoordinatorLogger } from '../../logger';
+import type { AgentContext, Message } from '../../types';
+import { ExplorerAgent } from '../index';
 
 describe('ExplorerAgent', () => {
   let explorer: ExplorerAgent;
@@ -44,7 +44,7 @@ describe('ExplorerAgent', () => {
     indexer = new RepositoryIndexer({
       repositoryPath: tempDir,
       vectorStorePath: join(tempDir, '.vectors'),
-      dimension: 384,
+      embeddingDimension: 384,
     });
 
     await indexer.initialize();
@@ -103,6 +103,7 @@ describe('ExplorerAgent', () => {
           query: 'authentication',
           limit: 5,
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -129,6 +130,7 @@ describe('ExplorerAgent', () => {
           fileTypes: ['.ts'],
           limit: 10,
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -150,6 +152,7 @@ describe('ExplorerAgent', () => {
           query: 'function',
           limit: 2,
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -170,6 +173,7 @@ describe('ExplorerAgent', () => {
           query: 'service',
           threshold: 0.5,
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -189,6 +193,7 @@ describe('ExplorerAgent', () => {
           query: 'class',
           fileTypes: [],
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -211,6 +216,7 @@ describe('ExplorerAgent', () => {
           filePath: 'auth.ts',
           limit: 5,
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -234,6 +240,7 @@ describe('ExplorerAgent', () => {
           action: 'similar',
           filePath: 'auth.ts',
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -257,6 +264,7 @@ describe('ExplorerAgent', () => {
           filePath: 'user.ts',
           threshold: 0.8,
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -276,6 +284,7 @@ describe('ExplorerAgent', () => {
           action: 'similar',
           filePath: 'nonexistent.ts',
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -298,6 +307,7 @@ describe('ExplorerAgent', () => {
           component: 'AuthService',
           type: 'all',
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -324,6 +334,7 @@ describe('ExplorerAgent', () => {
             component: 'UserService',
             type,
           },
+          priority: 5,
           timestamp: Date.now(),
         };
 
@@ -344,6 +355,7 @@ describe('ExplorerAgent', () => {
           component: 'AuthService',
           type: 'dependencies',
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -364,6 +376,7 @@ describe('ExplorerAgent', () => {
           component: 'Service',
           limit: 5,
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -382,6 +395,7 @@ describe('ExplorerAgent', () => {
           action: 'relationships',
           component: 'UserService',
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -403,6 +417,7 @@ describe('ExplorerAgent', () => {
           action: 'insights',
           type: 'all',
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -433,6 +448,7 @@ describe('ExplorerAgent', () => {
         payload: {
           action: 'insights',
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -473,6 +489,7 @@ describe('ExplorerAgent', () => {
             action: 'insights',
             type,
           },
+          priority: 5,
           timestamp: Date.now(),
         };
 
@@ -494,6 +511,7 @@ describe('ExplorerAgent', () => {
         payload: {
           action: 'insights',
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -528,6 +546,7 @@ describe('ExplorerAgent', () => {
           action: 'insights',
           type: 'patterns',
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -553,6 +572,7 @@ describe('ExplorerAgent', () => {
         payload: {
           action: 'unknown-action',
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -578,6 +598,7 @@ describe('ExplorerAgent', () => {
           action: 'pattern',
           query: 'test',
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -591,6 +612,7 @@ describe('ExplorerAgent', () => {
         sender: 'test',
         recipient: 'explorer',
         payload: {},
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -611,6 +633,7 @@ describe('ExplorerAgent', () => {
           action: 'pattern',
           query: 'test',
         },
+        priority: 5,
         timestamp: Date.now(),
       };
 
@@ -637,7 +660,7 @@ describe('ExplorerAgent', () => {
           action: 'pattern',
           query: 'test',
         },
-        priority: 'high',
+        priority: 5,
         timestamp: Date.now(),
       };
 

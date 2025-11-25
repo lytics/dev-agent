@@ -7,13 +7,13 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GitHubAgentConfig } from '../github/agent';
-import { GitHubAgent } from '../github/agent';
-import type { GitHubContextRequest, GitHubContextResult, GitHubDocument } from '../github/types';
-import { SubagentCoordinator } from './coordinator';
+import type { GitHubAgentConfig } from '../../github/agent';
+import { GitHubAgent } from '../../github/agent';
+import type { GitHubContextResult, GitHubDocument } from '../../github/types';
+import { SubagentCoordinator } from '../coordinator';
 
 // Mock GitHub utilities to avoid actual gh CLI calls
-vi.mock('../github/utils/index', () => ({
+vi.mock('../../github/utils/index', () => ({
   fetchAllDocuments: vi.fn(() => [
     {
       type: 'issue',
@@ -30,6 +30,9 @@ vi.mock('../github/utils/index', () => ({
       relatedPRs: [],
       linkedFiles: [],
       mentions: [],
+      repository: 'lytics/dev-agent',
+      comments: 0,
+      reactions: {},
     },
   ]),
   enrichDocument: vi.fn((doc: GitHubDocument) => doc),
@@ -105,31 +108,39 @@ describe('Coordinator → GitHub Integration', () => {
         recipient: 'github',
         payload: {
           action: 'index',
-        } as GitHubContextRequest,
+        } as unknown as Record<string, unknown>,
+        priority: 5,
       });
 
       expect(response).toBeDefined();
       expect(response?.type).toBe('response');
       expect(response?.sender).toBe('github');
 
-      const result = response?.payload as GitHubContextResult;
+      const result = response?.payload as unknown as GitHubContextResult;
       expect(result).toBeDefined();
       expect(result.action).toBe('index');
     });
 
     it('should route search request to GitHub agent', async () => {
       // Index first (required for search)
-      await coordinator.sendMessage({
+      const indexResponse = await coordinator.sendMessage({
         type: 'request',
         sender: 'test',
         recipient: 'github',
         payload: {
           action: 'index',
           indexOptions: {},
-        } as GitHubContextRequest,
+        } as unknown as Record<string, unknown>,
+        priority: 5,
       });
 
-      const response = await coordinator.sendMessage({
+      // Verify index completed
+      expect(indexResponse?.type).toBe('response');
+      const indexResult = indexResponse?.payload as unknown as GitHubContextResult;
+      expect(indexResult.action).toBe('index');
+
+      // Now search
+      const searchResponse = await coordinator.sendMessage({
         type: 'request',
         sender: 'test',
         recipient: 'github',
@@ -137,13 +148,14 @@ describe('Coordinator → GitHub Integration', () => {
           action: 'search',
           query: 'test query',
           searchOptions: { limit: 10 },
-        } as GitHubContextRequest,
+        } as unknown as Record<string, unknown>,
+        priority: 5,
       });
 
-      expect(response).toBeDefined();
-      expect(response?.type).toBe('response');
+      expect(searchResponse).toBeDefined();
+      expect(searchResponse?.type).toBe('response');
 
-      const result = response?.payload as GitHubContextResult;
+      const result = searchResponse?.payload as unknown as GitHubContextResult;
       expect(result.action).toBe('search');
       expect(Array.isArray(result.results)).toBe(true);
     });
@@ -156,13 +168,14 @@ describe('Coordinator → GitHub Integration', () => {
         payload: {
           action: 'context',
           issueNumber: 999,
-        } as GitHubContextRequest,
+        } as unknown as Record<string, unknown>,
+        priority: 5,
       });
 
       expect(response).toBeDefined();
       expect(response?.type).toBe('response');
 
-      const result = response?.payload as GitHubContextResult;
+      const result = response?.payload as unknown as GitHubContextResult;
       expect(result.action).toBe('context');
     });
 
@@ -174,13 +187,14 @@ describe('Coordinator → GitHub Integration', () => {
         payload: {
           action: 'related',
           issueNumber: 999,
-        } as GitHubContextRequest,
+        } as unknown as Record<string, unknown>,
+        priority: 5,
       });
 
       expect(response).toBeDefined();
       expect(response?.type).toBe('response');
 
-      const result = response?.payload as GitHubContextResult;
+      const result = response?.payload as unknown as GitHubContextResult;
       expect(result.action).toBe('related');
     });
 
@@ -190,6 +204,7 @@ describe('Coordinator → GitHub Integration', () => {
         sender: 'test',
         recipient: 'github',
         payload: { data: 'test event' },
+        priority: 5,
       });
 
       expect(response).toBeNull();
@@ -204,7 +219,8 @@ describe('Coordinator → GitHub Integration', () => {
         recipient: 'github',
         payload: {
           action: 'invalid-action',
-        } as unknown as GitHubContextRequest,
+        } as unknown as Record<string, unknown>,
+        priority: 5,
       });
 
       expect(response).toBeDefined();
@@ -219,7 +235,8 @@ describe('Coordinator → GitHub Integration', () => {
         payload: {
           action: 'context',
           // Missing issueNumber
-        } as unknown as GitHubContextRequest,
+        } as unknown as Record<string, unknown>,
+        priority: 5,
       });
 
       expect(response).toBeDefined();
@@ -264,7 +281,8 @@ describe('Coordinator → GitHub Integration', () => {
         payload: {
           action: 'search',
           query: 'test',
-        } as GitHubContextRequest,
+        } as unknown as Record<string, unknown>,
+        priority: 5,
       });
 
       expect(response?.sender).toBe('github');

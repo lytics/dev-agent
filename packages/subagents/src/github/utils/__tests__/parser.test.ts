@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { GitHubDocument } from '../types';
+import type { GitHubDocument } from '../../types';
 import {
   calculateRelevance,
   enrichDocument,
@@ -15,7 +15,7 @@ import {
   extractMentions,
   extractUrls,
   matchesQuery,
-} from './parser';
+} from '../parser';
 
 describe('extractIssueReferences', () => {
   it('should extract #123 format', () => {

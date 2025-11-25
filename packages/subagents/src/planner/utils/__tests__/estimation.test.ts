@@ -3,13 +3,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { PlanTask } from '../types';
+import type { PlanTask } from '../../types';
 import {
   addEstimatesToTasks,
   calculateTotalEstimate,
   estimateTaskHours,
   formatEstimate,
-} from './estimation';
+} from '../estimation';
 
 describe('estimateTaskHours', () => {
   it('should estimate 2 hours for documentation tasks', () => {

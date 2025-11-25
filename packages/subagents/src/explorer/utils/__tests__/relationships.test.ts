@@ -4,8 +4,8 @@
 
 import type { SearchResult } from '@lytics/dev-agent-core';
 import { describe, expect, it } from 'vitest';
-import type { CodeRelationship } from '../types';
-import { createRelationship, isDuplicateRelationship } from './relationships';
+import type { CodeRelationship } from '../../types';
+import { createRelationship, isDuplicateRelationship } from '../relationships';
 
 describe('Relationship Utilities', () => {
   const mockSearchResult: SearchResult = {
@@ -54,8 +54,8 @@ describe('Relationship Utilities', () => {
     });
 
     it('should create dependency relationships', () => {
-      const relationship = createRelationship(mockSearchResult, 'react', 'dependencies');
-      expect(relationship.type).toBe('dependencies');
+      const relationship = createRelationship(mockSearchResult, 'react', 'imports');
+      expect(relationship.type).toBe('imports');
       expect(relationship.to).toBe('react');
     });
 
