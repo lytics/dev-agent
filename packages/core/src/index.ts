@@ -2,6 +2,7 @@
 
 export * from './api';
 export * from './context';
+export * from './events';
 export * from './github';
 export * from './indexer';
 export * from './scanner';
