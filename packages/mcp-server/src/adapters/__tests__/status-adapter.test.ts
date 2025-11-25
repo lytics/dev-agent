@@ -19,17 +19,17 @@ const createMockRepositoryIndexer = () => {
 
 // Mock GitHubIndexer
 vi.mock('@lytics/dev-agent-subagents', () => ({
-  GitHubIndexer: vi.fn().mockImplementation(() => ({
-    initialize: vi.fn().mockResolvedValue(undefined),
-    getStats: vi.fn().mockReturnValue({
+  GitHubIndexer: vi.fn(() => ({
+    initialize: vi.fn(() => Promise.resolve(undefined)),
+    getStats: vi.fn(() => ({
       repository: 'lytics/dev-agent',
       totalDocuments: 59,
       byType: { issue: 47, pull_request: 12 },
       byState: { open: 35, closed: 15, merged: 9 },
       lastIndexed: '2025-11-24T10:00:00Z',
       indexDuration: 12400,
-    }),
-    isIndexed: vi.fn().mockReturnValue(true),
+    })),
+    isIndexed: vi.fn(() => true),
   })),
 }));
 

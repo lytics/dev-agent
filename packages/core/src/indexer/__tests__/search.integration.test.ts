@@ -8,28 +8,62 @@
  * To run locally: `dev index .` first, then run tests.
  */
 
+import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { getStorageFilePaths, getStoragePath } from '../../storage/path';
 import { RepositoryIndexer } from '../index';
 
-const shouldSkip = process.env.CI === 'true' && !process.env.RUN_INTEGRATION;
+const repoRoot = path.resolve(__dirname, '../../../../..');
+
+// Function to check if the repository has been indexed using centralized storage
+async function hasIndexedData(repositoryPath: string): Promise<boolean> {
+  try {
+    const storagePath = await getStoragePath(repositoryPath);
+    const { vectors } = getStorageFilePaths(storagePath);
+    return existsSync(vectors);
+  } catch {
+    return false;
+  }
+}
+
+// Check conditions for skipping tests
+const shouldSkipForEnv = process.env.CI === 'true' && !process.env.RUN_INTEGRATION;
+let shouldSkipForData = true;
+
+// Async check for data - this will be checked before tests run
+(async () => {
+  shouldSkipForData = !(await hasIndexedData(repoRoot));
+})();
+
+const shouldSkip = shouldSkipForEnv || shouldSkipForData;
 
 describe.skipIf(shouldSkip)('RepositoryIndexer Search Integration', () => {
   let indexer: RepositoryIndexer;
-  const repoRoot = path.resolve(__dirname, '../../../../..');
-  const vectorPath = path.join(repoRoot, '.dev-agent/vectors.lance');
 
   beforeAll(async () => {
+    // Double-check data availability
+    const hasData = await hasIndexedData(repoRoot);
+    if (!hasData) {
+      console.log('Skipping integration tests: no indexed data found in centralized storage');
+      return;
+    }
+
+    const storagePath = await getStoragePath(repoRoot);
+    const { vectors } = getStorageFilePaths(storagePath);
+
     indexer = new RepositoryIndexer({
       repositoryPath: repoRoot,
-      vectorStorePath: vectorPath,
+      vectorStorePath: vectors,
       embeddingModel: 'Xenova/all-MiniLM-L6-v2',
     });
     await indexer.initialize();
   });
 
   afterAll(async () => {
-    await indexer.close();
+    if (indexer) {
+      await indexer.close();
+    }
   });
 
   describe('Statistics', () => {
