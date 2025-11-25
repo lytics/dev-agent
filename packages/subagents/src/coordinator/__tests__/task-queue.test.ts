@@ -1,14 +1,22 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { CoordinatorLogger } from '../../logger';
-import type { Task } from '../../types';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Logger, Task } from '../../types';
 import { TaskQueue } from '../task-queue';
 
 describe('TaskQueue', () => {
   let queue: TaskQueue;
-  let logger: CoordinatorLogger;
+  let logger: Logger;
 
   beforeEach(() => {
-    logger = new CoordinatorLogger('test-queue', 'error'); // Quiet during tests
+    // Create a silent mock logger for tests
+    logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      child: vi.fn(function (this: Logger) {
+        return this;
+      }),
+    };
     queue = new TaskQueue(2, logger); // max 2 concurrent
   });
 
