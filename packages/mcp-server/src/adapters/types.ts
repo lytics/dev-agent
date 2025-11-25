@@ -2,6 +2,8 @@
  * Adapter Framework Types
  */
 
+import type { SubagentCoordinator } from '@lytics/dev-agent-subagents';
+
 // Adapter Metadata
 export interface AdapterMetadata {
   name: string;
@@ -14,6 +16,8 @@ export interface AdapterMetadata {
 export interface AdapterContext {
   logger: Logger;
   config: Config;
+  /** Optional coordinator for routing through subagents */
+  coordinator?: SubagentCoordinator;
 }
 
 // Tool Execution Context (provided during tool execution)

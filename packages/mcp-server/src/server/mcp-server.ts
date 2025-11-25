@@ -3,6 +3,7 @@
  * Handles protocol, routing, and adapter coordination
  */
 
+import type { SubagentCoordinator } from '@lytics/dev-agent-subagents';
 import { AdapterRegistry, type RegistryConfig } from '../adapters/adapter-registry';
 import type { ToolAdapter } from '../adapters/tool-adapter';
 import type { AdapterContext, Config, ToolExecutionContext } from '../adapters/types';
@@ -26,6 +27,8 @@ export interface MCPServerConfig {
   transport?: 'stdio' | Transport;
   registry?: RegistryConfig;
   adapters?: ToolAdapter[];
+  /** Optional coordinator for routing through subagents */
+  coordinator?: SubagentCoordinator;
 }
 
 export class MCPServer {
@@ -36,12 +39,14 @@ export class MCPServer {
   private config: Config;
   private serverInfo: ServerInfo;
   private clientProtocolVersion?: string;
+  private coordinator?: SubagentCoordinator;
 
   constructor(config: MCPServerConfig) {
     this.config = config.config;
     this.serverInfo = config.serverInfo;
     this.registry = new AdapterRegistry(config.registry || {});
     this.promptRegistry = new PromptRegistry();
+    this.coordinator = config.coordinator;
 
     // Create transport
     if (config.transport === 'stdio' || !config.transport) {
@@ -65,12 +70,22 @@ export class MCPServer {
     this.logger.info('Starting MCP server', {
       name: this.serverInfo.name,
       version: this.serverInfo.version,
+      hasCoordinator: !!this.coordinator,
     });
 
-    // Initialize adapters
+    // Start coordinator if provided
+    if (this.coordinator) {
+      this.coordinator.start();
+      this.logger.info('Subagent coordinator started', {
+        agents: this.coordinator.getAgents(),
+      });
+    }
+
+    // Initialize adapters with coordinator access
     const adapterContext: AdapterContext = {
       logger: this.logger,
       config: this.config,
+      coordinator: this.coordinator,
     };
     await this.registry.initializeAll(adapterContext);
 
@@ -92,6 +107,12 @@ export class MCPServer {
 
     await this.registry.shutdownAll();
     await this.transport.stop();
+
+    // Stop coordinator if provided
+    if (this.coordinator) {
+      await this.coordinator.stop();
+      this.logger.info('Subagent coordinator stopped');
+    }
 
     this.logger.info('MCP server stopped');
   }
