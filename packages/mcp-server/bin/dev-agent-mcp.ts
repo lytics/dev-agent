@@ -6,6 +6,12 @@
 
 import { RepositoryIndexer } from '@lytics/dev-agent-core';
 import {
+  ExplorerAgent,
+  PlannerAgent,
+  PrAgent,
+  SubagentCoordinator,
+} from '@lytics/dev-agent-subagents';
+import {
   ExploreAdapter,
   GitHubAdapter,
   PlanAdapter,
@@ -29,6 +35,21 @@ async function main() {
     });
 
     await indexer.initialize();
+
+    // Create and configure the subagent coordinator
+    const coordinator = new SubagentCoordinator({
+      maxConcurrentTasks: 5,
+      defaultMessageTimeout: 30000,
+      logLevel,
+    });
+
+    // Set up context manager with indexer
+    coordinator.getContextManager().setIndexer(indexer);
+
+    // Register subagents
+    await coordinator.registerAgent(new ExplorerAgent());
+    await coordinator.registerAgent(new PlannerAgent());
+    await coordinator.registerAgent(new PrAgent());
 
     // Create and register adapters
     const searchAdapter = new SearchAdapter({
@@ -68,7 +89,7 @@ async function main() {
       defaultFormat: 'compact',
     });
 
-    // Create MCP server
+    // Create MCP server with coordinator
     const server = new MCPServer({
       serverInfo: {
         name: 'dev-agent',
@@ -80,6 +101,7 @@ async function main() {
       },
       transport: 'stdio',
       adapters: [searchAdapter, statusAdapter, planAdapter, exploreAdapter, githubAdapter],
+      coordinator,
     });
 
     // Handle graceful shutdown
