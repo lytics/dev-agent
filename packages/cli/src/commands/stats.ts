@@ -1,6 +1,11 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { RepositoryIndexer } from '@lytics/dev-agent-core';
+import {
+  ensureStorageDirectory,
+  getStorageFilePaths,
+  getStoragePath,
+  RepositoryIndexer,
+} from '@lytics/dev-agent-core';
 import { GitHubIndexer } from '@lytics/dev-agent-subagents';
 import chalk from 'chalk';
 import { Command } from 'commander';
@@ -24,7 +29,23 @@ export const statsCommand = new Command('stats')
         return; // TypeScript needs this
       }
 
-      const indexer = new RepositoryIndexer(config);
+      // Resolve repository path
+      const repositoryPath = config.repository?.path || config.repositoryPath || process.cwd();
+      const resolvedRepoPath = path.resolve(repositoryPath);
+
+      // Get centralized storage paths
+      const storagePath = await getStoragePath(resolvedRepoPath);
+      await ensureStorageDirectory(storagePath);
+      const filePaths = getStorageFilePaths(storagePath);
+
+      const indexer = new RepositoryIndexer({
+        repositoryPath: resolvedRepoPath,
+        vectorStorePath: filePaths.vectors,
+        statePath: filePaths.indexerState,
+        excludePatterns: config.repository?.excludePatterns || config.excludePatterns,
+        languages: config.repository?.languages || config.languages,
+      });
+
       await indexer.initialize();
 
       const stats = await indexer.getStats();
@@ -34,9 +55,8 @@ export const statsCommand = new Command('stats')
       try {
         // Try to load repository from state file
         let repository: string | undefined;
-        const statePath = path.join(config.repositoryPath, '.dev-agent/github-state.json');
         try {
-          const stateContent = await fs.readFile(statePath, 'utf-8');
+          const stateContent = await fs.readFile(filePaths.githubState, 'utf-8');
           const state = JSON.parse(stateContent);
           repository = state.repository;
         } catch {
@@ -45,8 +65,8 @@ export const statsCommand = new Command('stats')
 
         const githubIndexer = new GitHubIndexer(
           {
-            vectorStorePath: `${config.vectorStorePath}-github`,
-            statePath,
+            vectorStorePath: `${filePaths.vectors}-github`,
+            statePath: filePaths.githubState,
             autoUpdate: false,
           },
           repository
@@ -78,8 +98,9 @@ export const statsCommand = new Command('stats')
       logger.log('');
       logger.log(chalk.bold.cyan('📊 Indexing Statistics'));
       logger.log('');
-      logger.log(`${chalk.cyan('Repository:')}         ${config.repositoryPath}`);
-      logger.log(`${chalk.cyan('Vector Store:')}       ${config.vectorStorePath}`);
+      logger.log(`${chalk.cyan('Repository:')}         ${resolvedRepoPath}`);
+      logger.log(`${chalk.cyan('Storage:')}            ${storagePath}`);
+      logger.log(`${chalk.cyan('Vector Store:')}       ${filePaths.vectors}`);
       logger.log('');
       logger.log(`${chalk.cyan('Files Indexed:')}      ${stats.filesScanned}`);
       logger.log(`${chalk.cyan('Documents Extracted:')} ${stats.documentsExtracted}`);

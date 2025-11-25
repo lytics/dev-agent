@@ -1,4 +1,10 @@
-import { RepositoryIndexer } from '@lytics/dev-agent-core';
+import {
+  ensureStorageDirectory,
+  getStorageFilePaths,
+  getStoragePath,
+  RepositoryIndexer,
+  updateIndexedStats,
+} from '@lytics/dev-agent-core';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
@@ -21,11 +27,26 @@ export const indexCommand = new Command('index')
         config = getDefaultConfig(repositoryPath);
       }
 
-      // Override with command line args
-      config.repositoryPath = repositoryPath;
+      // Override repository path with command line arg
+      const resolvedRepoPath = repositoryPath;
+
+      // Get centralized storage path
+      spinner.text = 'Resolving storage path...';
+      const storagePath = await getStoragePath(resolvedRepoPath);
+      await ensureStorageDirectory(storagePath);
+      const filePaths = getStorageFilePaths(storagePath);
 
       spinner.text = 'Initializing indexer...';
-      const indexer = new RepositoryIndexer(config);
+      const indexer = new RepositoryIndexer({
+        repositoryPath: resolvedRepoPath,
+        vectorStorePath: filePaths.vectors,
+        statePath: filePaths.indexerState,
+        excludePatterns: config.repository?.excludePatterns || config.excludePatterns,
+        languages: config.repository?.languages || config.languages,
+        embeddingModel: config.embeddingModel,
+        embeddingDimension: config.dimension,
+      });
+
       await indexer.initialize();
 
       spinner.text = 'Scanning repository...';
@@ -47,6 +68,13 @@ export const indexCommand = new Command('index')
         },
       });
 
+      // Update metadata with indexing stats
+      await updateIndexedStats(storagePath, {
+        files: stats.filesScanned,
+        components: stats.documentsIndexed,
+        size: 0, // TODO: Calculate actual size
+      });
+
       await indexer.close();
 
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
@@ -61,6 +89,7 @@ export const indexCommand = new Command('index')
       logger.log(`  ${chalk.cyan('Documents indexed:')}   ${stats.documentsIndexed}`);
       logger.log(`  ${chalk.cyan('Vectors stored:')}      ${stats.vectorsStored}`);
       logger.log(`  ${chalk.cyan('Duration:')}            ${duration}s`);
+      logger.log(`  ${chalk.cyan('Storage:')}             ${storagePath}`);
 
       if (stats.errors.length > 0) {
         logger.log('');
