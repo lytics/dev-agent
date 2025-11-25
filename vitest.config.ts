@@ -25,6 +25,7 @@ export default defineConfig({
       '@lytics/dev-agent-subagents': resolve(__dirname, 'packages/subagents/src'),
       '@lytics/dev-agent-cli': resolve(__dirname, 'packages/cli/src'),
       '@lytics/dev-agent-integrations': resolve(__dirname, 'packages/integrations/src'),
+      '@lytics/kero': resolve(__dirname, 'packages/logger/src'),
     },
   },
 });

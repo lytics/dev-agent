@@ -20,7 +20,9 @@
       "@lytics/dev-agent-cli": ["packages/cli/src"],
       "@lytics/dev-agent-cli/*": ["packages/cli/src/*"],
       "@lytics/dev-agent-integrations": ["packages/integrations/src"],
-      "@lytics/dev-agent-integrations/*": ["packages/integrations/src/*"]
+      "@lytics/dev-agent-integrations/*": ["packages/integrations/src/*"],
+      "@lytics/kero": ["packages/logger/src"],
+      "@lytics/kero/*": ["packages/logger/src/*"]
     }
   },
   "exclude": ["node_modules"],

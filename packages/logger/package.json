@@ -1,0 +1,39 @@
+{
+  "name": "@lytics/kero",
+  "version": "0.1.0",
+  "description": "Zero-dependency TypeScript logger",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint ./src",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "logger",
+    "logging",
+    "typescript",
+    "zero-dependency"
+  ],
+  "author": "Lytics",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.4.5",
+    "vitest": "^1.4.0"
+  }
+}
