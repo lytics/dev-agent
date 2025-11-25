@@ -7,6 +7,7 @@ import { AdapterRegistry, type RegistryConfig } from '../adapters/adapter-regist
 import type { ToolAdapter } from '../adapters/tool-adapter';
 import type { AdapterContext, Config, ToolExecutionContext } from '../adapters/types';
 import { ConsoleLogger } from '../utils/logger';
+import { PromptRegistry } from './prompts';
 import { JSONRPCHandler } from './protocol/jsonrpc';
 import type {
   ErrorCode,
@@ -29,6 +30,7 @@ export interface MCPServerConfig {
 
 export class MCPServer {
   private registry: AdapterRegistry;
+  private promptRegistry: PromptRegistry;
   private transport: Transport;
   private logger = new ConsoleLogger('[MCP Server]', 'debug'); // Enable debug logging
   private config: Config;
@@ -39,6 +41,7 @@ export class MCPServer {
     this.config = config.config;
     this.serverInfo = config.serverInfo;
     this.registry = new AdapterRegistry(config.registry || {});
+    this.promptRegistry = new PromptRegistry();
 
     // Create transport
     if (config.transport === 'stdio' || !config.transport) {
@@ -169,10 +172,16 @@ export class MCPServer {
           request.params as { name: string; arguments: Record<string, unknown> }
         );
 
+      case 'prompts/list':
+        return this.handlePromptsList();
+
+      case 'prompts/get':
+        return this.handlePromptsGet(
+          request.params as { name: string; arguments?: Record<string, string> }
+        );
+
       case 'resources/list':
       case 'resources/read':
-      case 'prompts/list':
-      case 'prompts/get':
         throw JSONRPCHandler.createError(-32601, `Method not implemented: ${method}`);
 
       default:
@@ -196,7 +205,7 @@ export class MCPServer {
     const capabilities: ServerCapabilities = {
       tools: { supported: true },
       resources: { supported: false }, // Not yet implemented
-      prompts: { supported: false }, // Not yet implemented
+      prompts: { supported: true },
     };
 
     return {
@@ -268,6 +277,45 @@ export class MCPServer {
         },
       ],
     };
+  }
+
+  /**
+   * Handle prompts/list request
+   */
+  private handlePromptsList(): { prompts: unknown[] } {
+    this.logger.debug('Listing prompts');
+    const prompts = this.promptRegistry.listPrompts();
+    this.logger.info('Prompts listed', { count: prompts.length });
+    return { prompts };
+  }
+
+  /**
+   * Handle prompts/get request
+   */
+  private handlePromptsGet(params: { name: string; arguments?: Record<string, string> }): unknown {
+    this.logger.debug('Getting prompt', { name: params.name, arguments: params.arguments });
+
+    try {
+      const prompt = this.promptRegistry.getPrompt(params.name, params.arguments || {});
+
+      if (!prompt) {
+        throw JSONRPCHandler.createError(
+          -32003 as ErrorCode, // PromptNotFound
+          `Prompt not found: ${params.name}`
+        );
+      }
+
+      this.logger.info('Prompt retrieved', { name: params.name });
+      return prompt;
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('Missing required argument')) {
+        throw JSONRPCHandler.createError(
+          -32602 as ErrorCode, // InvalidParams
+          error.message
+        );
+      }
+      throw error;
+    }
   }
 
   /**

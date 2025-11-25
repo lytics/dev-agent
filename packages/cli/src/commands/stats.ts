@@ -1,4 +1,7 @@
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import { RepositoryIndexer } from '@lytics/dev-agent-core';
+import { GitHubIndexer } from '@lytics/dev-agent-subagents';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
@@ -25,6 +28,36 @@ export const statsCommand = new Command('stats')
       await indexer.initialize();
 
       const stats = await indexer.getStats();
+
+      // Try to load GitHub stats
+      let githubStats = null;
+      try {
+        // Try to load repository from state file
+        let repository: string | undefined;
+        const statePath = path.join(config.repositoryPath, '.dev-agent/github-state.json');
+        try {
+          const stateContent = await fs.readFile(statePath, 'utf-8');
+          const state = JSON.parse(stateContent);
+          repository = state.repository;
+        } catch {
+          // State file doesn't exist
+        }
+
+        const githubIndexer = new GitHubIndexer(
+          {
+            vectorStorePath: `${config.vectorStorePath}-github`,
+            statePath,
+            autoUpdate: false,
+          },
+          repository
+        );
+        await githubIndexer.initialize();
+        githubStats = githubIndexer.getStats();
+        await githubIndexer.close();
+      } catch {
+        // GitHub not indexed, ignore
+      }
+
       await indexer.close();
 
       spinner.stop();
@@ -64,6 +97,36 @@ export const statsCommand = new Command('stats')
       if (stats.errors && stats.errors.length > 0) {
         logger.log('');
         logger.warn(`${stats.errors.length} error(s) during last indexing`);
+      }
+
+      // Display GitHub stats if available
+      if (githubStats) {
+        logger.log('');
+        logger.log(chalk.bold.cyan('🔗 GitHub Integration'));
+        logger.log('');
+        logger.log(`${chalk.cyan('Repository:')}        ${githubStats.repository}`);
+        logger.log(`${chalk.cyan('Total Documents:')}   ${githubStats.totalDocuments}`);
+        logger.log(`${chalk.cyan('Issues:')}            ${githubStats.byType.issue || 0}`);
+        logger.log(`${chalk.cyan('Pull Requests:')}     ${githubStats.byType.pull_request || 0}`);
+        logger.log('');
+        logger.log(`${chalk.cyan('Open:')}              ${githubStats.byState.open || 0}`);
+        logger.log(`${chalk.cyan('Closed:')}            ${githubStats.byState.closed || 0}`);
+        if (githubStats.byState.merged) {
+          logger.log(`${chalk.cyan('Merged:')}            ${githubStats.byState.merged}`);
+        }
+        logger.log('');
+        logger.log(
+          `${chalk.cyan('Last Synced:')}       ${new Date(githubStats.lastIndexed).toLocaleString()}`
+        );
+      } else {
+        logger.log('');
+        logger.log(chalk.bold.cyan('🔗 GitHub Integration'));
+        logger.log('');
+        logger.log(
+          chalk.gray('Not indexed. Run') +
+            chalk.yellow(' dev gh index ') +
+            chalk.gray('to sync GitHub data.')
+        );
       }
 
       logger.log('');

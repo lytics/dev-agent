@@ -155,5 +155,47 @@ describe('Formatter Utils', () => {
         expect(ratio).toBeLessThan(2);
       }
     });
+
+    it('should use calibrated 4.5 chars per token formula', () => {
+      // Test the calibrated formula matches actual usage
+      // Known: 803 chars normalized = 178 tokens actual
+      const testText = '## GitHub Search Results\n'.repeat(20); // ~520 chars
+      const normalized = testText.trim().replace(/\s+/g, ' ');
+      const estimate = estimateTokensForText(testText);
+      const expectedFromFormula = Math.ceil(normalized.length / 4.5);
+
+      // Should use the calibrated 4.5 ratio
+      expect(estimate).toBeGreaterThanOrEqual(expectedFromFormula - 5);
+      expect(estimate).toBeLessThanOrEqual(expectedFromFormula + 5);
+    });
+
+    it('should estimate within 5% for technical content', () => {
+      // Real test case from actual usage (full text)
+      const technicalText = `## GitHub Search Results
+**Query:** "token estimation and cost tracking"
+**Total Found:** 3
+
+1. [Score: 29.6%] function: estimateTokensForText
+  Location: packages/mcp-server/src/formatters/utils.ts:15
+  Signature: export function estimateTokensForText(text: string): number
+  Metadata: language: typescript, exported: true, lines: 19
+
+2. [Score: 21.0%] function: estimateTokensForJSON
+  Location: packages/mcp-server/src/formatters/utils.ts:63
+  Signature: export function estimateTokensForJSON(obj: unknown): number
+  Metadata: language: typescript, exported: true, lines: 4
+
+3. [Score: 19.7%] method: VerboseFormatter.estimateTokens
+  Location: packages/mcp-server/src/formatters/verbose-formatter.ts:114
+  Signature: estimateTokens(result: SearchResult): number
+  Metadata: language: typescript, exported: true, lines: 3`;
+
+      const estimate = estimateTokensForText(technicalText);
+      const actualTokens = 178; // Verified from Cursor
+
+      // Should be within 5% of actual (calibrated at 0.6%)
+      const errorPercent = Math.abs((estimate - actualTokens) / actualTokens) * 100;
+      expect(errorPercent).toBeLessThan(5);
+    });
   });
 });

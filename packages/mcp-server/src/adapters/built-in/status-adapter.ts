@@ -74,15 +74,29 @@ export class StatusAdapter extends ToolAdapter {
 
     // Initialize GitHub indexer lazily
     try {
-      this.githubIndexer = new GitHubIndexer({
-        vectorStorePath: `${this.vectorStorePath}-github`,
-        statePath: '.dev-agent/github-state.json',
-        autoUpdate: true,
-        staleThreshold: 15 * 60 * 1000,
-      });
+      // Try to load repository from state file
+      let repository: string | undefined;
+      const statePath = path.join(this.repositoryPath, '.dev-agent/github-state.json');
+      try {
+        const stateContent = await fs.promises.readFile(statePath, 'utf-8');
+        const state = JSON.parse(stateContent);
+        repository = state.repository;
+      } catch {
+        // State file doesn't exist, will try gh CLI
+      }
+
+      this.githubIndexer = new GitHubIndexer(
+        {
+          vectorStorePath: `${this.vectorStorePath}-github`,
+          statePath, // Use absolute path
+          autoUpdate: true,
+          staleThreshold: 15 * 60 * 1000,
+        },
+        repository
+      );
       await this.githubIndexer.initialize();
     } catch (error) {
-      context.logger.debug('GitHub indexer not available', { error });
+      context.logger.warn('GitHub indexer initialization failed', { error });
       // Not fatal, GitHub section will show "not indexed"
     }
   }

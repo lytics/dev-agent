@@ -70,14 +70,17 @@ describe('Formatters', () => {
       expect(result.content).toContain('2. [84%]');
       expect(result.content).toContain('3. [72%]');
       expect(result.tokenEstimate).toBeGreaterThan(0);
+      // Should include token footer
+      expect(result.content).toMatch(/🪙 ~\d+ tokens$/);
     });
 
     it('should respect maxResults option', () => {
       const formatter = new CompactFormatter({ maxResults: 2 });
       const result = formatter.formatResults(mockResults);
 
-      const lines = result.content.split('\n');
-      expect(lines).toHaveLength(2); // Only 2 results
+      // Count actual result lines (numbered lines)
+      const resultLines = result.content.split('\n').filter((l) => /^\d+\./.test(l));
+      expect(resultLines).toHaveLength(2); // Only 2 results
     });
 
     it('should exclude signatures by default', () => {
@@ -139,6 +142,9 @@ describe('Formatters', () => {
 
       // Should have double newlines between results
       expect(result.content).toContain('\n\n');
+
+      // Should include token footer
+      expect(result.content).toMatch(/🪙 ~\d+ tokens$/);
     });
 
     it('should include signatures by default', () => {
@@ -213,6 +219,36 @@ describe('Formatters', () => {
       const threeResults = formatter.formatResults(mockResults);
 
       expect(threeResults.tokenEstimate).toBeGreaterThan(oneResult.tokenEstimate * 2);
+    });
+  });
+
+  describe('Token Footer', () => {
+    it('compact formatter should include coin emoji footer', () => {
+      const formatter = new CompactFormatter();
+      const result = formatter.formatResults(mockResults);
+
+      expect(result.content).toContain('🪙');
+      expect(result.content).toMatch(/~\d+ tokens$/);
+    });
+
+    it('verbose formatter should include coin emoji footer', () => {
+      const formatter = new VerboseFormatter();
+      const result = formatter.formatResults(mockResults);
+
+      expect(result.content).toContain('🪙');
+      expect(result.content).toMatch(/~\d+ tokens$/);
+    });
+
+    it('token footer should match tokenEstimate property', () => {
+      const formatter = new CompactFormatter();
+      const result = formatter.formatResults(mockResults);
+
+      // Extract token count from footer
+      const footerMatch = result.content.match(/🪙 ~(\d+) tokens$/);
+      expect(footerMatch).toBeTruthy();
+
+      const footerTokens = Number.parseInt(footerMatch![1], 10);
+      expect(footerTokens).toBe(result.tokenEstimate);
     });
   });
 });

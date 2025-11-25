@@ -106,8 +106,8 @@ describe('StatusAdapter', () => {
       });
 
       await adapter.initialize(mockContext);
-      expect(mockContext.logger.debug).toHaveBeenCalledWith(
-        'GitHub indexer not available',
+      expect(mockContext.logger.warn).toHaveBeenCalledWith(
+        'GitHub indexer initialization failed',
         expect.any(Object)
       );
     });
