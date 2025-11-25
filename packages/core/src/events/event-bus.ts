@@ -287,17 +287,17 @@ export class AsyncEventBus implements EventBus {
  * Create a typed event bus for system events
  * Provides compile-time type checking for event names and payloads
  */
-export function createTypedEventBus<EventMap extends Record<string, unknown>>(
+export function createTypedEventBus<EventMap extends object>(
   options?: AsyncEventBusOptions
 ): TypedEventBus<EventMap> {
-  return new AsyncEventBus(options) as TypedEventBus<EventMap>;
+  return new AsyncEventBus(options) as unknown as TypedEventBus<EventMap>;
 }
 
 /**
  * Typed event bus interface
  * Provides type safety for known event names while still allowing unknown events
  */
-export interface TypedEventBus<EventMap extends Record<string, unknown>> {
+export interface TypedEventBus<EventMap extends object> {
   // Type-safe methods for known events
   on<K extends keyof EventMap & string>(
     eventName: K,
