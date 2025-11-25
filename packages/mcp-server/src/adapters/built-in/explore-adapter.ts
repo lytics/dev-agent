@@ -1,9 +1,18 @@
 /**
  * Explore Adapter
  * Exposes code exploration capabilities via MCP (dev_explore tool)
+ *
+ * Routes through ExplorerAgent when coordinator is available,
+ * falls back to direct indexer calls otherwise.
  */
 
 import type { RepositoryIndexer } from '@lytics/dev-agent-core';
+import type {
+  ExplorationResult,
+  PatternResult,
+  RelationshipResult,
+  SimilarCodeResult,
+} from '@lytics/dev-agent-subagents';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
 
@@ -20,6 +29,9 @@ export interface ExploreAdapterConfig {
  *
  * Provides pattern search, similar code detection, and relationship mapping
  * through the dev_explore MCP tool.
+ *
+ * When a coordinator is available, routes requests through ExplorerAgent
+ * for coordinated execution. Falls back to direct indexer calls otherwise.
  */
 export class ExploreAdapter extends ToolAdapter {
   metadata = {
@@ -44,11 +56,15 @@ export class ExploreAdapter extends ToolAdapter {
   }
 
   async initialize(context: AdapterContext): Promise<void> {
+    // Store coordinator and logger from base class
+    this.initializeBase(context);
+
     context.logger.info('ExploreAdapter initialized', {
       repositoryPath: this.repositoryPath,
       defaultLimit: this.defaultLimit,
       defaultThreshold: this.defaultThreshold,
       defaultFormat: this.defaultFormat,
+      hasCoordinator: this.hasCoordinator(),
     });
   }
 
@@ -167,10 +183,43 @@ export class ExploreAdapter extends ToolAdapter {
     }
 
     try {
-      context.logger.debug('Executing exploration', { action, query, limit, threshold });
+      context.logger.debug('Executing exploration', {
+        action,
+        query,
+        limit,
+        threshold,
+        viaAgent: this.hasCoordinator(),
+      });
 
       let content: string;
 
+      // Try routing through ExplorerAgent if coordinator is available
+      if (this.hasCoordinator()) {
+        const agentResult = await this.executeViaAgent(
+          action as 'pattern' | 'similar' | 'relationships',
+          query,
+          limit,
+          threshold,
+          fileTypes as string[] | undefined,
+          format
+        );
+
+        if (agentResult) {
+          return {
+            success: true,
+            data: {
+              action,
+              query,
+              format,
+              content: agentResult,
+            },
+          };
+        }
+        // Fall through to direct execution if agent dispatch failed
+        context.logger.debug('Agent dispatch returned null, falling back to direct execution');
+      }
+
+      // Direct execution (fallback or no coordinator)
       switch (action) {
         case 'pattern':
           content = await this.searchPattern(
@@ -236,7 +285,145 @@ export class ExploreAdapter extends ToolAdapter {
   }
 
   /**
-   * Search for code patterns using semantic search
+   * Execute exploration via ExplorerAgent through the coordinator
+   * Returns formatted content string, or null if dispatch fails
+   */
+  private async executeViaAgent(
+    action: 'pattern' | 'similar' | 'relationships',
+    query: string,
+    limit: number,
+    threshold: number,
+    fileTypes: string[] | undefined,
+    format: string
+  ): Promise<string | null> {
+    // Build request payload based on action
+    let payload: Record<string, unknown>;
+
+    switch (action) {
+      case 'pattern':
+        payload = {
+          action: 'pattern',
+          query,
+          limit,
+          threshold,
+          fileTypes,
+        };
+        break;
+      case 'similar':
+        payload = {
+          action: 'similar',
+          filePath: query,
+          limit,
+          threshold,
+        };
+        break;
+      case 'relationships':
+        payload = {
+          action: 'relationships',
+          component: query,
+          limit,
+        };
+        break;
+    }
+
+    // Dispatch to ExplorerAgent
+    const response = await this.dispatchToAgent('explorer', payload);
+
+    if (!response) {
+      return null;
+    }
+
+    // Check for error response
+    if (response.type === 'error') {
+      this.logger?.warn('ExplorerAgent returned error', {
+        error: response.payload.error,
+      });
+      return null;
+    }
+
+    // Extract result from response payload
+    const result = response.payload as unknown as ExplorationResult;
+
+    // Format the result based on action and format preference
+    return this.formatAgentResult(result, format);
+  }
+
+  /**
+   * Format ExplorerAgent result into display string
+   */
+  private formatAgentResult(result: ExplorationResult, format: string): string {
+    switch (result.action) {
+      case 'pattern': {
+        const patternResult = result as PatternResult;
+        if (format === 'verbose') {
+          return this.formatPatternVerbose(
+            patternResult.query,
+            patternResult.results.map((r) => ({
+              id: r.id,
+              score: r.score,
+              metadata: r.metadata as Record<string, unknown>,
+            }))
+          );
+        }
+        return this.formatPatternCompact(
+          patternResult.query,
+          patternResult.results.map((r) => ({
+            id: r.id,
+            score: r.score,
+            metadata: r.metadata as Record<string, unknown>,
+          }))
+        );
+      }
+
+      case 'similar': {
+        const similarResult = result as SimilarCodeResult;
+        if (format === 'verbose') {
+          return this.formatSimilarVerbose(
+            similarResult.referenceFile,
+            similarResult.similar.map((r) => ({
+              id: r.id,
+              score: r.score,
+              metadata: r.metadata as Record<string, unknown>,
+            }))
+          );
+        }
+        return this.formatSimilarCompact(
+          similarResult.referenceFile,
+          similarResult.similar.map((r) => ({
+            id: r.id,
+            score: r.score,
+            metadata: r.metadata as Record<string, unknown>,
+          }))
+        );
+      }
+
+      case 'relationships': {
+        const relationshipResult = result as RelationshipResult;
+        // Convert relationships to search result format for formatting
+        const searchResults = relationshipResult.relationships.map((rel, idx) => ({
+          id: `rel-${idx}`,
+          score: 1.0,
+          metadata: {
+            path: rel.location.file,
+            name: rel.to,
+            type: rel.type,
+            startLine: rel.location.line,
+          } as Record<string, unknown>,
+        }));
+
+        if (format === 'verbose') {
+          return this.formatRelationshipsVerbose(relationshipResult.component, searchResults);
+        }
+        return this.formatRelationshipsCompact(relationshipResult.component, searchResults);
+      }
+
+      default:
+        return `## Exploration Result\n\nUnknown result type`;
+    }
+  }
+
+  /**
+   * Search for code patterns using semantic search (direct execution)
    */
   private async searchPattern(
     query: string,
