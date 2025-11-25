@@ -16,15 +16,12 @@ export class CliService {
 
   async initialize(): Promise<void> {
     this.coreService.initialize();
-    if (this.verbose) {
-      console.log('CLI service initialized');
-    }
-    // Commands will be registered here
+    // Commands registered via Commander.js in cli.ts
+    void this.verbose;
   }
 
-  async run(args: string[]): Promise<void> {
-    // Command execution will be implemented using Commander.js
-    console.log('Running command with args:', args);
+  async run(_args: string[]): Promise<void> {
+    // Command execution implemented via Commander.js in cli.ts
   }
 }
 

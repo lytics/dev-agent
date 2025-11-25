@@ -3,8 +3,8 @@
  * Communicates via standard input/output streams
  */
 
-import * as readline from 'readline';
-import { JSONRPCHandler } from '../protocol/jsonrpc';
+import * as readline from 'node:readline';
+import { parse, serialize } from '../protocol/jsonrpc';
 import type { JSONRPCNotification, JSONRPCResponse } from '../protocol/types';
 import { Transport, type TransportMessage } from './transport';
 
@@ -68,7 +68,7 @@ export class StdioTransport extends Transport {
       throw new Error('Transport not ready');
     }
 
-    const serialized = JSONRPCHandler.serialize(message);
+    const serialized = serialize(message);
 
     // Write to stdout with newline
     process.stdout.write(`${serialized}\n`);
@@ -97,7 +97,7 @@ export class StdioTransport extends Transport {
     }
 
     try {
-      const message = JSONRPCHandler.parse(trimmed);
+      const message = parse(trimmed);
       void this.messageHandler(message);
     } catch (error) {
       if (this.errorHandler) {

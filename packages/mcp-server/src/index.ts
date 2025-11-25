@@ -14,7 +14,7 @@ export * from './formatters';
 // Core exports
 export { MCPServer, type MCPServerConfig } from './server/mcp-server';
 // Protocol exports
-export { JSONRPCHandler } from './server/protocol/jsonrpc';
+export * from './server/protocol/jsonrpc';
 export * from './server/protocol/types';
 export { StdioTransport } from './server/transport/stdio-transport';
 // Transport exports

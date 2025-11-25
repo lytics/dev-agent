@@ -3,10 +3,19 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { JSONRPCHandler } from '../jsonrpc';
+import {
+  createError,
+  createErrorResponse,
+  createNotification,
+  createResponse,
+  isRequest,
+  parse,
+  serialize,
+  validateParams,
+} from '../jsonrpc';
 import { ErrorCode } from '../types';
 
-describe('JSONRPCHandler', () => {
+describe('JSON-RPC Handler', () => {
   describe('parse', () => {
     it('should parse valid JSON-RPC request', () => {
       const message = JSON.stringify({
@@ -16,7 +25,7 @@ describe('JSONRPCHandler', () => {
         params: { foo: 'bar' },
       });
 
-      const result = JSONRPCHandler.parse(message);
+      const result = parse(message);
 
       expect(result).toEqual({
         jsonrpc: '2.0',
@@ -32,7 +41,7 @@ describe('JSONRPCHandler', () => {
         method: 'notify',
       });
 
-      const result = JSONRPCHandler.parse(message);
+      const result = parse(message);
 
       expect(result).toEqual({
         jsonrpc: '2.0',
@@ -42,7 +51,7 @@ describe('JSONRPCHandler', () => {
     });
 
     it('should throw on invalid JSON', () => {
-      expect(() => JSONRPCHandler.parse('not json')).toThrow();
+      expect(() => parse('not json')).toThrow();
     });
 
     it('should throw on missing jsonrpc field', () => {
@@ -51,7 +60,7 @@ describe('JSONRPCHandler', () => {
         method: 'test',
       });
 
-      expect(() => JSONRPCHandler.parse(message)).toThrow();
+      expect(() => parse(message)).toThrow();
     });
 
     it('should throw on wrong jsonrpc version', () => {
@@ -61,7 +70,7 @@ describe('JSONRPCHandler', () => {
         method: 'test',
       });
 
-      expect(() => JSONRPCHandler.parse(message)).toThrow();
+      expect(() => parse(message)).toThrow();
     });
 
     it('should throw on missing method', () => {
@@ -70,13 +79,13 @@ describe('JSONRPCHandler', () => {
         id: 1,
       });
 
-      expect(() => JSONRPCHandler.parse(message)).toThrow();
+      expect(() => parse(message)).toThrow();
     });
   });
 
   describe('createResponse', () => {
     it('should create success response', () => {
-      const response = JSONRPCHandler.createResponse(1, { result: 'ok' });
+      const response = createResponse(1, { result: 'ok' });
 
       expect(response).toEqual({
         jsonrpc: '2.0',
@@ -86,7 +95,7 @@ describe('JSONRPCHandler', () => {
     });
 
     it('should handle string id', () => {
-      const response = JSONRPCHandler.createResponse('test-id', 'success');
+      const response = createResponse('test-id', 'success');
 
       expect(response).toEqual({
         jsonrpc: '2.0',
@@ -103,7 +112,7 @@ describe('JSONRPCHandler', () => {
         message: 'Invalid parameters',
       };
 
-      const response = JSONRPCHandler.createErrorResponse(1, error);
+      const response = createErrorResponse(1, error);
 
       expect(response).toEqual({
         jsonrpc: '2.0',
@@ -121,7 +130,7 @@ describe('JSONRPCHandler', () => {
         message: 'Parse error',
       };
 
-      const response = JSONRPCHandler.createErrorResponse(undefined, error);
+      const response = createErrorResponse(undefined, error);
 
       expect(response.jsonrpc).toBe('2.0');
       expect(response.error).toEqual(error);
@@ -130,7 +139,7 @@ describe('JSONRPCHandler', () => {
 
   describe('createNotification', () => {
     it('should create notification without params', () => {
-      const notification = JSONRPCHandler.createNotification('test');
+      const notification = createNotification('test');
 
       expect(notification).toEqual({
         jsonrpc: '2.0',
@@ -140,7 +149,7 @@ describe('JSONRPCHandler', () => {
     });
 
     it('should create notification with params', () => {
-      const notification = JSONRPCHandler.createNotification('test', { foo: 'bar' });
+      const notification = createNotification('test', { foo: 'bar' });
 
       expect(notification).toEqual({
         jsonrpc: '2.0',
@@ -158,7 +167,7 @@ describe('JSONRPCHandler', () => {
         result: { success: true },
       };
 
-      const serialized = JSONRPCHandler.serialize(response);
+      const serialized = serialize(response);
 
       expect(JSON.parse(serialized)).toEqual(response);
     });
@@ -170,7 +179,7 @@ describe('JSONRPCHandler', () => {
         params: { data: 'value' },
       };
 
-      const serialized = JSONRPCHandler.serialize(notification);
+      const serialized = serialize(notification);
 
       expect(JSON.parse(serialized)).toEqual(notification);
     });
@@ -178,7 +187,7 @@ describe('JSONRPCHandler', () => {
 
   describe('createError', () => {
     it('should create error object', () => {
-      const error = JSONRPCHandler.createError(ErrorCode.InvalidRequest, 'Invalid request');
+      const error = createError(ErrorCode.InvalidRequest, 'Invalid request');
 
       expect(error).toEqual({
         code: ErrorCode.InvalidRequest,
@@ -187,7 +196,7 @@ describe('JSONRPCHandler', () => {
     });
 
     it('should include data if provided', () => {
-      const error = JSONRPCHandler.createError(ErrorCode.InternalError, 'Internal error', {
+      const error = createError(ErrorCode.InternalError, 'Internal error', {
         details: 'something went wrong',
       });
 
@@ -207,7 +216,7 @@ describe('JSONRPCHandler', () => {
         method: 'test',
       };
 
-      expect(JSONRPCHandler.isRequest(request)).toBe(true);
+      expect(isRequest(request)).toBe(true);
     });
 
     it('should return false for notification (no id)', () => {
@@ -216,34 +225,34 @@ describe('JSONRPCHandler', () => {
         method: 'test',
       };
 
-      expect(JSONRPCHandler.isRequest(notification)).toBe(false);
+      expect(isRequest(notification)).toBe(false);
     });
   });
 
   describe('validateParams', () => {
     it('should validate object params', () => {
       const params = { foo: 'bar' };
-      expect(JSONRPCHandler.validateParams(params, 'object')).toBe(true);
+      expect(validateParams(params, 'object')).toBe(true);
     });
 
     it('should reject array when expecting object', () => {
       const params = ['foo', 'bar'];
-      expect(JSONRPCHandler.validateParams(params, 'object')).toBe(false);
+      expect(validateParams(params, 'object')).toBe(false);
     });
 
     it('should validate array params', () => {
       const params = [1, 2, 3];
-      expect(JSONRPCHandler.validateParams(params, 'array')).toBe(true);
+      expect(validateParams(params, 'array')).toBe(true);
     });
 
     it('should reject object when expecting array', () => {
       const params = { foo: 'bar' };
-      expect(JSONRPCHandler.validateParams(params, 'array')).toBe(false);
+      expect(validateParams(params, 'array')).toBe(false);
     });
 
     it('should reject null', () => {
-      expect(JSONRPCHandler.validateParams(null, 'object')).toBe(false);
-      expect(JSONRPCHandler.validateParams(null, 'array')).toBe(false);
+      expect(validateParams(null, 'object')).toBe(false);
+      expect(validateParams(null, 'array')).toBe(false);
     });
   });
 });

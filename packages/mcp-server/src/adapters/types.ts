@@ -2,8 +2,6 @@
  * Adapter Framework Types
  */
 
-import type { JSONSchema, ToolDefinition } from '../server/protocol/types';
-
 // Adapter Metadata
 export interface AdapterMetadata {
   name: string;

@@ -4,12 +4,11 @@ export interface GitHubOptions {
 }
 
 export class GitHubIntegration {
-  constructor(_options: GitHubOptions) {
-    // Placeholder constructor
-  }
+  constructor(private options: GitHubOptions) {}
 
   async getIssues() {
-    // Implementation will use GitHub CLI
+    // Implementation will use GitHub CLI with options.repoPath
+    void this.options; // Mark as used until implementation
     return [];
   }
 

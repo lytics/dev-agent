@@ -21,9 +21,8 @@ export class CoreService {
   }
 
   initialize(): void {
-    if (this.config.debug) {
-      console.log('CoreService initialized with config:', this.config);
-    }
+    // Debug logging handled by caller if needed
+    void this.config.debug;
   }
 
   getApiKey(): string {
