@@ -41,6 +41,15 @@ export * from './github/utils';
 export { CoordinatorLogger } from './logger';
 // Agent modules
 export { PlannerAgent } from './planner';
+// Types - Planner
+export type {
+  Plan,
+  PlanningError,
+  PlanningRequest,
+  PlanningResult,
+  PlanTask,
+  RelevantCode,
+} from './planner/types';
 // Planner utilities
 export {
   addEstimatesToTasks,
