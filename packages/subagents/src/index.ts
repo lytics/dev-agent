@@ -10,8 +10,15 @@
  * - pr/           - GitHub PR agent
  */
 
+export type { StorageAdapter } from './coordinator';
 // Main coordinator module
-export { ContextManagerImpl, SubagentCoordinator, TaskQueue } from './coordinator';
+export {
+  CompositeStorageAdapter,
+  ContextManagerImpl,
+  MemoryStorageAdapter,
+  SubagentCoordinator,
+  TaskQueue,
+} from './coordinator';
 export { ExplorerAgent } from './explorer';
 // Types - Explorer
 export type {

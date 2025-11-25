@@ -257,7 +257,7 @@ export class GitHubAdapter extends ToolAdapter {
           );
           break;
         case 'context':
-          content = await this.getContext(number as number, format);
+          content = await this.getIssueContext(number as number, format);
           break;
         case 'related':
           content = await this.getRelated(number as number, limit, format);
@@ -338,7 +338,7 @@ export class GitHubAdapter extends ToolAdapter {
   /**
    * Get full context for an issue/PR
    */
-  private async getContext(number: number, format: string): Promise<string> {
+  private async getIssueContext(number: number, format: string): Promise<string> {
     // Search for the specific issue/PR
     const indexer = await this.ensureGitHubIndexer();
     const results = await indexer.search(`#${number}`, { limit: 1 });

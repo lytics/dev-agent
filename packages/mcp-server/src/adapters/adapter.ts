@@ -1,9 +1,14 @@
 /**
  * Base Adapter Class
  * All adapters (Tool, Resource, Prompt) extend from this
+ *
+ * Provides:
+ * - Agent dispatch (route requests to subagents)
+ * - Context sharing (read/write shared state)
+ * - Conversation history access
  */
 
-import type { Message, SubagentCoordinator } from '@lytics/dev-agent-subagents';
+import type { ContextManager, Message, SubagentCoordinator } from '@lytics/dev-agent-subagents';
 import type { AdapterContext, AdapterMetadata, Logger } from './types';
 
 export abstract class Adapter {
@@ -44,6 +49,10 @@ export abstract class Adapter {
     return !!this.coordinator;
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Agent Dispatch
+  // ─────────────────────────────────────────────────────────────────────────
+
   /**
    * Dispatch a request to a subagent via the coordinator
    * @param agentName Target agent name (e.g., 'explorer', 'planner')
@@ -71,6 +80,63 @@ export abstract class Adapter {
 
     return response;
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Context Sharing (Phase 3)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Get the shared context manager (if coordinator available)
+   */
+  protected getContextManager(): ContextManager | null {
+    return this.coordinator?.getContextManager() ?? null;
+  }
+
+  /**
+   * Store a value in shared context
+   * Allows adapters to share state across requests
+   * @param key Context key
+   * @param value Value to store
+   */
+  protected setContext(key: string, value: unknown): void {
+    const ctx = this.getContextManager();
+    if (ctx) {
+      ctx.set(key, value);
+      this.logger?.debug('Context set', { key });
+    }
+  }
+
+  /**
+   * Get a value from shared context
+   * @param key Context key
+   * @returns Stored value or undefined
+   */
+  protected getContext<T = unknown>(key: string): T | undefined {
+    const ctx = this.getContextManager();
+    return ctx?.get(key) as T | undefined;
+  }
+
+  /**
+   * Check if a key exists in shared context
+   */
+  protected hasContext(key: string): boolean {
+    const ctx = this.getContextManager();
+    return ctx?.has(key) ?? false;
+  }
+
+  /**
+   * Get recent conversation history
+   * Useful for understanding request patterns
+   * @param limit Max messages to return (default: 10)
+   */
+  protected getHistory(limit: number = 10): Message[] {
+    const ctx = this.getContextManager();
+    return ctx?.getHistory(limit) ?? [];
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Lifecycle
+  // ─────────────────────────────────────────────────────────────────────────
 
   /**
    * Optional: Cleanup when adapter is unregistered or server stops
