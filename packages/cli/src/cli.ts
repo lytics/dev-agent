@@ -8,6 +8,7 @@ import { exploreCommand } from './commands/explore.js';
 import { ghCommand } from './commands/gh.js';
 import { indexCommand } from './commands/index.js';
 import { initCommand } from './commands/init.js';
+import { mcpCommand } from './commands/mcp.js';
 import { planCommand } from './commands/plan.js';
 import { searchCommand } from './commands/search.js';
 import { statsCommand } from './commands/stats.js';
@@ -33,6 +34,7 @@ program.addCommand(statsCommand);
 program.addCommand(compactCommand);
 program.addCommand(cleanCommand);
 program.addCommand(storageCommand);
+program.addCommand(mcpCommand);
 
 // Show help if no command provided
 if (process.argv.length === 2) {

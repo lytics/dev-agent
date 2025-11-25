@@ -44,6 +44,9 @@ importers:
       '@lytics/dev-agent-core':
         specifier: workspace:*
         version: link:../core
+      '@lytics/dev-agent-mcp':
+        specifier: workspace:*
+        version: link:../mcp-server
       '@lytics/dev-agent-subagents':
         specifier: workspace:*
         version: link:../subagents

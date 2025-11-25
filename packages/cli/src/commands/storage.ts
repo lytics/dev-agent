@@ -5,6 +5,7 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import * as readline from 'node:readline';
 import {
   ensureStorageDirectory,
   getStorageFilePaths,
@@ -99,6 +100,23 @@ function formatBytes(bytes: number): string {
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${(bytes / k ** i).toFixed(1)} ${sizes[i]}`;
+}
+
+/**
+ * Prompt user for confirmation
+ */
+function askConfirmation(message: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+
+    rl.question(`${message} (y/N): `, (answer) => {
+      rl.close();
+      resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');
+    });
+  });
 }
 
 /**
@@ -232,9 +250,14 @@ storageCommand
       // Confirm unless --force
       if (!options.force) {
         logger.warn('This will move indexes to centralized storage.');
-        logger.log(`Run with ${chalk.yellow('--force')} to skip this prompt.`);
         logger.log('');
-        process.exit(0);
+
+        const confirmed = await askConfirmation('Continue with migration?');
+        if (!confirmed) {
+          logger.log('Migration cancelled.');
+          logger.log(`Run with ${chalk.yellow('--force')} to skip this prompt.`);
+          return;
+        }
       }
 
       // Perform migration

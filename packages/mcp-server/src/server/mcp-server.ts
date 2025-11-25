@@ -202,6 +202,8 @@ export class MCPServer {
         );
 
       case 'resources/list':
+        return this.handleResourcesList();
+
       case 'resources/read':
         throw createError(-32601, `Method not implemented: ${method}`);
 
@@ -337,6 +339,18 @@ export class MCPServer {
       }
       throw error;
     }
+  }
+
+  /**
+   * Handle resources/list request
+   * Returns empty array since resources are not implemented
+   */
+  private handleResourcesList(): { resources: [] } {
+    this.logger.debug('Listing resources');
+    // Return empty list since resources are not yet implemented
+    // This prevents the "Method not implemented" error while still
+    // indicating that resources capability is not supported
+    return { resources: [] };
   }
 
   /**
