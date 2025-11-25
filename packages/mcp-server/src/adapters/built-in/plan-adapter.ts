@@ -1,9 +1,18 @@
 /**
  * Plan Adapter
  * Generates development plans from GitHub issues
+ *
+ * Routes through PlannerAgent when coordinator is available,
+ * falls back to direct utility calls otherwise.
  */
 
 import type { RepositoryIndexer } from '@lytics/dev-agent-core';
+import type {
+  Plan as AgentPlan,
+  PlanTask as AgentPlanTask,
+  PlanningResult,
+  RelevantCode,
+} from '@lytics/dev-agent-subagents';
 import {
   addEstimatesToTasks,
   breakdownIssue,
@@ -101,10 +110,14 @@ export class PlanAdapter extends ToolAdapter {
   }
 
   async initialize(context: AdapterContext): Promise<void> {
+    // Store coordinator and logger from base class
+    this.initializeBase(context);
+
     context.logger.info('PlanAdapter initialized', {
       repositoryPath: this.repositoryPath,
       defaultFormat: this.defaultFormat,
       timeout: this.timeout,
+      hasCoordinator: this.hasCoordinator(),
     });
   }
 
@@ -186,18 +199,51 @@ export class PlanAdapter extends ToolAdapter {
     }
 
     try {
-      context.logger.debug('Generating plan', { issue, format, useExplorer, detailLevel });
+      context.logger.debug('Generating plan', {
+        issue,
+        format,
+        useExplorer,
+        detailLevel,
+        viaAgent: this.hasCoordinator(),
+      });
 
-      // Generate plan with timeout
-      const plan = await this.withTimeout(
-        this.generatePlan(
+      let plan: Plan;
+
+      // Try routing through PlannerAgent if coordinator is available
+      if (this.hasCoordinator()) {
+        const agentPlan = await this.executeViaAgent(
           issue as number,
           useExplorer as boolean,
-          detailLevel as 'simple' | 'detailed',
-          context
-        ),
-        this.timeout
-      );
+          detailLevel as 'simple' | 'detailed'
+        );
+
+        if (agentPlan) {
+          plan = this.convertAgentPlan(agentPlan);
+        } else {
+          // Fall through to direct execution if agent dispatch failed
+          context.logger.debug('Agent dispatch returned null, falling back to direct execution');
+          plan = await this.withTimeout(
+            this.generatePlan(
+              issue as number,
+              useExplorer as boolean,
+              detailLevel as 'simple' | 'detailed',
+              context
+            ),
+            this.timeout
+          );
+        }
+      } else {
+        // Direct execution (no coordinator)
+        plan = await this.withTimeout(
+          this.generatePlan(
+            issue as number,
+            useExplorer as boolean,
+            detailLevel as 'simple' | 'detailed',
+            context
+          ),
+          this.timeout
+        );
+      }
 
       // Format plan based on format parameter
       const content = format === 'verbose' ? this.formatVerbose(plan) : this.formatCompact(plan);
@@ -268,7 +314,71 @@ export class PlanAdapter extends ToolAdapter {
   }
 
   /**
-   * Generate a development plan from a GitHub issue
+   * Execute planning via PlannerAgent through the coordinator
+   * Returns agent plan, or null if dispatch fails
+   */
+  private async executeViaAgent(
+    issueNumber: number,
+    useExplorer: boolean,
+    detailLevel: 'simple' | 'detailed'
+  ): Promise<AgentPlan | null> {
+    const payload = {
+      action: 'plan',
+      issueNumber,
+      useExplorer,
+      detailLevel,
+    };
+
+    // Dispatch to PlannerAgent
+    const response = await this.dispatchToAgent('planner', payload);
+
+    if (!response) {
+      return null;
+    }
+
+    // Check for error response
+    if (response.type === 'error') {
+      this.logger?.warn('PlannerAgent returned error', {
+        error: response.payload.error,
+      });
+      return null;
+    }
+
+    // Extract plan from response payload
+    const result = response.payload as unknown as PlanningResult;
+    return result.plan;
+  }
+
+  /**
+   * Convert agent plan format to adapter plan format
+   * (They're nearly identical, but we ensure type safety)
+   */
+  private convertAgentPlan(agentPlan: AgentPlan): Plan {
+    return {
+      issueNumber: agentPlan.issueNumber,
+      title: agentPlan.title,
+      description: agentPlan.description,
+      tasks: agentPlan.tasks.map((task: AgentPlanTask) => ({
+        id: task.id,
+        description: task.description,
+        relevantCode: task.relevantCode?.map((code: RelevantCode) => ({
+          path: code.path,
+          reason: code.reason,
+          score: code.score,
+        })),
+        estimatedHours: task.estimatedHours,
+        dependencies: undefined, // Not in agent plan
+        priority: task.priority,
+        phase: task.phase,
+      })),
+      totalEstimate: agentPlan.totalEstimate,
+      priority: agentPlan.priority,
+      metadata: agentPlan.metadata,
+    };
+  }
+
+  /**
+   * Generate a development plan from a GitHub issue (direct execution)
    */
   private async generatePlan(
     issueNumber: number,

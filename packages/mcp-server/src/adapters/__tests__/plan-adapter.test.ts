@@ -135,6 +135,7 @@ describe('PlanAdapter', () => {
         repositoryPath: '/test/repo',
         defaultFormat: 'compact',
         timeout: 5000,
+        hasCoordinator: false,
       });
     });
   });
