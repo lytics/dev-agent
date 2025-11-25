@@ -36,7 +36,7 @@ describe('CLI Commands', () => {
       exitSpy.mockRestore();
 
       // Check config file was created
-      const configPath = path.join(initDir, '.dev-agent.json');
+      const configPath = path.join(initDir, '.dev-agent', 'config.json');
       const exists = await fs
         .access(configPath)
         .then(() => true)
@@ -46,6 +46,9 @@ describe('CLI Commands', () => {
       // Verify config content
       const content = await fs.readFile(configPath, 'utf-8');
       const config = JSON.parse(content);
+      expect(config.version).toBe('1.0');
+      expect(config.repository).toBeDefined();
+      // Legacy fields for backward compatibility
       expect(config.repositoryPath).toBe(path.resolve(initDir));
       expect(config.embeddingModel).toBe('Xenova/all-MiniLM-L6-v2');
     });

@@ -4,7 +4,13 @@
  * Starts the MCP server with stdio transport for AI tools (Claude, Cursor, etc.)
  */
 
-import { RepositoryIndexer } from '@lytics/dev-agent-core';
+import {
+  ensureStorageDirectory,
+  getStorageFilePaths,
+  getStoragePath,
+  RepositoryIndexer,
+  saveMetadata,
+} from '@lytics/dev-agent-core';
 import {
   ExplorerAgent,
   PlannerAgent,
@@ -22,19 +28,86 @@ import { MCPServer } from '../src/server/mcp-server';
 
 // Get config from environment
 const repositoryPath = process.env.REPOSITORY_PATH || process.cwd();
-const vectorStorePath =
-  process.env.VECTOR_STORE_PATH || `${repositoryPath}/.dev-agent/vectors.lance`;
 const logLevel = (process.env.LOG_LEVEL as 'debug' | 'info' | 'warn' | 'error') || 'info';
 
-async function main() {
-  try {
-    // Initialize repository indexer
-    const indexer = new RepositoryIndexer({
+// Lazy-loaded indexer
+let indexer: RepositoryIndexer | undefined;
+let lastAccessed = Date.now();
+const IDLE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Ensure indexer is loaded (lazy loading)
+ * This will be called on first tool use
+ */
+async function _ensureIndexer(): Promise<RepositoryIndexer> {
+  if (!indexer) {
+    // Get centralized storage path
+    const storagePath = await getStoragePath(repositoryPath);
+    await ensureStorageDirectory(storagePath);
+    const filePaths = getStorageFilePaths(storagePath);
+
+    // Initialize repository indexer with centralized storage
+    indexer = new RepositoryIndexer({
       repositoryPath,
-      vectorStorePath,
+      vectorStorePath: filePaths.vectors,
+      statePath: filePaths.indexerState,
     });
 
     await indexer.initialize();
+
+    // Update metadata
+    await saveMetadata(storagePath, repositoryPath);
+
+    console.error(`[MCP] Loaded indexes from ${storagePath}`);
+  }
+
+  lastAccessed = Date.now();
+  return indexer;
+}
+
+/**
+ * Auto-unload indexer after idle period
+ * TODO: Enable idle monitoring in future iteration
+ */
+function _startIdleMonitor(): void {
+  setInterval(() => {
+    const idleTime = Date.now() - lastAccessed;
+
+    if (idleTime > IDLE_TIMEOUT && indexer) {
+      indexer
+        .close()
+        .then(() => {
+          indexer = undefined;
+          const idleMinutes = Math.floor(idleTime / 60000);
+          console.error(`[MCP] Unloaded indexes (idle timeout: ${idleMinutes} minutes)`);
+        })
+        .catch((error) => {
+          console.error('[MCP] Error unloading indexes:', error);
+        });
+    }
+  }, 60000); // Check every minute
+}
+
+async function main() {
+  try {
+    // Get centralized storage paths
+    const storagePath = await getStoragePath(repositoryPath);
+    await ensureStorageDirectory(storagePath);
+    const filePaths = getStorageFilePaths(storagePath);
+
+    // Initialize repository indexer with centralized storage
+    // TODO: Make this truly lazy (only initialize on first tool call)
+    // For now, initialize eagerly but use centralized storage
+    const indexer = new RepositoryIndexer({
+      repositoryPath,
+      vectorStorePath: filePaths.vectors,
+      statePath: filePaths.indexerState,
+    });
+
+    await indexer.initialize();
+
+    // Update metadata
+    await saveMetadata(storagePath, repositoryPath);
 
     // Create and configure the subagent coordinator
     const coordinator = new SubagentCoordinator({
@@ -61,7 +134,7 @@ async function main() {
     const statusAdapter = new StatusAdapter({
       repositoryIndexer: indexer,
       repositoryPath,
-      vectorStorePath,
+      vectorStorePath: filePaths.vectors,
       defaultSection: 'summary',
     });
 
@@ -83,8 +156,8 @@ async function main() {
     const githubAdapter = new GitHubAdapter({
       repositoryPath,
       // GitHubIndexer will be lazily initialized on first use
-      vectorStorePath: `${vectorStorePath}-github`,
-      statePath: `${repositoryPath}/.dev-agent/github-state.json`,
+      vectorStorePath: `${filePaths.vectors}-github`,
+      statePath: filePaths.githubState,
       defaultLimit: 10,
       defaultFormat: 'compact',
     });
