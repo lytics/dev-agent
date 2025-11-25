@@ -104,6 +104,7 @@ export interface ContextManager {
   get(key: string): unknown;
   set(key: string, value: unknown): void;
   delete(key: string): void;
+  has(key: string): boolean;
 
   /** Get conversation history */
   getHistory(limit?: number): Message[];
