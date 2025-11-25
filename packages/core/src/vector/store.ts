@@ -43,7 +43,7 @@ export class LanceDBVectorStore implements VectorStore {
   }
 
   /**
-   * Add documents to the store
+   * Add documents to the store using upsert (prevents duplicates)
    */
   async add(documents: EmbeddingDocument[], embeddings: number[][]): Promise<void> {
     if (!this.connection) {
@@ -70,9 +70,16 @@ export class LanceDBVectorStore implements VectorStore {
       if (!this.table) {
         // Create table on first add
         this.table = await this.connection.createTable(this.tableName, data);
+        // Create scalar index on 'id' column for fast upsert operations
+        await this.ensureIdIndex();
       } else {
-        // Add to existing table
-        await this.table.add(data);
+        // Use mergeInsert to prevent duplicates (upsert operation)
+        // This updates existing documents with the same ID or inserts new ones
+        await this.table
+          .mergeInsert('id')
+          .whenMatchedUpdateAll()
+          .whenNotMatchedInsertAll()
+          .execute(data);
       }
     } catch (error) {
       throw new Error(
@@ -188,6 +195,44 @@ export class LanceDBVectorStore implements VectorStore {
     } catch (error) {
       throw new Error(
         `Failed to count documents: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Optimize the vector store (compact fragments, update indices)
+   */
+  async optimize(): Promise<void> {
+    if (!this.table) {
+      return;
+    }
+
+    try {
+      await this.table.optimize();
+    } catch (error) {
+      throw new Error(
+        `Failed to optimize: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Ensure scalar index exists on 'id' column for fast upsert operations
+   */
+  private async ensureIdIndex(): Promise<void> {
+    if (!this.table) {
+      return;
+    }
+
+    try {
+      // Create a scalar index on the 'id' column to speed up mergeInsert operations
+      // LanceDB will use an appropriate index type automatically
+      await this.table.createIndex('id');
+    } catch (error) {
+      // Index may already exist or not be supported - log but don't fail
+      // Some versions of LanceDB may not support this or it may already exist
+      console.warn(
+        `Could not create index on 'id' column: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }

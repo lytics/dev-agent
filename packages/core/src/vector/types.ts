@@ -91,6 +91,11 @@ export interface VectorStore {
   count(): Promise<number>;
 
   /**
+   * Optimize the store (compact fragments, update indices)
+   */
+  optimize(): Promise<void>;
+
+  /**
    * Close the store
    */
   close(): Promise<void>;

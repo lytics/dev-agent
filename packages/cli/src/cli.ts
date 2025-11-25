@@ -3,6 +3,7 @@
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { cleanCommand } from './commands/clean.js';
+import { compactCommand } from './commands/compact.js';
 import { exploreCommand } from './commands/explore.js';
 import { ghCommand } from './commands/gh.js';
 import { indexCommand } from './commands/index.js';
@@ -28,6 +29,7 @@ program.addCommand(planCommand);
 program.addCommand(ghCommand);
 program.addCommand(updateCommand);
 program.addCommand(statsCommand);
+program.addCommand(compactCommand);
 program.addCommand(cleanCommand);
 
 // Show help if no command provided

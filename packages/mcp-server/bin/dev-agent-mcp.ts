@@ -5,7 +5,6 @@
  */
 
 import { RepositoryIndexer } from '@lytics/dev-agent-core';
-import { GitHubIndexer } from '@lytics/dev-agent-subagents';
 import {
   ExploreAdapter,
   GitHubAdapter,
@@ -30,16 +29,6 @@ async function main() {
     });
 
     await indexer.initialize();
-
-    // Initialize GitHub indexer
-    const githubIndexer = new GitHubIndexer({
-      vectorStorePath: `${repositoryPath}/.dev-agent/github-vectors.lance`,
-      statePath: `${repositoryPath}/.dev-agent/github-state.json`,
-      autoUpdate: false, // Don't auto-update on server start
-    });
-
-    // Initialize GitHub indexer (lazy - will be ready when first used)
-    await githubIndexer.initialize();
 
     // Create and register adapters
     const searchAdapter = new SearchAdapter({
@@ -72,7 +61,9 @@ async function main() {
 
     const githubAdapter = new GitHubAdapter({
       repositoryPath,
-      githubIndexer,
+      // GitHubIndexer will be lazily initialized on first use
+      vectorStorePath: `${repositoryPath}/.dev-agent/github-vectors.lance`,
+      statePath: `${repositoryPath}/.dev-agent/github-state.json`,
       defaultLimit: 10,
       defaultFormat: 'compact',
     });
@@ -95,7 +86,10 @@ async function main() {
     const shutdown = async () => {
       await server.stop();
       await indexer.close();
-      await githubIndexer.close();
+      // Close GitHub adapter if initialized
+      if (githubAdapter.githubIndexer) {
+        await githubAdapter.githubIndexer.close();
+      }
       process.exit(0);
     };
 
