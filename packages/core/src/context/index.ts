@@ -5,13 +5,13 @@ export interface ContextProviderOptions {
 }
 
 export class ContextProvider {
-  constructor(_options: ContextProviderOptions) {
-    // Placeholder constructor
-  }
+  constructor(private options: ContextProviderOptions) {}
 
   async getContextForQuery(query: string) {
-    console.log(`Getting context for query: ${query}`);
     // Will use vector search and relevance ranking
+    // Uses options.repositoryPath and options.maxContextItems
+    void this.options; // Mark as used until implementation
+    void query;
     return {
       files: [],
       codeBlocks: [],

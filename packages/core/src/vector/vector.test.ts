@@ -139,9 +139,9 @@ describe('Vector Storage', () => {
     expect(stats.totalDocuments).toBeGreaterThanOrEqual(50);
   });
 
-  it('should throw error on delete (not yet implemented)', async () => {
-    // Delete is not yet implemented
-    await expect(vectorStorage.deleteDocuments(['any-id'])).rejects.toThrow('not yet implemented');
+  it('should throw error on delete (not supported)', async () => {
+    // Delete is not supported - use upsert instead
+    await expect(vectorStorage.deleteDocuments(['any-id'])).rejects.toThrow('not supported');
   });
 
   it('should handle empty document array', async () => {

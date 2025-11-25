@@ -247,7 +247,7 @@ describe('Formatters', () => {
       const footerMatch = result.content.match(/🪙 ~(\d+) tokens$/);
       expect(footerMatch).toBeTruthy();
 
-      const footerTokens = Number.parseInt(footerMatch![1], 10);
+      const footerTokens = Number.parseInt(footerMatch?.[1] ?? '0', 10);
       expect(footerTokens).toBe(result.tokenEstimate);
     });
   });

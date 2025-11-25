@@ -14,12 +14,9 @@ export interface RegistryConfig {
 
 export class AdapterRegistry {
   private adapters = new Map<string, ToolAdapter>();
-  private context?: AdapterContext;
-  private config: RegistryConfig;
 
-  constructor(config: RegistryConfig = {}) {
-    this.config = config;
-  }
+  // biome-ignore lint/complexity/noUselessConstructor: Config reserved for future use (auto-discovery, custom adapter paths)
+  constructor(_config: RegistryConfig = {}) {}
 
   /**
    * Register a single adapter
@@ -55,8 +52,6 @@ export class AdapterRegistry {
    * Initialize all registered adapters
    */
   async initializeAll(context: AdapterContext): Promise<void> {
-    this.context = context;
-
     const initPromises = Array.from(this.adapters.values()).map((adapter) =>
       adapter.initialize(context)
     );
@@ -178,7 +173,7 @@ export class AdapterRegistry {
   async shutdownAll(): Promise<void> {
     const shutdownPromises = Array.from(this.adapters.values())
       .filter((adapter) => adapter.shutdown)
-      .map((adapter) => adapter.shutdown!());
+      .map((adapter) => adapter.shutdown?.());
 
     await Promise.all(shutdownPromises);
     this.adapters.clear();

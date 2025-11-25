@@ -2,12 +2,7 @@
  * GitHubAdapter Unit Tests
  */
 
-import type {
-  GitHubDocument,
-  GitHubIndexer,
-  GitHubSearchOptions,
-  GitHubSearchResult,
-} from '@lytics/dev-agent-subagents';
+import type { GitHubDocument, GitHubSearchResult } from '@lytics/dev-agent-subagents';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GitHubAdapter } from '../built-in/github-adapter';
 import type { ToolExecutionContext } from '../types';

@@ -12,13 +12,13 @@ export class ApiServer {
   }
 
   async start() {
-    console.log(`Starting API server on ${this.options.host}:${this.options.port}`);
-    // Will use Express.js
+    // Will use Express.js - logging handled by Express middleware
+    void this.options;
     return true;
   }
 
   async stop() {
-    console.log('Stopping API server');
+    // Graceful shutdown - logging handled by caller
     return true;
   }
 }

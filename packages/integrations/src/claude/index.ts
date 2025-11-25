@@ -6,7 +6,7 @@ export const claudeIntegration = {
 
   // Placeholder for future implementation
   initialize: () => {
-    console.log('Claude integration initialized');
+    // Initialization handled by MCP server
     return true;
   },
 };

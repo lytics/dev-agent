@@ -1,6 +1,16 @@
 /**
  * PR/GitHub Subagent = Motor Cortex
- * Manages GitHub PRs and issues (future implementation)
+ *
+ * This agent will manage GitHub PRs and issues when implemented.
+ * Currently a placeholder that acknowledges requests but takes no action.
+ *
+ * Planned capabilities:
+ * - create-pr: Create pull requests from branches
+ * - update-pr: Update PR descriptions, labels, reviewers
+ * - manage-issues: Create, update, close issues
+ * - comment: Add comments to PRs and issues
+ *
+ * @see https://github.com/lytics/dev-agent/issues/10 for implementation tracking
  */
 
 import type { Agent, AgentContext, Message } from '../types';
@@ -14,7 +24,7 @@ export class PrAgent implements Agent {
   async initialize(context: AgentContext): Promise<void> {
     this.context = context;
     this.name = context.agentName;
-    context.logger.info('PR agent initialized');
+    context.logger.info('PR agent initialized (placeholder - not yet implemented)');
   }
 
   async handleMessage(message: Message): Promise<Message | null> {
@@ -22,8 +32,8 @@ export class PrAgent implements Agent {
       throw new Error('PR agent not initialized');
     }
 
-    // TODO: Implement actual GitHub integration logic (ticket #10)
-    // For now, just acknowledge
+    // Placeholder: acknowledges requests but takes no action
+    // Implementation tracked in https://github.com/lytics/dev-agent/issues/10
     this.context.logger.debug('Received message', { type: message.type });
 
     if (message.type === 'request') {

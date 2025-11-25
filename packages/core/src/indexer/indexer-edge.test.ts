@@ -1,4 +1,4 @@
-import * as crypto from 'node:crypto';
+// crypto is available globally in Node.js
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';

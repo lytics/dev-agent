@@ -8,7 +8,7 @@ import type { ToolAdapter } from '../adapters/tool-adapter';
 import type { AdapterContext, Config, ToolExecutionContext } from '../adapters/types';
 import { ConsoleLogger } from '../utils/logger';
 import { PromptRegistry } from './prompts';
-import { JSONRPCHandler } from './protocol/jsonrpc';
+import { createError, createErrorResponse, createResponse, isRequest } from './protocol/jsonrpc';
 import type {
   ErrorCode,
   InitializeResult,
@@ -109,12 +109,12 @@ export class MCPServer {
   private async handleMessage(message: TransportMessage): Promise<void> {
     this.logger.debug('Raw message received', {
       type: typeof message,
-      isRequest: JSONRPCHandler.isRequest(message),
+      isRequest: isRequest(message),
       preview: JSON.stringify(message).substring(0, 200),
     });
 
     // Handle notifications
-    if (!JSONRPCHandler.isRequest(message)) {
+    if (!isRequest(message)) {
       const method = (message as { method: string }).method;
       this.logger.info('Received notification', { method });
 
@@ -134,7 +134,7 @@ export class MCPServer {
       const result = await this.routeRequest(request);
       // request.id is guaranteed to be defined for requests (checked by isRequest)
       const requestId = request.id ?? 0;
-      const response = JSONRPCHandler.createResponse(requestId, result);
+      const response = createResponse(requestId, result);
       this.logger.debug('Sending response', {
         id: request.id,
         method: request.method,
@@ -149,7 +149,7 @@ export class MCPServer {
 
       const jsonrpcError = error as { code: ErrorCode; message: string; data?: unknown };
       const requestId = request.id ?? 0;
-      const errorResponse = JSONRPCHandler.createErrorResponse(requestId, jsonrpcError);
+      const errorResponse = createErrorResponse(requestId, jsonrpcError);
       await this.transport.send(errorResponse);
     }
   }
@@ -182,10 +182,10 @@ export class MCPServer {
 
       case 'resources/list':
       case 'resources/read':
-        throw JSONRPCHandler.createError(-32601, `Method not implemented: ${method}`);
+        throw createError(-32601, `Method not implemented: ${method}`);
 
       default:
-        throw JSONRPCHandler.createError(-32601, `Unknown method: ${method}`);
+        throw createError(-32601, `Unknown method: ${method}`);
     }
   }
 
@@ -299,7 +299,7 @@ export class MCPServer {
       const prompt = this.promptRegistry.getPrompt(params.name, params.arguments || {});
 
       if (!prompt) {
-        throw JSONRPCHandler.createError(
+        throw createError(
           -32003 as ErrorCode, // PromptNotFound
           `Prompt not found: ${params.name}`
         );
@@ -309,7 +309,7 @@ export class MCPServer {
       return prompt;
     } catch (error) {
       if (error instanceof Error && error.message.startsWith('Missing required argument')) {
-        throw JSONRPCHandler.createError(
+        throw createError(
           -32602 as ErrorCode, // InvalidParams
           error.message
         );

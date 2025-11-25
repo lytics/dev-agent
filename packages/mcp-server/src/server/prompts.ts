@@ -3,7 +3,7 @@
  * Defines reusable prompt templates that guide users through common workflows
  */
 
-import type { PromptArgument, PromptDefinition } from './protocol/types';
+import type { PromptDefinition } from './protocol/types';
 
 /**
  * Prompt message with role and content
