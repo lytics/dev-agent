@@ -27,7 +27,13 @@ Unlike generic code search tools or agent platforms, dev-agent specializes in **
 - 📋 **Planner** - Breaks down GitHub issues into actionable tasks using code context
 - 🔎 **Explorer** - Discovers patterns and relationships across your codebase
 - 🔧 **PR Manager** - Automates PR creation with AI-generated, context-aware descriptions
-- 🎯 **Coordinator** - Orchestrates multi-agent workflows
+- 🎯 **Coordinator** - Orchestrates multi-agent workflows with message passing
+
+**Infrastructure:**
+- 📡 **Event Bus** - Async pub/sub communication between components
+- 📈 **Observability** - Request tracking, structured logging, metrics (p50/p95/p99)
+- 💾 **Pluggable Storage** - StorageAdapter pattern for session and persistent state
+- 🔄 **Request Correlation** - Track requests across the system with request IDs
 
 **Integration:**
 - 🔌 **MCP-native** - Full protocol support with tools, prompts, and resources
@@ -46,6 +52,8 @@ dev-agent/
 │   │   │   ├── vector/       # Vector storage
 │   │   │   ├── github/       # GitHub integration
 │   │   │   ├── context/      # Context provider
+│   │   │   ├── events/       # Event bus (pub/sub)
+│   │   │   ├── observability/# Logging, metrics, request tracking
 │   │   │   └── api/          # HTTP API server
 │   │
 │   ├── cli/                  # Command-line interface
@@ -56,14 +64,20 @@ dev-agent/
 │   │
 │   ├── subagents/            # Subagent system
 │   │   ├── src/
-│   │   │   ├── coordinator/  # Subagent coordinator
+│   │   │   ├── coordinator/  # Subagent coordinator + context + storage
 │   │   │   ├── planner/      # Planner subagent
 │   │   │   ├── explorer/     # Explorer subagent
 │   │   │   └── pr/           # PR subagent
 │   │
+│   ├── mcp-server/           # MCP protocol server
+│   │   ├── src/
+│   │   │   ├── adapters/     # Tool adapters (search, explore, plan, github)
+│   │   │   ├── server/       # MCP server, prompts, protocol
+│   │   │   └── formatters/   # Output formatting with token estimation
+│   │
 │   └── integrations/         # Tool integrations
 │       ├── claude/           # Claude Code integration
-│       ├── vscode/           # VS Code extension
+│       └── vscode/           # VS Code extension
 │
 ├── examples/                 # Example projects and usage
 ├── docs/                     # Documentation
@@ -241,7 +255,7 @@ Notice the 🪙 token footer - helps you track AI costs in real-time!
 - MCP server with 5 adapters (search, status, plan, explore, GitHub) - Production ready
 - Prompts system with 8 guided workflows - Shipped
 - Token cost visibility and accurate estimation - Validated (<1% error)
-- 246 tests passing across all packages
+- **892 tests passing** across all packages
 - CLI and MCP integrations - Fully functional
 
 **🚀 Available Now:**
@@ -250,6 +264,12 @@ Notice the 🪙 token footer - helps you track AI costs in real-time!
 - Implementation planning from GitHub issues
 - Code pattern exploration and relationship mapping
 - Repository health monitoring and statistics
+
+**🔧 Infrastructure:**
+- **Event Bus** - Async pub/sub with typed events (`packages/core/src/events/`)
+- **Observability** - Request tracking, structured logging, metrics (`packages/core/src/observability/`)
+- **StorageAdapter** - Pluggable persistence for session/persistent state
+- **SubagentCoordinator** - Integrated with MCP server for agent dispatch
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for technical decisions and [packages/mcp-server/README.md](./packages/mcp-server/README.md) for MCP integration details.
 
