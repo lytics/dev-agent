@@ -3,14 +3,14 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { Document } from '../../scanner/types';
+import type { Document } from '../../../scanner/types';
 import {
   filterDocumentsByExport,
   filterDocumentsByLanguage,
   filterDocumentsByType,
   prepareDocumentForEmbedding,
   prepareDocumentsForEmbedding,
-} from './documents';
+} from '../documents';
 
 describe('Document Preparation Utilities', () => {
   const mockDocuments: Document[] = [

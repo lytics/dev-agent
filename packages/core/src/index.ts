@@ -7,6 +7,7 @@ export * from './github';
 export * from './indexer';
 export * from './observability';
 export * from './scanner';
+export * from './storage';
 export * from './vector';
 
 export interface CoreConfig {

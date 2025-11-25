@@ -1,8 +1,8 @@
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { MarkdownScanner } from './markdown';
-import { ScannerRegistry } from './registry';
-import { TypeScriptScanner } from './typescript';
+import { MarkdownScanner } from '../markdown';
+import { ScannerRegistry } from '../registry';
+import { TypeScriptScanner } from '../typescript';
 
 // Helper to create registry
 function createDefaultRegistry(): ScannerRegistry {
@@ -23,7 +23,7 @@ async function scanRepository(options: {
 }
 
 describe('Scanner', () => {
-  const repoRoot = path.join(__dirname, '../../../../');
+  const repoRoot = path.join(__dirname, '../../../../../');
 
   it('should scan TypeScript files', async () => {
     const result = await scanRepository({

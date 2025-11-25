@@ -3,13 +3,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { Document } from '../../scanner/types';
+import type { Document } from '../../../scanner/types';
 import {
   cleanDocumentText,
   formatDocumentText,
   formatDocumentTextWithSignature,
   truncateText,
-} from './formatting';
+} from '../formatting';
 
 describe('Formatting Utilities', () => {
   describe('formatDocumentText', () => {

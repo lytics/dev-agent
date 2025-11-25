@@ -3,9 +3,9 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AsyncEventBus } from '../events';
-import { createLogger, ObservableLoggerImpl } from './logger';
-import { createRequestTracker, RequestTracker } from './request-tracker';
+import { AsyncEventBus } from '../../events';
+import { createLogger, ObservableLoggerImpl } from '../logger';
+import { createRequestTracker, RequestTracker } from '../request-tracker';
 
 describe('ObservableLoggerImpl', () => {
   let logger: ObservableLoggerImpl;

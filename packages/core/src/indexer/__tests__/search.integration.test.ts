@@ -10,13 +10,13 @@
 
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { RepositoryIndexer } from './index';
+import { RepositoryIndexer } from '../index';
 
 const shouldSkip = process.env.CI === 'true' && !process.env.RUN_INTEGRATION;
 
 describe.skipIf(shouldSkip)('RepositoryIndexer Search Integration', () => {
   let indexer: RepositoryIndexer;
-  const repoRoot = path.resolve(__dirname, '../../../..');
+  const repoRoot = path.resolve(__dirname, '../../../../..');
   const vectorPath = path.join(repoRoot, '.dev-agent/vectors.lance');
 
   beforeAll(async () => {
