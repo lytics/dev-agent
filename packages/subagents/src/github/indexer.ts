@@ -305,10 +305,11 @@ export class GitHubIndexer {
     const id = `${type}-${number}`;
 
     try {
-      const results = await this.vectorStorage.search(id, { limit: 1 });
-      if (results.length === 0) return null;
+      // Use exact ID lookup instead of semantic search
+      const result = await this.vectorStorage.getDocument(id);
+      if (!result) return null;
 
-      return JSON.parse(results[0].metadata.document as string) as GitHubDocument;
+      return JSON.parse(result.metadata.document as string) as GitHubDocument;
     } catch {
       return null;
     }

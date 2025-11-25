@@ -2,7 +2,11 @@
  * GitHubAdapter Unit Tests
  */
 
-import type { GitHubDocument, GitHubSearchResult } from '@lytics/dev-agent-subagents';
+import type {
+  GitHubDocument,
+  GitHubIndexer,
+  GitHubSearchResult,
+} from '@lytics/dev-agent-subagents';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GitHubAdapter } from '../built-in/github-adapter';
 import type { ToolExecutionContext } from '../types';
@@ -36,6 +40,7 @@ describe('GitHubAdapter', () => {
     // Mock GitHubIndexer
     mockGitHubIndexer = {
       search: vi.fn(),
+      getDocument: vi.fn(),
     } as unknown as GitHubIndexer;
 
     // Create adapter
@@ -256,15 +261,8 @@ describe('GitHubAdapter', () => {
 
   describe('Context Action', () => {
     it('should get issue context in compact format', async () => {
-      const mockResults: GitHubSearchResult[] = [
-        {
-          document: mockIssue,
-          score: 1.0,
-          matchedFields: ['number'],
-        },
-      ];
-
-      vi.mocked(mockGitHubIndexer.search).mockResolvedValue(mockResults);
+      // Mock getDocument to return the issue directly (new implementation)
+      vi.mocked(mockGitHubIndexer.getDocument).mockResolvedValue(mockIssue);
 
       const result = await adapter.execute(
         {
@@ -282,15 +280,8 @@ describe('GitHubAdapter', () => {
     });
 
     it('should get issue context in verbose format', async () => {
-      const mockResults: GitHubSearchResult[] = [
-        {
-          document: mockIssue,
-          score: 1.0,
-          matchedFields: ['number'],
-        },
-      ];
-
-      vi.mocked(mockGitHubIndexer.search).mockResolvedValue(mockResults);
+      // Mock getDocument to return the issue directly
+      vi.mocked(mockGitHubIndexer.getDocument).mockResolvedValue(mockIssue);
 
       const result = await adapter.execute(
         {
@@ -311,6 +302,9 @@ describe('GitHubAdapter', () => {
     });
 
     it('should handle issue not found', async () => {
+      // Mock getDocument to return null (not found)
+      vi.mocked(mockGitHubIndexer.getDocument).mockResolvedValue(null);
+      // Also mock search for fallback case
       vi.mocked(mockGitHubIndexer.search).mockResolvedValue([]);
 
       const result = await adapter.execute(
@@ -334,26 +328,22 @@ describe('GitHubAdapter', () => {
         title: 'Related Issue',
       };
 
-      vi.mocked(mockGitHubIndexer.search)
-        .mockResolvedValueOnce([
-          {
-            document: mockIssue,
-            score: 1.0,
-            matchedFields: ['number'],
-          },
-        ])
-        .mockResolvedValueOnce([
-          {
-            document: mockIssue,
-            score: 1.0,
-            matchedFields: ['title'],
-          },
-          {
-            document: mockRelated,
-            score: 0.85,
-            matchedFields: ['title'],
-          },
-        ]);
+      // Mock getDocument for finding the main issue
+      vi.mocked(mockGitHubIndexer.getDocument).mockResolvedValue(mockIssue);
+
+      // Mock search for finding related issues (semantic similarity)
+      vi.mocked(mockGitHubIndexer.search).mockResolvedValue([
+        {
+          document: mockIssue,
+          score: 1.0,
+          matchedFields: ['title'],
+        },
+        {
+          document: mockRelated,
+          score: 0.85,
+          matchedFields: ['title'],
+        },
+      ]);
 
       const result = await adapter.execute(
         {
@@ -371,21 +361,17 @@ describe('GitHubAdapter', () => {
     });
 
     it('should handle no related items', async () => {
-      vi.mocked(mockGitHubIndexer.search)
-        .mockResolvedValueOnce([
-          {
-            document: mockIssue,
-            score: 1.0,
-            matchedFields: ['number'],
-          },
-        ])
-        .mockResolvedValueOnce([
-          {
-            document: mockIssue,
-            score: 1.0,
-            matchedFields: ['title'],
-          },
-        ]);
+      // Mock getDocument for finding the main issue
+      vi.mocked(mockGitHubIndexer.getDocument).mockResolvedValue(mockIssue);
+
+      // Mock search to only return the main issue (no related items)
+      vi.mocked(mockGitHubIndexer.search).mockResolvedValue([
+        {
+          document: mockIssue,
+          score: 1.0,
+          matchedFields: ['title'],
+        },
+      ]);
 
       const result = await adapter.execute(
         {
