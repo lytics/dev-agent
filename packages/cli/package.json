@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@lytics/dev-agent-core": "workspace:*",
+    "@lytics/dev-agent-mcp": "workspace:*",
     "@lytics/dev-agent-subagents": "workspace:*",
     "@lytics/kero": "workspace:*",
     "ora": "^8.0.1"
