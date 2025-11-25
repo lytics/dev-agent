@@ -5,7 +5,14 @@
  */
 
 import { RepositoryIndexer } from '@lytics/dev-agent-core';
-import { PlanAdapter, SearchAdapter, StatusAdapter } from '../src/adapters/built-in';
+import { GitHubIndexer } from '@lytics/dev-agent-subagents';
+import {
+  ExploreAdapter,
+  GitHubAdapter,
+  PlanAdapter,
+  SearchAdapter,
+  StatusAdapter,
+} from '../src/adapters/built-in';
 import { MCPServer } from '../src/server/mcp-server';
 
 // Get config from environment
@@ -23,6 +30,16 @@ async function main() {
     });
 
     await indexer.initialize();
+
+    // Initialize GitHub indexer
+    const githubIndexer = new GitHubIndexer({
+      vectorStorePath: `${repositoryPath}/.dev-agent/github-vectors.lance`,
+      statePath: `${repositoryPath}/.dev-agent/github-state.json`,
+      autoUpdate: false, // Don't auto-update on server start
+    });
+
+    // Initialize GitHub indexer (lazy - will be ready when first used)
+    await githubIndexer.initialize();
 
     // Create and register adapters
     const searchAdapter = new SearchAdapter({
@@ -45,6 +62,21 @@ async function main() {
       timeout: 60000, // 60 seconds
     });
 
+    const exploreAdapter = new ExploreAdapter({
+      repositoryPath,
+      repositoryIndexer: indexer,
+      defaultLimit: 10,
+      defaultThreshold: 0.7,
+      defaultFormat: 'compact',
+    });
+
+    const githubAdapter = new GitHubAdapter({
+      repositoryPath,
+      githubIndexer,
+      defaultLimit: 10,
+      defaultFormat: 'compact',
+    });
+
     // Create MCP server
     const server = new MCPServer({
       serverInfo: {
@@ -56,13 +88,14 @@ async function main() {
         logLevel,
       },
       transport: 'stdio',
-      adapters: [searchAdapter, statusAdapter, planAdapter],
+      adapters: [searchAdapter, statusAdapter, planAdapter, exploreAdapter, githubAdapter],
     });
 
     // Handle graceful shutdown
     const shutdown = async () => {
       await server.stop();
       await indexer.close();
+      await githubIndexer.close();
       process.exit(0);
     };
 
