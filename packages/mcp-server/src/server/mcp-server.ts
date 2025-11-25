@@ -216,6 +216,21 @@ export class MCPServer {
   }
 
   /**
+   * Map semantic error codes to JSON-RPC numeric codes
+   */
+  private mapErrorCode(code?: string): number {
+    const codeMap: Record<string, number> = {
+      INVALID_PARAMS: -32602,
+      NOT_FOUND: -32001,
+      TIMEOUT: -32002,
+      INTERNAL_ERROR: -32603,
+      GITHUB_CLI_ERROR: -32003,
+      INDEXER_ERROR: -32004,
+    };
+    return code ? codeMap[code] || -32001 : -32001;
+  }
+
+  /**
    * Handle tools/call request
    */
   private async handleToolsCall(params: {
@@ -233,7 +248,7 @@ export class MCPServer {
 
     if (!result.success) {
       throw {
-        code: result.error?.code ? Number.parseInt(result.error.code, 10) : -32001,
+        code: this.mapErrorCode(result.error?.code),
         message: result.error?.message || 'Tool execution failed',
         data: {
           details: result.error?.details,
@@ -242,7 +257,17 @@ export class MCPServer {
       };
     }
 
-    return result.data;
+    // Format response according to MCP protocol
+    // The content field must be an array of content blocks
+    return {
+      content: [
+        {
+          type: 'text',
+          text:
+            typeof result.data === 'string' ? result.data : JSON.stringify(result.data, null, 2),
+        },
+      ],
+    };
   }
 
   /**

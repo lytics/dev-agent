@@ -5,7 +5,7 @@
  */
 
 import { RepositoryIndexer } from '@lytics/dev-agent-core';
-import { SearchAdapter } from '../src/adapters/built-in/search-adapter';
+import { PlanAdapter, SearchAdapter, StatusAdapter } from '../src/adapters/built-in';
 import { MCPServer } from '../src/server/mcp-server';
 
 // Get config from environment
@@ -31,6 +31,20 @@ async function main() {
       defaultLimit: 10,
     });
 
+    const statusAdapter = new StatusAdapter({
+      repositoryIndexer: indexer,
+      repositoryPath,
+      vectorStorePath,
+      defaultSection: 'summary',
+    });
+
+    const planAdapter = new PlanAdapter({
+      repositoryIndexer: indexer,
+      repositoryPath,
+      defaultFormat: 'compact',
+      timeout: 60000, // 60 seconds
+    });
+
     // Create MCP server
     const server = new MCPServer({
       serverInfo: {
@@ -42,7 +56,7 @@ async function main() {
         logLevel,
       },
       transport: 'stdio',
-      adapters: [searchAdapter],
+      adapters: [searchAdapter, statusAdapter, planAdapter],
     });
 
     // Handle graceful shutdown

@@ -20,9 +20,14 @@ export function isGhInstalled(): boolean {
 
 /**
  * Fetch GitHub issue using gh CLI
+ * @param issueNumber - GitHub issue number
+ * @param repositoryPath - Optional path to repository (defaults to current directory)
  * @throws Error if gh CLI fails or issue not found
  */
-export async function fetchGitHubIssue(issueNumber: number): Promise<GitHubIssue> {
+export async function fetchGitHubIssue(
+  issueNumber: number,
+  repositoryPath?: string
+): Promise<GitHubIssue> {
   if (!isGhInstalled()) {
     throw new Error('GitHub CLI (gh) not installed');
   }
@@ -33,6 +38,7 @@ export async function fetchGitHubIssue(issueNumber: number): Promise<GitHubIssue
       {
         encoding: 'utf-8',
         stdio: ['pipe', 'pipe', 'pipe'],
+        cwd: repositoryPath, // Run in the repository directory
       }
     );
 
