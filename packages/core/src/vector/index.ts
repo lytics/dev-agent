@@ -133,6 +133,18 @@ export class VectorStorage {
   }
 
   /**
+   * Optimize the vector store (compact fragments, update indices)
+   * Call this after bulk indexing operations for better performance
+   */
+  async optimize(): Promise<void> {
+    if (!this.initialized) {
+      throw new Error('VectorStorage not initialized. Call initialize() first.');
+    }
+
+    await this.store.optimize();
+  }
+
+  /**
    * Close the storage
    */
   async close(): Promise<void> {

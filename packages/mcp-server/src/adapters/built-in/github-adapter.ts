@@ -14,7 +14,10 @@ import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult }
 
 export interface GitHubAdapterConfig {
   repositoryPath: string;
-  githubIndexer: GitHubIndexer;
+  // Either pass an initialized indexer OR paths for lazy initialization
+  githubIndexer?: GitHubIndexer;
+  vectorStorePath?: string;
+  statePath?: string;
   defaultLimit?: number;
   defaultFormat?: 'compact' | 'verbose';
 }
@@ -33,7 +36,9 @@ export class GitHubAdapter extends ToolAdapter {
   };
 
   private repositoryPath: string;
-  private githubIndexer: GitHubIndexer;
+  public githubIndexer?: GitHubIndexer; // Public for cleanup in shutdown
+  private vectorStorePath?: string;
+  private statePath?: string;
   private defaultLimit: number;
   private defaultFormat: 'compact' | 'verbose';
 
@@ -41,8 +46,17 @@ export class GitHubAdapter extends ToolAdapter {
     super();
     this.repositoryPath = config.repositoryPath;
     this.githubIndexer = config.githubIndexer;
+    this.vectorStorePath = config.vectorStorePath;
+    this.statePath = config.statePath;
     this.defaultLimit = config.defaultLimit ?? 10;
     this.defaultFormat = config.defaultFormat ?? 'compact';
+
+    // Validate: either githubIndexer OR both paths must be provided
+    if (!this.githubIndexer && (!this.vectorStorePath || !this.statePath)) {
+      throw new Error(
+        'GitHubAdapter requires either githubIndexer or both vectorStorePath and statePath'
+      );
+    }
   }
 
   async initialize(context: AdapterContext): Promise<void> {
@@ -50,7 +64,35 @@ export class GitHubAdapter extends ToolAdapter {
       repositoryPath: this.repositoryPath,
       defaultLimit: this.defaultLimit,
       defaultFormat: this.defaultFormat,
+      lazyInit: !this.githubIndexer,
     });
+  }
+
+  /**
+   * Lazy initialization of GitHubIndexer
+   * Only creates the indexer when first needed
+   */
+  private async ensureGitHubIndexer(): Promise<GitHubIndexer> {
+    if (this.githubIndexer) {
+      return this.githubIndexer;
+    }
+
+    // Validate paths are available
+    if (!this.vectorStorePath || !this.statePath) {
+      throw new Error('GitHubAdapter not configured for lazy initialization');
+    }
+
+    // Lazy initialization
+    const { GitHubIndexer: GitHubIndexerClass } = await import('@lytics/dev-agent-subagents');
+
+    this.githubIndexer = new GitHubIndexerClass({
+      vectorStorePath: this.vectorStorePath,
+      statePath: this.statePath,
+      autoUpdate: false,
+    });
+
+    await this.githubIndexer.initialize();
+    return this.githubIndexer;
   }
 
   getToolDefinition(): ToolDefinition {
@@ -260,7 +302,8 @@ export class GitHubAdapter extends ToolAdapter {
     options: GitHubSearchOptions,
     format: string
   ): Promise<string> {
-    const results = await this.githubIndexer.search(query, options);
+    const indexer = await this.ensureGitHubIndexer();
+    const results = await indexer.search(query, options);
 
     if (results.length === 0) {
       return '## GitHub Search Results\n\nNo matching issues or PRs found. Try:\n- Using different keywords\n- Removing filters (type, state, labels)\n- Re-indexing GitHub data with "dev gh index"';
@@ -278,7 +321,8 @@ export class GitHubAdapter extends ToolAdapter {
    */
   private async getContext(number: number, format: string): Promise<string> {
     // Search for the specific issue/PR
-    const results = await this.githubIndexer.search(`#${number}`, { limit: 1 });
+    const indexer = await this.ensureGitHubIndexer();
+    const results = await indexer.search(`#${number}`, { limit: 1 });
 
     if (results.length === 0) {
       throw new Error(`Issue/PR #${number} not found`);
@@ -298,7 +342,8 @@ export class GitHubAdapter extends ToolAdapter {
    */
   private async getRelated(number: number, limit: number, format: string): Promise<string> {
     // First get the main issue/PR
-    const mainResults = await this.githubIndexer.search(`#${number}`, { limit: 1 });
+    const indexer = await this.ensureGitHubIndexer();
+    const mainResults = await indexer.search(`#${number}`, { limit: 1 });
 
     if (mainResults.length === 0) {
       throw new Error(`Issue/PR #${number} not found`);
@@ -307,7 +352,7 @@ export class GitHubAdapter extends ToolAdapter {
     const mainDoc = mainResults[0].document;
 
     // Search for related items using the title
-    const relatedResults = await this.githubIndexer.search(mainDoc.title, { limit: limit + 1 });
+    const relatedResults = await indexer.search(mainDoc.title, { limit: limit + 1 });
 
     // Filter out the main item itself
     const related = relatedResults.filter((r) => r.document.number !== number).slice(0, limit);
