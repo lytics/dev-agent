@@ -3,7 +3,13 @@
  * Generate development plan from GitHub issue
  */
 
-import { RepositoryIndexer } from '@lytics/dev-agent-core';
+import * as path from 'node:path';
+import {
+  ensureStorageDirectory,
+  getStorageFilePaths,
+  getStoragePath,
+  RepositoryIndexer,
+} from '@lytics/dev-agent-core';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
@@ -93,7 +99,23 @@ export const planCommand = new Command('plan')
       if (options.explorer !== false) {
         spinner.text = 'Finding relevant code...';
 
-        const indexer = new RepositoryIndexer(config);
+        // Resolve repository path
+        const repositoryPath = config.repository?.path || config.repositoryPath || process.cwd();
+        const resolvedRepoPath = path.resolve(repositoryPath);
+
+        // Get centralized storage paths
+        const storagePath = await getStoragePath(resolvedRepoPath);
+        await ensureStorageDirectory(storagePath);
+        const filePaths = getStorageFilePaths(storagePath);
+
+        const indexer = new RepositoryIndexer({
+          repositoryPath: resolvedRepoPath,
+          vectorStorePath: filePaths.vectors,
+          statePath: filePaths.indexerState,
+          excludePatterns: config.repository?.excludePatterns || config.excludePatterns,
+          languages: config.repository?.languages || config.languages,
+        });
+
         await indexer.initialize();
 
         for (const task of tasks) {

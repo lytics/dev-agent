@@ -11,6 +11,7 @@ import { initCommand } from './commands/init.js';
 import { planCommand } from './commands/plan.js';
 import { searchCommand } from './commands/search.js';
 import { statsCommand } from './commands/stats.js';
+import { storageCommand } from './commands/storage.js';
 import { updateCommand } from './commands/update.js';
 
 const program = new Command();
@@ -31,6 +32,7 @@ program.addCommand(updateCommand);
 program.addCommand(statsCommand);
 program.addCommand(compactCommand);
 program.addCommand(cleanCommand);
+program.addCommand(storageCommand);
 
 // Show help if no command provided
 if (process.argv.length === 2) {

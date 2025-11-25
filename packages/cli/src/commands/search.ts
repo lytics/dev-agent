@@ -1,5 +1,10 @@
 import * as path from 'node:path';
-import { RepositoryIndexer } from '@lytics/dev-agent-core';
+import {
+  ensureStorageDirectory,
+  getStorageFilePaths,
+  getStoragePath,
+  RepositoryIndexer,
+} from '@lytics/dev-agent-core';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
@@ -25,8 +30,24 @@ export const searchCommand = new Command('search')
         return; // TypeScript needs this
       }
 
+      // Resolve repository path
+      const repositoryPath = config.repository?.path || config.repositoryPath || process.cwd();
+      const resolvedRepoPath = path.resolve(repositoryPath);
+
+      // Get centralized storage paths
+      const storagePath = await getStoragePath(resolvedRepoPath);
+      await ensureStorageDirectory(storagePath);
+      const filePaths = getStorageFilePaths(storagePath);
+
       spinner.text = 'Initializing indexer...';
-      const indexer = new RepositoryIndexer(config);
+      const indexer = new RepositoryIndexer({
+        repositoryPath: resolvedRepoPath,
+        vectorStorePath: filePaths.vectors,
+        statePath: filePaths.indexerState,
+        excludePatterns: config.repository?.excludePatterns || config.excludePatterns,
+        languages: config.repository?.languages || config.languages,
+      });
+
       await indexer.initialize();
 
       spinner.text = `Searching for: ${chalk.cyan(query)}`;
@@ -64,7 +85,7 @@ export const searchCommand = new Command('search')
 
         // Extract file info (metadata uses 'path', not 'file')
         const filePath = (metadata.path || metadata.file) as string;
-        const relativePath = filePath ? path.relative(config.repositoryPath, filePath) : 'unknown';
+        const relativePath = filePath ? path.relative(resolvedRepoPath, filePath) : 'unknown';
         const startLine = metadata.startLine as number;
         const endLine = metadata.endLine as number;
         const name = metadata.name as string;

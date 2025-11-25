@@ -1,4 +1,10 @@
-import { RepositoryIndexer } from '@lytics/dev-agent-core';
+import * as path from 'node:path';
+import {
+  ensureStorageDirectory,
+  getStorageFilePaths,
+  getStoragePath,
+  RepositoryIndexer,
+} from '@lytics/dev-agent-core';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
@@ -21,8 +27,24 @@ export const updateCommand = new Command('update')
         return; // TypeScript needs this
       }
 
+      // Resolve repository path
+      const repositoryPath = config.repository?.path || config.repositoryPath || process.cwd();
+      const resolvedRepoPath = path.resolve(repositoryPath);
+
+      // Get centralized storage paths
+      const storagePath = await getStoragePath(resolvedRepoPath);
+      await ensureStorageDirectory(storagePath);
+      const filePaths = getStorageFilePaths(storagePath);
+
       spinner.text = 'Initializing indexer...';
-      const indexer = new RepositoryIndexer(config);
+      const indexer = new RepositoryIndexer({
+        repositoryPath: resolvedRepoPath,
+        vectorStorePath: filePaths.vectors,
+        statePath: filePaths.indexerState,
+        excludePatterns: config.repository?.excludePatterns || config.excludePatterns,
+        languages: config.repository?.languages || config.languages,
+      });
+
       await indexer.initialize();
 
       spinner.text = 'Detecting changed files...';

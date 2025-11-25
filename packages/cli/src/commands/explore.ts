@@ -1,4 +1,10 @@
-import { RepositoryIndexer } from '@lytics/dev-agent-core';
+import * as path from 'node:path';
+import {
+  ensureStorageDirectory,
+  getStorageFilePaths,
+  getStoragePath,
+  RepositoryIndexer,
+} from '@lytics/dev-agent-core';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
@@ -26,7 +32,23 @@ explore
         return;
       }
 
-      const indexer = new RepositoryIndexer(config);
+      // Resolve repository path
+      const repositoryPath = config.repository?.path || config.repositoryPath || process.cwd();
+      const resolvedRepoPath = path.resolve(repositoryPath);
+
+      // Get centralized storage paths
+      const storagePath = await getStoragePath(resolvedRepoPath);
+      await ensureStorageDirectory(storagePath);
+      const filePaths = getStorageFilePaths(storagePath);
+
+      const indexer = new RepositoryIndexer({
+        repositoryPath: resolvedRepoPath,
+        vectorStorePath: filePaths.vectors,
+        statePath: filePaths.indexerState,
+        excludePatterns: config.repository?.excludePatterns || config.excludePatterns,
+        languages: config.repository?.languages || config.languages,
+      });
+
       await indexer.initialize();
 
       spinner.text = `Searching: "${query}"`;
@@ -85,20 +107,36 @@ explore
         return;
       }
 
+      // Resolve repository path
+      const repositoryPath = config.repository?.path || config.repositoryPath || process.cwd();
+      const resolvedRepoPath = path.resolve(repositoryPath);
+
+      // Get centralized storage paths
+      const storagePath = await getStoragePath(resolvedRepoPath);
+      await ensureStorageDirectory(storagePath);
+      const filePaths = getStorageFilePaths(storagePath);
+
       // Prepare file for search (read content, resolve paths)
       spinner.text = 'Reading file content...';
       const { prepareFileForSearch } = await import('../utils/file.js');
 
       let fileInfo: Awaited<ReturnType<typeof prepareFileForSearch>>;
       try {
-        fileInfo = await prepareFileForSearch(config.repositoryPath, file);
+        fileInfo = await prepareFileForSearch(resolvedRepoPath, file);
       } catch (error) {
         spinner.fail((error as Error).message);
         process.exit(1);
         return;
       }
 
-      const indexer = new RepositoryIndexer(config);
+      const indexer = new RepositoryIndexer({
+        repositoryPath: resolvedRepoPath,
+        vectorStorePath: filePaths.vectors,
+        statePath: filePaths.indexerState,
+        excludePatterns: config.repository?.excludePatterns || config.excludePatterns,
+        languages: config.repository?.languages || config.languages,
+      });
+
       await indexer.initialize();
 
       // Search using file content, not filename
@@ -124,15 +162,18 @@ explore
         return;
       }
 
-      console.log(chalk.cyan(`\n🔗 Similar to: ${file}\n`));
+      console.log(chalk.cyan(`\n🔍 Similar Code to: ${file}\n`));
 
       for (const [i, result] of similar.entries()) {
         const meta = result.metadata as {
           path: string;
+          name?: string;
           type: string;
+          startLine?: number;
         };
 
-        console.log(chalk.white(`${i + 1}. ${meta.path}`));
+        console.log(chalk.white(`${i + 1}. ${meta.name || meta.type}`));
+        console.log(chalk.gray(`   ${meta.path}${meta.startLine ? `:${meta.startLine}` : ''}`));
         console.log(chalk.green(`   ${(result.score * 100).toFixed(1)}% similar\n`));
       }
 
