@@ -72,8 +72,11 @@ export class CompactFormatter implements ResultFormatter {
     });
 
     // Calculate total tokens
-    const content = formatted.join('\n');
-    const tokenEstimate = estimateTokensForText(content);
+    const contentLines = formatted.join('\n');
+    const tokenEstimate = estimateTokensForText(contentLines);
+
+    // Add token footer
+    const content = `${contentLines}\n\n🪙 ~${tokenEstimate} tokens`;
 
     return {
       content,

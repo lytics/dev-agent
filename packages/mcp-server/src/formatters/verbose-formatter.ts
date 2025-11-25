@@ -102,8 +102,11 @@ export class VerboseFormatter implements ResultFormatter {
     });
 
     // Calculate total tokens
-    const content = formatted.join('\n\n'); // Double newline for separation
-    const tokenEstimate = estimateTokensForText(content);
+    const contentLines = formatted.join('\n\n'); // Double newline for separation
+    const tokenEstimate = estimateTokensForText(contentLines);
+
+    // Add token footer
+    const content = `${contentLines}\n\n🪙 ~${tokenEstimate} tokens`;
 
     return {
       content,

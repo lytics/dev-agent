@@ -231,6 +231,32 @@ describe('GitHubAdapter', () => {
         'No matching issues or PRs found'
       );
     });
+
+    it('should include token footer in search results', async () => {
+      const mockResults: GitHubSearchResult[] = [
+        {
+          document: mockIssue,
+          score: 0.9,
+          matchedFields: ['title'],
+        },
+      ];
+
+      vi.mocked(mockGitHubIndexer.search).mockResolvedValue(mockResults);
+
+      const result = await adapter.execute(
+        {
+          action: 'search',
+          query: 'test',
+          format: 'compact',
+        },
+        mockContext
+      );
+
+      expect(result.success).toBe(true);
+      const content = (result.data as { content: string })?.content;
+      expect(content).toContain('🪙');
+      expect(content).toMatch(/~\d+ tokens$/);
+    });
   });
 
   describe('Context Action', () => {

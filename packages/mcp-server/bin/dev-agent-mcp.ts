@@ -62,7 +62,7 @@ async function main() {
     const githubAdapter = new GitHubAdapter({
       repositoryPath,
       // GitHubIndexer will be lazily initialized on first use
-      vectorStorePath: `${repositoryPath}/.dev-agent/github-vectors.lance`,
+      vectorStorePath: `${vectorStorePath}-github`,
       statePath: `${repositoryPath}/.dev-agent/github-state.json`,
       defaultLimit: 10,
       defaultFormat: 'compact',

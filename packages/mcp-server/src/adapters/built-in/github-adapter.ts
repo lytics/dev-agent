@@ -9,6 +9,7 @@ import type {
   GitHubSearchOptions,
   GitHubSearchResult,
 } from '@lytics/dev-agent-subagents';
+import { estimateTokensForText } from '../../formatters/utils';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
 
@@ -85,11 +86,26 @@ export class GitHubAdapter extends ToolAdapter {
     // Lazy initialization
     const { GitHubIndexer: GitHubIndexerClass } = await import('@lytics/dev-agent-subagents');
 
-    this.githubIndexer = new GitHubIndexerClass({
-      vectorStorePath: this.vectorStorePath,
-      statePath: this.statePath,
-      autoUpdate: false,
-    });
+    // Try to load repository from state file to avoid gh CLI call
+    let repository: string | undefined;
+    try {
+      const fs = await import('node:fs/promises');
+      const stateContent = await fs.readFile(this.statePath, 'utf-8');
+      const state = JSON.parse(stateContent);
+      repository = state.repository;
+    } catch {
+      // State file doesn't exist or can't be read
+      // GitHubIndexer will try gh CLI as fallback
+    }
+
+    this.githubIndexer = new GitHubIndexerClass(
+      {
+        vectorStorePath: this.vectorStorePath,
+        statePath: this.statePath,
+        autoUpdate: false,
+      },
+      repository // Pass repository to avoid gh CLI call
+    );
 
     await this.githubIndexer.initialize();
     return this.githubIndexer;
@@ -306,7 +322,10 @@ export class GitHubAdapter extends ToolAdapter {
     const results = await indexer.search(query, options);
 
     if (results.length === 0) {
-      return '## GitHub Search Results\n\nNo matching issues or PRs found. Try:\n- Using different keywords\n- Removing filters (type, state, labels)\n- Re-indexing GitHub data with "dev gh index"';
+      const noResultsMsg =
+        '## GitHub Search Results\n\nNo matching issues or PRs found. Try:\n- Using different keywords\n- Removing filters (type, state, labels)\n- Re-indexing GitHub data with "dev gh index"';
+      const tokens = estimateTokensForText(noResultsMsg);
+      return `${noResultsMsg}\n\n🪙 ~${tokens} tokens`;
     }
 
     if (format === 'verbose') {
@@ -403,7 +422,9 @@ export class GitHubAdapter extends ToolAdapter {
       lines.push('', `_...and ${results.length - 5} more results_`);
     }
 
-    return lines.join('\n');
+    const content = lines.join('\n');
+    const tokens = estimateTokensForText(content);
+    return `${content}\n\n🪙 ~${tokens} tokens`;
   }
 
   /**
@@ -447,7 +468,9 @@ export class GitHubAdapter extends ToolAdapter {
       lines.push('');
     }
 
-    return lines.join('\n');
+    const content = lines.join('\n');
+    const tokens = estimateTokensForText(content);
+    return `${content}\n\n🪙 ~${tokens} tokens`;
   }
 
   /**
@@ -474,7 +497,9 @@ export class GitHubAdapter extends ToolAdapter {
       `**URL:** ${doc.url}`,
     ].filter(Boolean) as string[];
 
-    return lines.join('\n');
+    const content = lines.join('\n');
+    const tokens = estimateTokensForText(content);
+    return `${content}\n\n🪙 ~${tokens} tokens`;
   }
 
   /**
@@ -518,7 +543,9 @@ export class GitHubAdapter extends ToolAdapter {
       `**URL:** ${doc.url}`,
     ].filter(Boolean) as string[];
 
-    return lines.join('\n');
+    const content = lines.join('\n');
+    const tokens = estimateTokensForText(content);
+    return `${content}\n\n🪙 ~${tokens} tokens`;
   }
 
   /**
