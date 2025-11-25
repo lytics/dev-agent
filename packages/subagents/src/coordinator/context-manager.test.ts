@@ -2,9 +2,10 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { RepositoryIndexer } from '@lytics/dev-agent-core';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Message } from '../types';
 import { ContextManagerImpl } from './context-manager';
+import { MemoryStorageAdapter } from './storage';
 
 describe('ContextManagerImpl', () => {
   let contextManager: ContextManagerImpl;
@@ -16,12 +17,14 @@ describe('ContextManagerImpl', () => {
     indexer = new RepositoryIndexer({
       repositoryPath: tempDir,
       vectorStorePath: join(tempDir, '.vector-store'),
-      dimension: 384,
+      embeddingDimension: 384,
     });
     contextManager = new ContextManagerImpl();
+    await contextManager.initialize();
   });
 
   afterEach(async () => {
+    await contextManager.shutdown();
     await rm(tempDir, { recursive: true, force: true });
   });
 
@@ -42,47 +45,68 @@ describe('ContextManagerImpl', () => {
     });
   });
 
-  describe('state management', () => {
-    it('should store and retrieve state', () => {
-      contextManager.set('test-key', { value: 42 });
-      expect(contextManager.get('test-key')).toEqual({ value: 42 });
+  describe('session state management (async)', () => {
+    it('should store and retrieve state', async () => {
+      await contextManager.setAsync('test-key', { value: 42 });
+      expect(await contextManager.getAsync('test-key')).toEqual({ value: 42 });
     });
 
-    it('should return undefined for non-existent keys', () => {
-      expect(contextManager.get('non-existent')).toBeUndefined();
+    it('should return undefined for non-existent keys', async () => {
+      expect(await contextManager.getAsync('non-existent')).toBeUndefined();
     });
 
-    it('should overwrite existing state', () => {
-      contextManager.set('key', 'old-value');
-      contextManager.set('key', 'new-value');
-      expect(contextManager.get('key')).toBe('new-value');
+    it('should overwrite existing state', async () => {
+      await contextManager.setAsync('key', 'old-value');
+      await contextManager.setAsync('key', 'new-value');
+      expect(await contextManager.getAsync('key')).toBe('new-value');
     });
 
-    it('should handle multiple keys independently', () => {
-      contextManager.set('key1', 'value1');
-      contextManager.set('key2', 'value2');
-      expect(contextManager.get('key1')).toBe('value1');
-      expect(contextManager.get('key2')).toBe('value2');
+    it('should handle multiple keys independently', async () => {
+      await contextManager.setAsync('key1', 'value1');
+      await contextManager.setAsync('key2', 'value2');
+      expect(await contextManager.getAsync('key1')).toBe('value1');
+      expect(await contextManager.getAsync('key2')).toBe('value2');
     });
 
-    it('should delete keys', () => {
-      contextManager.set('key', 'value');
-      expect(contextManager.has('key')).toBe(true);
-      contextManager.delete('key');
-      expect(contextManager.has('key')).toBe(false);
+    it('should check if key exists', async () => {
+      await contextManager.setAsync('key', 'value');
+      expect(await contextManager.hasAsync('key')).toBe(true);
+      expect(await contextManager.hasAsync('nonexistent')).toBe(false);
+    });
+  });
+
+  describe('persistent state management', () => {
+    it('should store and retrieve persistent state', async () => {
+      await contextManager.setPersistent('pref:theme', 'dark');
+      expect(await contextManager.getPersistent('pref:theme')).toBe('dark');
     });
 
-    it('should clear all state', () => {
-      contextManager.set('key1', 'value1');
-      contextManager.set('key2', 'value2');
-      contextManager.clear();
-      expect(contextManager.keys()).toHaveLength(0);
+    it('should return undefined for non-existent persistent keys', async () => {
+      expect(await contextManager.getPersistent('nonexistent')).toBeUndefined();
     });
 
-    it('should list all keys', () => {
-      contextManager.set('key1', 'value1');
-      contextManager.set('key2', 'value2');
-      expect(contextManager.keys()).toEqual(expect.arrayContaining(['key1', 'key2']));
+    it('should check if persistent key exists', async () => {
+      await contextManager.setPersistent('key', 'value');
+      expect(await contextManager.hasPersistent('key')).toBe(true);
+      expect(await contextManager.hasPersistent('nonexistent')).toBe(false);
+    });
+
+    it('should delete persistent keys', async () => {
+      await contextManager.setPersistent('key', 'value');
+      expect(await contextManager.hasPersistent('key')).toBe(true);
+      await contextManager.deletePersistent('key');
+      expect(await contextManager.hasPersistent('key')).toBe(false);
+    });
+
+    it('should list persistent keys with prefix', async () => {
+      await contextManager.setPersistent('user:name', 'Alice');
+      await contextManager.setPersistent('user:email', 'alice@example.com');
+      await contextManager.setPersistent('config:theme', 'dark');
+
+      const userKeys = await contextManager.keysPersistent('user:');
+      expect(userKeys).toHaveLength(2);
+      expect(userKeys).toContain('user:name');
+      expect(userKeys).toContain('user:email');
     });
   });
 
@@ -96,6 +120,7 @@ describe('ContextManagerImpl', () => {
         sender: 'test-sender',
         recipient: 'test-recipient',
         payload: { action: 'test' },
+        priority: 5,
         timestamp: Date.now(),
       };
     });
@@ -126,8 +151,9 @@ describe('ContextManagerImpl', () => {
       expect(history[2].id).toBe('msg-3');
     });
 
-    it('should limit history to max size', () => {
+    it('should limit history to max size', async () => {
       const smallContext = new ContextManagerImpl({ maxHistorySize: 10 });
+      await smallContext.initialize();
 
       // Add 20 messages
       for (let i = 0; i < 20; i++) {
@@ -141,6 +167,8 @@ describe('ContextManagerImpl', () => {
       expect(history).toHaveLength(10);
       expect(history[0].id).toBe('msg-10'); // Should start from 10th message
       expect(history[9].id).toBe('msg-19'); // Should end at 19th message
+
+      await smallContext.shutdown();
     });
 
     it('should support history limit parameter', () => {
@@ -166,26 +194,65 @@ describe('ContextManagerImpl', () => {
   });
 
   describe('statistics', () => {
-    it('should return context statistics', () => {
-      contextManager.set('key1', 'value1');
-      contextManager.set('key2', 'value2');
+    it('should return context statistics', async () => {
+      await contextManager.setAsync('key1', 'value1');
+      await contextManager.setAsync('key2', 'value2');
+      await contextManager.setPersistent('pref', 'value');
       contextManager.addToHistory({
         id: 'msg-1',
         type: 'request',
         sender: 'test',
         recipient: 'test',
         payload: {},
+        priority: 5,
         timestamp: Date.now(),
       });
 
-      const stats = contextManager.getStats();
-      expect(stats.stateSize).toBe(2);
+      const stats = await contextManager.getStats();
+      expect(stats.sessionSize).toBe(2);
+      expect(stats.persistentSize).toBe(1);
       expect(stats.historySize).toBe(1);
       expect(stats.hasIndexer).toBe(false);
       expect(stats.maxHistorySize).toBe(1000); // default
 
       contextManager.setIndexer(indexer);
-      expect(contextManager.getStats().hasIndexer).toBe(true);
+      expect((await contextManager.getStats()).hasIndexer).toBe(true);
+    });
+  });
+
+  describe('storage adapter access', () => {
+    it('should provide access to session storage', () => {
+      const sessionStorage = contextManager.getSessionStorage();
+      expect(sessionStorage).toBeInstanceOf(MemoryStorageAdapter);
+    });
+
+    it('should provide access to persistent storage', () => {
+      const persistentStorage = contextManager.getPersistentStorage();
+      expect(persistentStorage).toBeInstanceOf(MemoryStorageAdapter);
+    });
+
+    it('should use custom storage adapters', async () => {
+      const customSession = new MemoryStorageAdapter();
+      const customPersistent = new MemoryStorageAdapter();
+
+      const customContext = new ContextManagerImpl({
+        sessionStorage: customSession,
+        persistentStorage: customPersistent,
+      });
+      await customContext.initialize();
+
+      expect(customContext.getSessionStorage()).toBe(customSession);
+      expect(customContext.getPersistentStorage()).toBe(customPersistent);
+
+      await customContext.shutdown();
+    });
+  });
+
+  describe('lifecycle', () => {
+    it('should initialize and shutdown cleanly', async () => {
+      const ctx = new ContextManagerImpl();
+      await expect(ctx.initialize()).resolves.toBeUndefined();
+      await expect(ctx.shutdown()).resolves.toBeUndefined();
     });
   });
 });
