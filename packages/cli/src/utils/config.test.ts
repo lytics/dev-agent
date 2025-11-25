@@ -20,8 +20,13 @@ describe('Config Utilities', () => {
     it('should return default configuration', () => {
       const config = getDefaultConfig('/test/path');
 
+      expect(config.version).toBe('1.0');
+      expect(config.repository).toBeDefined();
+      expect(config.repository?.path).toBe('.');
+      expect(config.repository?.excludePatterns).toContain('**/node_modules/**');
+      expect(config.repository?.languages).toContain('typescript');
+      // Legacy fields for backward compatibility
       expect(config.repositoryPath).toBe(path.resolve('/test/path'));
-      expect(config.vectorStorePath).toContain('.dev-agent/vectors.lance');
       expect(config.embeddingModel).toBe('Xenova/all-MiniLM-L6-v2');
       expect(config.dimension).toBe(384);
       expect(config.excludePatterns).toContain('**/node_modules/**');
@@ -39,7 +44,7 @@ describe('Config Utilities', () => {
       const config = getDefaultConfig(testDir);
       await saveConfig(config, testDir);
 
-      const configPath = path.join(testDir, '.dev-agent.json');
+      const configPath = path.join(testDir, '.dev-agent', 'config.json');
       const exists = await fs
         .access(configPath)
         .then(() => true)
@@ -51,10 +56,13 @@ describe('Config Utilities', () => {
       const config = getDefaultConfig(testDir);
       await saveConfig(config, testDir);
 
-      const configPath = path.join(testDir, '.dev-agent.json');
+      const configPath = path.join(testDir, '.dev-agent', 'config.json');
       const content = await fs.readFile(configPath, 'utf-8');
       const parsed = JSON.parse(content);
 
+      expect(parsed.version).toBe('1.0');
+      expect(parsed.repository).toBeDefined();
+      // Legacy fields for backward compatibility
       expect(parsed.repositoryPath).toBe(config.repositoryPath);
       expect(parsed.embeddingModel).toBe(config.embeddingModel);
     });
@@ -66,7 +74,7 @@ describe('Config Utilities', () => {
       await saveConfig(config, testDir);
 
       const found = await findConfigFile(testDir);
-      expect(found).toBe(path.join(testDir, '.dev-agent.json'));
+      expect(found).toBe(path.join(testDir, '.dev-agent', 'config.json'));
     });
 
     it('should find config file in parent directory', async () => {
@@ -77,7 +85,7 @@ describe('Config Utilities', () => {
       await saveConfig(config, testDir);
 
       const found = await findConfigFile(subDir);
-      expect(found).toBe(path.join(testDir, '.dev-agent.json'));
+      expect(found).toBe(path.join(testDir, '.dev-agent', 'config.json'));
     });
 
     it('should return null if no config found', async () => {
@@ -99,19 +107,24 @@ describe('Config Utilities', () => {
       const config = getDefaultConfig(testDir);
       await saveConfig(config, testDir);
 
-      const loaded = await loadConfig(path.join(testDir, '.dev-agent.json'));
+      const loaded = await loadConfig(path.join(testDir, '.dev-agent', 'config.json'));
       expect(loaded).toBeDefined();
+      expect(loaded?.version).toBe('1.0');
+      expect(loaded?.repository).toBeDefined();
+      // Legacy fields for backward compatibility
       expect(loaded?.repositoryPath).toBe(config.repositoryPath);
       expect(loaded?.embeddingModel).toBe(config.embeddingModel);
     });
 
     it('should return null if config not found', async () => {
-      const loaded = await loadConfig('/nonexistent/path/.dev-agent.json');
+      const loaded = await loadConfig('/nonexistent/path/.dev-agent/config.json');
       expect(loaded).toBeNull();
     });
 
     it('should handle invalid JSON gracefully', async () => {
-      const invalidPath = path.join(testDir, '.dev-agent-invalid.json');
+      const invalidDir = path.join(testDir, '.dev-agent-invalid');
+      await fs.mkdir(invalidDir, { recursive: true });
+      const invalidPath = path.join(invalidDir, 'config.json');
       await fs.writeFile(invalidPath, 'invalid json{{{', 'utf-8');
 
       const loaded = await loadConfig(invalidPath);
