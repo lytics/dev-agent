@@ -171,10 +171,13 @@ export class LanceDBVectorStore implements VectorStore {
     }
 
     try {
-      // Note: LanceDB delete API may vary by version
-      // For now, we'll mark this as a TODO for proper implementation
-      // This is a limitation of the current LanceDB API
-      throw new Error('Delete operation not yet implemented for LanceDB');
+      // LanceDB delete requires filtering by a predicate, not by ID list
+      // This would need a schema change to support proper deletion
+      // For now, we recommend using upsert (mergeInsert) instead of delete+insert
+      // See: https://lancedb.github.io/lancedb/guides/tables/#deleting-rows
+      throw new Error(
+        'Delete operation not supported. Use upsert via addDocuments() with existing IDs instead.'
+      );
     } catch (error) {
       throw new Error(
         `Failed to delete documents: ${error instanceof Error ? error.message : String(error)}`

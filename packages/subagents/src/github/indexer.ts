@@ -46,8 +46,9 @@ export class GitHubIndexer {
       ...config,
     };
 
-    // Resolve state path
-    const repoRoot = process.cwd(); // TODO: Get from git root
+    // Resolve state path relative to current working directory
+    // This works correctly when CLI is run from repo root
+    const repoRoot = process.cwd();
     this.statePath = path.isAbsolute(this.config.statePath)
       ? this.config.statePath
       : path.join(repoRoot, this.config.statePath);
