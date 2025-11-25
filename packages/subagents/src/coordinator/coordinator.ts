@@ -4,6 +4,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { AsyncEventBus } from '@lytics/dev-agent-core';
 import { CoordinatorLogger } from '../logger';
 import type {
   Agent,
@@ -22,6 +23,7 @@ export class SubagentCoordinator {
   private taskQueue: TaskQueue;
   private logger: CoordinatorLogger;
   private options: Required<CoordinatorOptions>;
+  private eventBus: AsyncEventBus;
 
   // Statistics
   private stats = {
@@ -48,12 +50,23 @@ export class SubagentCoordinator {
     this.logger = new CoordinatorLogger('coordinator', this.options.logLevel);
     this.contextManager = new ContextManagerImpl();
     this.taskQueue = new TaskQueue(this.options.maxConcurrentTasks, this.logger);
+    this.eventBus = new AsyncEventBus({
+      source: 'coordinator',
+      debug: this.options.logLevel === 'debug',
+    });
     this.startTime = Date.now();
 
     this.logger.info('Subagent Coordinator initialized', {
       maxConcurrentTasks: this.options.maxConcurrentTasks,
       logLevel: this.options.logLevel,
     });
+  }
+
+  /**
+   * Get the event bus for pub/sub communication
+   */
+  getEventBus(): AsyncEventBus {
+    return this.eventBus;
   }
 
   /**
@@ -87,6 +100,12 @@ export class SubagentCoordinator {
         name: agent.name,
         totalAgents: this.agents.size,
       });
+
+      // Emit agent registered event
+      await this.eventBus.emit('agent.registered', {
+        name: agent.name,
+        capabilities: agent.capabilities,
+      });
     } catch (error) {
       this.logger.error(`Failed to initialize agent '${agent.name}'`, error as Error);
       throw error;
@@ -96,7 +115,7 @@ export class SubagentCoordinator {
   /**
    * Unregister an agent
    */
-  async unregisterAgent(agentName: string): Promise<void> {
+  async unregisterAgent(agentName: string, reason?: string): Promise<void> {
     const agent = this.agents.get(agentName);
     if (!agent) {
       this.logger.warn('Attempted to unregister unknown agent', { agentName });
@@ -113,10 +132,22 @@ export class SubagentCoordinator {
         agentName,
         remainingAgents: this.agents.size,
       });
+
+      // Emit agent unregistered event
+      await this.eventBus.emit('agent.unregistered', {
+        name: agentName,
+        reason,
+      });
     } catch (error) {
       this.logger.error(`Error shutting down agent '${agentName}'`, error as Error);
       // Remove anyway
       this.agents.delete(agentName);
+
+      // Still emit the event
+      await this.eventBus.emit('agent.unregistered', {
+        name: agentName,
+        reason: 'error',
+      });
     }
   }
 
