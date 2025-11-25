@@ -3,12 +3,45 @@
  * CLI commands for indexing and searching GitHub data
  */
 
+import { getStorageFilePaths, getStoragePath } from '@lytics/dev-agent-core';
 import { GitHubIndexer } from '@lytics/dev-agent-subagents';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
-import { loadConfig } from '../utils/config.js';
 import { logger } from '../utils/logger.js';
+
+/**
+ * Create GitHub indexer with centralized storage
+ */
+async function createGitHubIndexer(): Promise<GitHubIndexer> {
+  const repositoryPath = process.cwd();
+  const storagePath = await getStoragePath(repositoryPath);
+  const { vectors, githubState } = getStorageFilePaths(storagePath);
+
+  // Validate that paths are not undefined or invalid
+  if (
+    !vectors ||
+    vectors.includes('undefined') ||
+    !githubState ||
+    githubState.includes('undefined')
+  ) {
+    throw new Error(`Invalid storage paths: vectors=${vectors}, githubState=${githubState}`);
+  }
+
+  const vectorStorePath = `${vectors}-github`;
+
+  // Additional validation for the GitHub vector storage path
+  if (vectorStorePath.includes('undefined')) {
+    throw new Error(`Invalid GitHub vector storage path: ${vectorStorePath}`);
+  }
+
+  return new GitHubIndexer({
+    vectorStorePath,
+    statePath: githubState,
+    autoUpdate: true,
+    staleThreshold: 15 * 60 * 1000, // 15 minutes
+  });
+}
 
 export const ghCommand = new Command('gh')
   .description('GitHub context commands (index issues/PRs, search, get context)')
@@ -23,24 +56,10 @@ export const ghCommand = new Command('gh')
         const spinner = ora('Loading configuration...').start();
 
         try {
-          const config = await loadConfig();
-          if (!config) {
-            spinner.fail('No config found');
-            logger.error('Run "dev init" first to initialize dev-agent');
-            process.exit(1);
-            return;
-          }
-
           spinner.text = 'Initializing indexers...';
 
-          // Create GitHub indexer with vector storage
-          const ghIndexer = new GitHubIndexer({
-            vectorStorePath: `${config.vectorStorePath}-github`, // Separate storage for GitHub data
-            statePath: '.dev-agent/github-state.json',
-            autoUpdate: true,
-            staleThreshold: 15 * 60 * 1000, // 15 minutes
-          });
-
+          // Create GitHub indexer with centralized vector storage
+          const ghIndexer = await createGitHubIndexer();
           await ghIndexer.initialize();
 
           spinner.text = 'Fetching GitHub data...';
@@ -112,23 +131,10 @@ export const ghCommand = new Command('gh')
         const spinner = ora('Loading configuration...').start();
 
         try {
-          const config = await loadConfig();
-          if (!config) {
-            spinner.fail('No config found');
-            logger.error('Run "dev init" first to initialize dev-agent');
-            process.exit(1);
-            return;
-          }
-
           spinner.text = 'Initializing...';
 
-          // Initialize GitHub indexer
-          const ghIndexer = new GitHubIndexer({
-            vectorStorePath: `${config.vectorStorePath}-github`,
-            statePath: '.dev-agent/github-state.json',
-            autoUpdate: true,
-            staleThreshold: 15 * 60 * 1000,
-          });
+          // Initialize GitHub indexer with centralized storage
+          const ghIndexer = await createGitHubIndexer();
           await ghIndexer.initialize();
 
           // Check if indexed
@@ -212,22 +218,9 @@ export const ghCommand = new Command('gh')
         const spinner = ora('Loading configuration...').start();
 
         try {
-          const config = await loadConfig();
-          if (!config) {
-            spinner.fail('No config found');
-            logger.error('Run "dev init" first');
-            process.exit(1);
-            return;
-          }
-
           spinner.text = 'Initializing...';
 
-          const ghIndexer = new GitHubIndexer({
-            vectorStorePath: `${config.vectorStorePath}-github`,
-            statePath: '.dev-agent/github-state.json',
-            autoUpdate: true,
-            staleThreshold: 15 * 60 * 1000,
-          });
+          const ghIndexer = await createGitHubIndexer();
           await ghIndexer.initialize();
 
           if (!ghIndexer.isIndexed()) {
@@ -304,19 +297,9 @@ export const ghCommand = new Command('gh')
       const spinner = ora('Loading configuration...').start();
 
       try {
-        const config = await loadConfig();
-        if (!config) {
-          spinner.fail('No config found');
-          process.exit(1);
-          return;
-        }
+        spinner.text = 'Initializing...';
 
-        const ghIndexer = new GitHubIndexer({
-          vectorStorePath: `${config.vectorStorePath}-github`,
-          statePath: '.dev-agent/github-state.json',
-          autoUpdate: true,
-          staleThreshold: 15 * 60 * 1000,
-        });
+        const ghIndexer = await createGitHubIndexer();
         await ghIndexer.initialize();
 
         const stats = ghIndexer.getStats();

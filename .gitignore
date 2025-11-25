@@ -60,3 +60,7 @@ Thumbs.db
 # Dev-agent local data
 .dev-agent.json
 .dev-agent/
+
+# Temporary files and invalid paths
+temp/
+*-github/

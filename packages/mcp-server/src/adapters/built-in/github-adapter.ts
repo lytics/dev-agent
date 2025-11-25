@@ -317,7 +317,20 @@ export class GitHubAdapter extends ToolAdapter {
     format: string
   ): Promise<string> {
     const indexer = await this.ensureGitHubIndexer();
+
+    // Debug logging to understand what's happening
+    console.log(`[GitHub Search] Query: "${query}", Options:`, JSON.stringify(options, null, 2));
+
     const results = await indexer.search(query, options);
+
+    console.log(`[GitHub Search] Found ${results.length} results`);
+    if (results.length > 0) {
+      console.log(`[GitHub Search] First result:`, {
+        title: results[0].document.title,
+        number: results[0].document.number,
+        score: results[0].score,
+      });
+    }
 
     if (results.length === 0) {
       const noResultsMsg =
@@ -337,15 +350,29 @@ export class GitHubAdapter extends ToolAdapter {
    * Get full context for an issue/PR
    */
   private async getIssueContext(number: number, format: string): Promise<string> {
-    // Search for the specific issue/PR
     const indexer = await this.ensureGitHubIndexer();
-    const results = await indexer.search(`#${number}`, { limit: 1 });
 
-    if (results.length === 0) {
-      throw new Error(`Issue/PR #${number} not found`);
+    // First try to get document by ID (more efficient)
+    let doc = await indexer.getDocument(number, 'issue');
+
+    if (!doc) {
+      // Try as pull request if not found as issue
+      doc = await indexer.getDocument(number, 'pull_request');
     }
 
-    const doc = results[0].document;
+    if (!doc) {
+      // Fallback: search by number in title/content
+      const results = await indexer.search(`${number}`, { limit: 10 });
+
+      // Find exact number match
+      const exactMatch = results.find((r) => r.document.number === number);
+
+      if (exactMatch) {
+        doc = exactMatch.document;
+      } else {
+        throw new Error(`Issue/PR #${number} not found`);
+      }
+    }
 
     if (format === 'verbose') {
       return this.formatContextVerbose(doc);
@@ -358,15 +385,26 @@ export class GitHubAdapter extends ToolAdapter {
    * Find related issues and PRs
    */
   private async getRelated(number: number, limit: number, format: string): Promise<string> {
-    // First get the main issue/PR
+    // First get the main issue/PR using the same logic as getIssueContext
     const indexer = await this.ensureGitHubIndexer();
-    const mainResults = await indexer.search(`#${number}`, { limit: 1 });
 
-    if (mainResults.length === 0) {
-      throw new Error(`Issue/PR #${number} not found`);
+    let mainDoc = await indexer.getDocument(number, 'issue');
+
+    if (!mainDoc) {
+      mainDoc = await indexer.getDocument(number, 'pull_request');
     }
 
-    const mainDoc = mainResults[0].document;
+    if (!mainDoc) {
+      // Fallback: search by number
+      const mainResults = await indexer.search(`${number}`, { limit: 10 });
+      const exactMatch = mainResults.find((r) => r.document.number === number);
+
+      if (exactMatch) {
+        mainDoc = exactMatch.document;
+      } else {
+        throw new Error(`Issue/PR #${number} not found`);
+      }
+    }
 
     // Search for related items using the title
     const relatedResults = await indexer.search(mainDoc.title, { limit: limit + 1 });
