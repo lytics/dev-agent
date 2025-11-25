@@ -3,11 +3,11 @@
  * Exposes GitHub context and search capabilities via MCP (dev_gh tool)
  */
 
-import type {
-  GitHubDocument,
+import {
+  type GitHubDocument,
   GitHubIndexer,
-  GitHubSearchOptions,
-  GitHubSearchResult,
+  type GitHubSearchOptions,
+  type GitHubSearchResult,
 } from '@lytics/dev-agent-subagents';
 import { estimateTokensForText } from '../../formatters/utils';
 import { ToolAdapter } from '../tool-adapter';
@@ -84,8 +84,6 @@ export class GitHubAdapter extends ToolAdapter {
     }
 
     // Lazy initialization
-    const { GitHubIndexer: GitHubIndexerClass } = await import('@lytics/dev-agent-subagents');
-
     // Try to load repository from state file to avoid gh CLI call
     let repository: string | undefined;
     try {
@@ -98,7 +96,7 @@ export class GitHubAdapter extends ToolAdapter {
       // GitHubIndexer will try gh CLI as fallback
     }
 
-    this.githubIndexer = new GitHubIndexerClass(
+    this.githubIndexer = new GitHubIndexer(
       {
         vectorStorePath: this.vectorStorePath,
         statePath: this.statePath,
