@@ -245,7 +245,7 @@ export class AsyncEventBus implements EventBus {
   private async emitAndWait<T>(
     eventName: string,
     payload: T,
-    meta: EventMeta,
+    _meta: EventMeta,
     timeout?: number
   ): Promise<void> {
     const handlerList = this.handlers.get(eventName);

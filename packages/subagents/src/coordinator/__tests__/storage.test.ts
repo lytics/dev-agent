@@ -3,7 +3,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { CompositeStorageAdapter, MemoryStorageAdapter, type StorageAdapter } from './storage';
+import { CompositeStorageAdapter, MemoryStorageAdapter, type StorageAdapter } from '../storage';
 
 describe('MemoryStorageAdapter', () => {
   let storage: MemoryStorageAdapter;
@@ -234,18 +234,31 @@ describe('CompositeStorageAdapter', () => {
       let sessionInit = false;
       let persistentInit = false;
 
-      const mockSession: StorageAdapter = {
-        ...new MemoryStorageAdapter(),
-        initialize: async () => {
-          sessionInit = true;
-        },
-      };
-      const mockPersistent: StorageAdapter = {
-        ...new MemoryStorageAdapter(),
-        initialize: async () => {
-          persistentInit = true;
-        },
-      };
+      const baseSession = new MemoryStorageAdapter();
+      const baseSessionInit = baseSession.initialize.bind(baseSession);
+      const mockSession = Object.assign(
+        Object.create(Object.getPrototypeOf(baseSession)),
+        baseSession,
+        {
+          initialize: async () => {
+            sessionInit = true;
+            await baseSessionInit();
+          },
+        }
+      ) as StorageAdapter;
+
+      const basePersistent = new MemoryStorageAdapter();
+      const basePersistentInit = basePersistent.initialize.bind(basePersistent);
+      const mockPersistent = Object.assign(
+        Object.create(Object.getPrototypeOf(basePersistent)),
+        basePersistent,
+        {
+          initialize: async () => {
+            persistentInit = true;
+            await basePersistentInit();
+          },
+        }
+      ) as StorageAdapter;
 
       const comp = new CompositeStorageAdapter({
         session: mockSession,
@@ -261,18 +274,33 @@ describe('CompositeStorageAdapter', () => {
       let sessionShutdown = false;
       let persistentShutdown = false;
 
-      const mockSession: StorageAdapter = {
-        ...new MemoryStorageAdapter(),
-        shutdown: async () => {
-          sessionShutdown = true;
-        },
-      };
-      const mockPersistent: StorageAdapter = {
-        ...new MemoryStorageAdapter(),
-        shutdown: async () => {
-          persistentShutdown = true;
-        },
-      };
+      const baseSession = new MemoryStorageAdapter();
+      await baseSession.initialize();
+      const baseSessionShutdown = baseSession.shutdown.bind(baseSession);
+      const mockSession = Object.assign(
+        Object.create(Object.getPrototypeOf(baseSession)),
+        baseSession,
+        {
+          shutdown: async () => {
+            sessionShutdown = true;
+            await baseSessionShutdown();
+          },
+        }
+      ) as StorageAdapter;
+
+      const basePersistent = new MemoryStorageAdapter();
+      await basePersistent.initialize();
+      const basePersistentShutdown = basePersistent.shutdown.bind(basePersistent);
+      const mockPersistent = Object.assign(
+        Object.create(Object.getPrototypeOf(basePersistent)),
+        basePersistent,
+        {
+          shutdown: async () => {
+            persistentShutdown = true;
+            await basePersistentShutdown();
+          },
+        }
+      ) as StorageAdapter;
 
       const comp = new CompositeStorageAdapter({
         session: mockSession,

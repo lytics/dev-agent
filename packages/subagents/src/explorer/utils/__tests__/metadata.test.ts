@@ -4,7 +4,7 @@
 
 import type { SearchResult } from '@lytics/dev-agent-core';
 import { describe, expect, it } from 'vitest';
-import { extractFilePath, extractMetadata, type ResultMetadata } from './metadata';
+import { extractFilePath, extractMetadata, type ResultMetadata } from '../metadata';
 
 describe('Metadata Utilities', () => {
   const mockSearchResult: SearchResult = {

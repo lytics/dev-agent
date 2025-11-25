@@ -56,15 +56,15 @@ describe('Formatting Utilities', () => {
     it('should format document with only text (no name)', () => {
       const doc: Document = {
         id: 'doc3',
-        type: 'comment',
+        type: 'function',
         language: 'typescript',
         text: '// This is a comment',
         metadata: {
           file: '/src/app.ts',
           name: '',
+          exported: false,
           startLine: 1,
           endLine: 1,
-          exported: false,
         },
       };
 
@@ -280,6 +280,7 @@ describe('Formatting Utilities', () => {
           name: 'foo',
           startLine: 1,
           endLine: 3,
+          exported: false,
         },
       };
 

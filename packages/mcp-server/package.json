@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "@lytics/dev-agent-core": "workspace:*",
-    "@lytics/dev-agent-subagents": "workspace:*"
+    "@lytics/dev-agent-subagents": "workspace:*",
+    "@lytics/kero": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
@@ -32,4 +33,3 @@
     "access": "public"
   }
 }
-

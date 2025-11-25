@@ -9,9 +9,5 @@
   },
   "include": ["src/**/*", "bin/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"],
-  "references": [
-    { "path": "../core" },
-    { "path": "../subagents" }
-  ]
+  "references": [{ "path": "../core" }, { "path": "../subagents" }, { "path": "../logger" }]
 }
-

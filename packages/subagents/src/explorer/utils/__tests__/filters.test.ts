@@ -4,7 +4,7 @@
 
 import type { SearchResult } from '@lytics/dev-agent-core';
 import { describe, expect, it } from 'vitest';
-import { isNotReferenceFile, matchesFileType } from './filters';
+import { isNotReferenceFile, matchesFileType } from '../filters';
 
 describe('Filter Utilities', () => {
   const mockSearchResult: SearchResult = {

@@ -3,11 +3,10 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "composite": true
+    "composite": true,
+    "types": ["node", "vitest/globals"]
   },
-  "references": [
-    { "path": "../core" }
-  ],
+  "references": [{ "path": "../core" }, { "path": "../logger" }],
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "exclude": ["node_modules", "dist"]
 }

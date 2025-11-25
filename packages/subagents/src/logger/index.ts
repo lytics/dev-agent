@@ -1,60 +1,67 @@
 /**
  * Logger = Observability System
- * Structured logging for the coordinator and agents
+ * Structured logging for the coordinator and agents using @lytics/kero
  */
 
+import type { Logger as KeroLogger } from '@lytics/kero';
+import { createLogger } from '@lytics/kero';
 import type { Logger } from '../types';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-const LOG_LEVELS: Record<LogLevel, number> = {
-  debug: 0,
-  info: 1,
-  warn: 2,
-  error: 3,
-};
-
+/**
+ * Coordinator Logger - wraps kero with the coordinator's logger interface
+ */
 export class CoordinatorLogger implements Logger {
-  private level: LogLevel;
+  private kero: KeroLogger;
   private context: string;
 
   constructor(context: string = 'coordinator', level: LogLevel = 'info') {
     this.context = context;
-    this.level = level;
-  }
 
-  private shouldLog(level: LogLevel): boolean {
-    return LOG_LEVELS[level] >= LOG_LEVELS[this.level];
-  }
+    // Map coordinator levels to kero levels
+    const keroLevel =
+      level === 'debug' ? 'debug' : level === 'info' ? 'info' : level === 'warn' ? 'warn' : 'error';
 
-  private formatMessage(level: LogLevel, message: string, meta?: Record<string, unknown>): string {
-    const timestamp = new Date().toISOString();
-    const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
-    return `[${timestamp}] [${level.toUpperCase()}] [${this.context}] ${message}${metaStr}`;
+    this.kero = createLogger({
+      level: keroLevel,
+      format: 'pretty',
+      context: { component: context },
+    });
   }
 
   debug(message: string, meta?: Record<string, unknown>): void {
-    if (this.shouldLog('debug')) {
-      console.debug(this.formatMessage('debug', message, meta));
+    if (meta) {
+      this.kero.debug(meta, message);
+    } else {
+      this.kero.debug(message);
     }
   }
 
   info(message: string, meta?: Record<string, unknown>): void {
-    if (this.shouldLog('info')) {
-      console.info(this.formatMessage('info', message, meta));
+    if (meta) {
+      this.kero.info(meta, message);
+    } else {
+      this.kero.info(message);
     }
   }
 
   warn(message: string, meta?: Record<string, unknown>): void {
-    if (this.shouldLog('warn')) {
-      console.warn(this.formatMessage('warn', message, meta));
+    if (meta) {
+      this.kero.warn(meta, message);
+    } else {
+      this.kero.warn(message);
     }
   }
 
   error(message: string, error?: Error, meta?: Record<string, unknown>): void {
-    if (this.shouldLog('error')) {
-      const errorMeta = error ? { ...meta, error: error.message, stack: error.stack } : meta;
-      console.error(this.formatMessage('error', message, errorMeta));
+    if (error) {
+      const errorMeta = { ...meta, error: error.message, stack: error.stack };
+      this.kero.error(errorMeta, message);
+    } else if (meta) {
+      this.kero.error(meta, message);
+    } else {
+      this.kero.error(message);
     }
   }
 
@@ -62,20 +69,46 @@ export class CoordinatorLogger implements Logger {
    * Create a child logger with additional context
    */
   child(childContext: string): CoordinatorLogger {
-    return new CoordinatorLogger(`${this.context}:${childContext}`, this.level);
+    const newContext = `${this.context}:${childContext}`;
+    const currentLevel = this.kero.level;
+
+    // Map kero level back to coordinator level
+    const coordinatorLevel: LogLevel =
+      currentLevel === 'trace' || currentLevel === 'debug'
+        ? 'debug'
+        : currentLevel === 'info'
+          ? 'info'
+          : currentLevel === 'warn'
+            ? 'warn'
+            : 'error';
+
+    return new CoordinatorLogger(newContext, coordinatorLevel);
   }
 
   /**
    * Set log level
    */
   setLevel(level: LogLevel): void {
-    this.level = level;
+    // Need to recreate logger with new level
+    const keroLevel =
+      level === 'debug' ? 'debug' : level === 'info' ? 'info' : level === 'warn' ? 'warn' : 'error';
+
+    this.kero = createLogger({
+      level: keroLevel,
+      format: 'pretty',
+      context: { component: this.context },
+    });
   }
 
   /**
    * Get current log level
    */
   getLevel(): LogLevel {
-    return this.level;
+    const keroLevel = this.kero.level;
+    // Map kero level to coordinator level
+    if (keroLevel === 'trace' || keroLevel === 'debug') return 'debug';
+    if (keroLevel === 'info') return 'info';
+    if (keroLevel === 'warn') return 'warn';
+    return 'error';
   }
 }

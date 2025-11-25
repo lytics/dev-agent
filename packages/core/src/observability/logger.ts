@@ -2,44 +2,21 @@
  * Observable Logger
  *
  * Structured logging with request correlation, timing, and multiple output formats.
+ * Uses @lytics/kero as the underlying logging engine.
  */
 
-import type { LogEntry, LogFormat, LoggerConfig, LogLevel, ObservableLogger, Timer } from './types';
-
-/**
- * Log level priorities (higher = more severe)
- */
-const LOG_LEVELS: Record<LogLevel, number> = {
-  debug: 0,
-  info: 1,
-  warn: 2,
-  error: 3,
-};
-
-/**
- * ANSI color codes for pretty output
- */
-const COLORS = {
-  reset: '\x1b[0m',
-  dim: '\x1b[2m',
-  bold: '\x1b[1m',
-  // Levels
-  debug: '\x1b[36m', // Cyan
-  info: '\x1b[32m', // Green
-  warn: '\x1b[33m', // Yellow
-  error: '\x1b[31m', // Red
-  // Components
-  component: '\x1b[35m', // Magenta
-  requestId: '\x1b[34m', // Blue
-  duration: '\x1b[33m', // Yellow
-};
+import type { Logger as KeroLogger } from '@lytics/kero';
+import { createLogger as createKeroLogger } from '@lytics/kero';
+import type { LoggerConfig, LogLevel, ObservableLogger, Timer } from './types';
 
 /**
  * Observable Logger Implementation
+ * Wraps @lytics/kero with request tracking and timing utilities
  */
 export class ObservableLoggerImpl implements ObservableLogger {
   private config: Required<LoggerConfig>;
   private requestId?: string;
+  private kero: KeroLogger;
 
   constructor(config: Partial<LoggerConfig> = {}) {
     this.config = {
@@ -49,6 +26,22 @@ export class ObservableLoggerImpl implements ObservableLogger {
       timestamps: config.timestamps ?? true,
       colors: config.colors ?? true,
     };
+
+    // Map observable logger level to kero level
+    const keroLevel =
+      this.config.level === 'debug'
+        ? 'debug'
+        : this.config.level === 'info'
+          ? 'info'
+          : this.config.level === 'warn'
+            ? 'warn'
+            : 'error';
+
+    // Create kero logger instance
+    this.kero = createKeroLogger({
+      level: keroLevel,
+      format: this.config.format === 'json' ? 'json' : 'pretty',
+    });
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -56,15 +49,30 @@ export class ObservableLoggerImpl implements ObservableLogger {
   // ─────────────────────────────────────────────────────────────────────────
 
   debug(message: string, data?: Record<string, unknown>): void {
-    this.log('debug', message, data);
+    const context = this.buildContext(data);
+    if (context) {
+      this.kero.debug(context, message);
+    } else {
+      this.kero.debug(message);
+    }
   }
 
   info(message: string, data?: Record<string, unknown>): void {
-    this.log('info', message, data);
+    const context = this.buildContext(data);
+    if (context) {
+      this.kero.info(context, message);
+    } else {
+      this.kero.info(message);
+    }
   }
 
   warn(message: string, data?: Record<string, unknown>): void {
-    this.log('warn', message, data);
+    const context = this.buildContext(data);
+    if (context) {
+      this.kero.warn(context, message);
+    } else {
+      this.kero.warn(message);
+    }
   }
 
   error(message: string, error?: Error, data?: Record<string, unknown>): void {
@@ -78,7 +86,17 @@ export class ObservableLoggerImpl implements ObservableLogger {
         }
       : undefined;
 
-    this.log('error', message, { ...data, ...errorData });
+    const context = this.buildContext({ ...data, ...errorData });
+
+    if (error && context) {
+      this.kero.error(context, message);
+    } else if (error) {
+      this.kero.error(error, message);
+    } else if (context) {
+      this.kero.error(context, message);
+    } else {
+      this.kero.error(message);
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -101,38 +119,54 @@ export class ObservableLoggerImpl implements ObservableLogger {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Timing
+  // Timing Utilities
   // ─────────────────────────────────────────────────────────────────────────
 
-  startTimer(operation: string): Timer {
-    const startTime = performance.now();
-    let stopped = false;
-    let finalDuration = 0;
+  startTimer(label: string): Timer {
+    const start = Date.now();
 
     return {
       stop: () => {
-        if (!stopped) {
-          finalDuration = performance.now() - startTime;
-          stopped = true;
-          this.debug(`${operation} completed`, { duration: Math.round(finalDuration) });
+        const duration = Date.now() - start;
+        const context = this.buildContext({ duration, label });
+        if (context) {
+          this.kero.info(context, `${label} completed`);
+        } else {
+          this.kero.info(`${label} completed`);
         }
-        return Math.round(finalDuration);
+        return duration;
       },
-      elapsed: () => {
-        return stopped ? Math.round(finalDuration) : Math.round(performance.now() - startTime);
-      },
+      elapsed: () => Date.now() - start,
     };
   }
 
-  async time<T>(operation: string, fn: () => T | Promise<T>): Promise<T> {
-    const timer = this.startTimer(operation);
+  time<T>(label: string, fn: () => T): T;
+  time<T>(label: string, fn: () => Promise<T>): Promise<T>;
+  time<T>(label: string, fn: () => T | Promise<T>): T | Promise<T> {
+    const timer = this.startTimer(label);
+
     try {
-      const result = await fn();
+      const result = fn();
+
+      if (result instanceof Promise) {
+        return result.then(
+          (value) => {
+            timer.stop();
+            return value;
+          },
+          (error) => {
+            const duration = timer.stop();
+            this.error(`${label} failed`, error instanceof Error ? error : undefined, { duration });
+            throw error;
+          }
+        );
+      }
+
       timer.stop();
       return result;
     } catch (error) {
       const duration = timer.stop();
-      this.error(`${operation} failed`, error as Error, { duration });
+      this.error(`${label} failed`, error instanceof Error ? error : undefined, { duration });
       throw error;
     }
   }
@@ -143,6 +177,15 @@ export class ObservableLoggerImpl implements ObservableLogger {
 
   setLevel(level: LogLevel): void {
     this.config.level = level;
+
+    // Recreate kero logger with new level
+    const keroLevel =
+      level === 'debug' ? 'debug' : level === 'info' ? 'info' : level === 'warn' ? 'warn' : 'error';
+
+    this.kero = createKeroLogger({
+      level: keroLevel,
+      format: this.config.format === 'json' ? 'json' : 'pretty',
+    });
   }
 
   getLevel(): LogLevel {
@@ -150,146 +193,29 @@ export class ObservableLoggerImpl implements ObservableLogger {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Internal
+  // Helpers
   // ─────────────────────────────────────────────────────────────────────────
 
-  private log(level: LogLevel, message: string, data?: Record<string, unknown>): void {
-    // Check if this level should be logged
-    if (LOG_LEVELS[level] < LOG_LEVELS[this.config.level]) {
-      return;
+  private buildContext(data?: Record<string, unknown>): Record<string, unknown> | undefined {
+    if (!data && !this.requestId) return undefined;
+
+    const context: Record<string, unknown> = {};
+
+    if (this.requestId) {
+      context.requestId = this.requestId;
     }
 
-    const entry: LogEntry = {
-      timestamp: new Date().toISOString(),
-      level,
-      message,
-      component: this.config.component,
-      requestId: this.requestId,
-      data,
-    };
-
-    // Extract duration from data if present
-    if (data?.duration !== undefined) {
-      entry.duration = data.duration as number;
+    if (data) {
+      Object.assign(context, data);
     }
 
-    // Extract error from data if present
-    if (data?.error) {
-      entry.error = data.error as LogEntry['error'];
-    }
-
-    // Output based on format
-    if (this.config.format === 'json') {
-      this.outputJson(entry);
-    } else {
-      this.outputPretty(entry);
-    }
-  }
-
-  private outputJson(entry: LogEntry): void {
-    // Clean up the entry for JSON output
-    const output: Record<string, unknown> = {
-      timestamp: entry.timestamp,
-      level: entry.level,
-      component: entry.component,
-      message: entry.message,
-    };
-
-    if (entry.requestId) output.requestId = entry.requestId;
-    if (entry.duration !== undefined) output.duration = entry.duration;
-    if (entry.data) {
-      // Exclude error and duration from data since they're top-level
-      const { error: _error, duration: _duration, ...rest } = entry.data;
-      if (Object.keys(rest).length > 0) output.data = rest;
-    }
-    if (entry.error) output.error = entry.error;
-
-    console.error(JSON.stringify(output));
-  }
-
-  private outputPretty(entry: LogEntry): void {
-    const parts: string[] = [];
-    const useColors = this.config.colors;
-
-    // Timestamp
-    if (this.config.timestamps) {
-      const time = entry.timestamp.split('T')[1].split('.')[0]; // HH:MM:SS
-      parts.push(useColors ? `${COLORS.dim}[${time}]${COLORS.reset}` : `[${time}]`);
-    }
-
-    // Level
-    const levelStr = entry.level.toUpperCase().padEnd(5);
-    if (useColors) {
-      parts.push(`${COLORS[entry.level]}${levelStr}${COLORS.reset}`);
-    } else {
-      parts.push(levelStr);
-    }
-
-    // Component
-    if (useColors) {
-      parts.push(`${COLORS.component}[${entry.component}]${COLORS.reset}`);
-    } else {
-      parts.push(`[${entry.component}]`);
-    }
-
-    // Request ID
-    if (entry.requestId) {
-      const shortId = entry.requestId.slice(0, 8);
-      if (useColors) {
-        parts.push(`${COLORS.requestId}(${shortId})${COLORS.reset}`);
-      } else {
-        parts.push(`(${shortId})`);
-      }
-    }
-
-    // Message
-    parts.push(entry.message);
-
-    // Duration
-    if (entry.duration !== undefined) {
-      const durationStr = `${entry.duration}ms`;
-      if (useColors) {
-        parts.push(`${COLORS.duration}(${durationStr})${COLORS.reset}`);
-      } else {
-        parts.push(`(${durationStr})`);
-      }
-    }
-
-    // Data (excluding error and duration)
-    if (entry.data) {
-      const { error: _error, duration: _duration, ...rest } = entry.data;
-      if (Object.keys(rest).length > 0) {
-        const dataStr = JSON.stringify(rest);
-        if (useColors) {
-          parts.push(`${COLORS.dim}${dataStr}${COLORS.reset}`);
-        } else {
-          parts.push(dataStr);
-        }
-      }
-    }
-
-    // Output
-    console.error(parts.join(' '));
-
-    // Error stack (on separate line)
-    if (entry.error?.stack) {
-      const stack = entry.error.stack
-        .split('\n')
-        .slice(1)
-        .map((line) => `  ${line.trim()}`)
-        .join('\n');
-      if (useColors) {
-        console.error(`${COLORS.dim}${stack}${COLORS.reset}`);
-      } else {
-        console.error(stack);
-      }
-    }
+    return Object.keys(context).length > 0 ? context : undefined;
   }
 }
 
 /**
  * Create a new observable logger
  */
-export function createLogger(config?: Partial<LoggerConfig>): ObservableLogger {
+export function createLogger(config: Partial<LoggerConfig> = {}): ObservableLogger {
   return new ObservableLoggerImpl(config);
 }

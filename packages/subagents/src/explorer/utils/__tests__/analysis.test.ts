@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { calculateCoverage, getCommonPatterns, sortAndLimitPatterns } from './analysis';
+import { calculateCoverage, getCommonPatterns, sortAndLimitPatterns } from '../analysis';
 
 describe('Analysis Utilities', () => {
   describe('getCommonPatterns', () => {

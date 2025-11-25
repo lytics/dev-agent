@@ -22,7 +22,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@lytics/dev-agent-core": "workspace:*"
+    "@lytics/dev-agent-core": "workspace:*",
+    "@lytics/kero": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

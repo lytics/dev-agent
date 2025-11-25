@@ -66,9 +66,27 @@ describe('AsyncEventBus', () => {
     it('should execute handlers in priority order when waiting', async () => {
       const order: number[] = [];
 
-      bus.on('priority.event', () => order.push(1), { priority: 1 });
-      bus.on('priority.event', () => order.push(3), { priority: 3 });
-      bus.on('priority.event', () => order.push(2), { priority: 2 });
+      bus.on(
+        'priority.event',
+        () => {
+          order.push(1);
+        },
+        { priority: 1 }
+      );
+      bus.on(
+        'priority.event',
+        () => {
+          order.push(3);
+        },
+        { priority: 3 }
+      );
+      bus.on(
+        'priority.event',
+        () => {
+          order.push(2);
+        },
+        { priority: 2 }
+      );
 
       await bus.emit('priority.event', {}, { waitForHandlers: true });
 

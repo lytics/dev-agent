@@ -1,17 +1,13 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended",
-    ":semanticCommits",
-    "helpers:pinGitHubActionDigests"
-  ],
+  "extends": ["config:recommended", ":semanticCommits", "helpers:pinGitHubActionDigests"],
   "baseBranches": ["main"],
   "rangeStrategy": "bump",
   "dependencyDashboard": true,
   "schedule": ["after 10pm and before 5am every weekday", "every weekend"],
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
-  
+
   "packageRules": [
     {
       "matchDepTypes": ["devDependencies"],
@@ -44,21 +40,19 @@
       "rangeStrategy": "widen"
     }
   ],
-  
+
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 5am on monday"]
   },
-  
-  "ignoreDeps": [
-    "pnpm"
-  ],
-  
+
+  "ignoreDeps": ["pnpm"],
+
   "commitMessagePrefix": "chore(deps):",
   "commitMessageAction": "update",
   "commitMessageTopic": "{{depName}}",
   "commitBodyTable": true,
-  
+
   "pnpmShrinkwrap": true,
   "npmrc": "@lytics:registry=https://registry.npmjs.org/"
 }

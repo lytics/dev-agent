@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { LogEntry } from '../types';
 import { JsonFormatter } from './json';
 import { PrettyFormatter } from './pretty';

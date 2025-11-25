@@ -9,7 +9,7 @@ import {
   extractEstimate,
   extractTechnicalRequirements,
   inferPriority,
-} from './parsing';
+} from '../parsing';
 
 describe('extractAcceptanceCriteria', () => {
   it('should extract criteria from Acceptance Criteria section', () => {
