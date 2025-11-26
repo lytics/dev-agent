@@ -128,15 +128,15 @@ dev mcp list
 dev mcp uninstall
 ```
 
-## Repository-Specific Configuration
+## Claude Code Configuration
 
-Dev-agent supports multiple repository setups:
+Claude Code uses different config locations than Claude Desktop:
 
-- **Global Config:** Configure once in `~/.config/claude/claude_desktop_config.json`
-- **Project Config:** Use `.claude.json` in each repository root for project-specific settings
-- **Clean Processes:** Proper cleanup when Claude Code exits
+- **User Config:** `~/.claude.json` - Works for all your projects
+- **Project Config:** `.mcp.json` in repository root - Shared via git
+- **Local Config:** `~/.claude.json [project: /path]` - Private, project-specific
 
-**Recommendation:** Use the global config (created by `dev mcp install`) for simplicity, or project-specific configs for custom settings.
+**Recommendation:** The CLI uses `claude mcp add` which configures dev-agent automatically. No manual JSON editing needed!
 
 ## GitHub Integration
 
@@ -154,21 +154,28 @@ dev gh index
 
 ## Manual Configuration (Advanced)
 
-If you prefer manual setup, the CLI creates this configuration in Claude Code's config:
+If you prefer manual setup instead of using `dev mcp install`, you can configure Claude Code directly:
 
-**Location:**
-- **macOS/Linux**: `~/.config/claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+**Using Claude CLI:**
+```bash
+claude mcp add --transport stdio dev-agent \
+  --env REPOSITORY_PATH=/path/to/your/repo \
+  -- dev mcp start
+```
 
-**Configuration:**
+**Config Locations:**
+- **User config**: `~/.claude.json` (all projects)
+- **Project config**: `.mcp.json` in repo root (shared in git)
+
+**Example `.mcp.json` for project-specific setup:**
 ```json
 {
   "mcpServers": {
-    "dev-agent-your-repo": {
-      "command": "/usr/local/bin/dev",
+    "dev-agent": {
+      "command": "dev",
       "args": ["mcp", "start"],
       "env": {
-        "REPOSITORY_PATH": "/absolute/path/to/your/repository",
+        "REPOSITORY_PATH": ".",
         "LOG_LEVEL": "info"
       }
     }
@@ -176,7 +183,7 @@ If you prefer manual setup, the CLI creates this configuration in Claude Code's 
 }
 ```
 
-**Note:** The CLI automatically generates unique server names for each repository.
+**Note:** The `dev mcp install` command uses `claude mcp add` automatically, so manual config is rarely needed.
 
 ## Verification
 
@@ -293,8 +300,9 @@ Dev-agent includes production-ready stability features:
 
 For multiple repositories, you have two options:
 
-**Option 1: Multiple Server Entries** (Recommended)
+**Option 1: User Config** (Recommended)
 ```bash
+# Each install adds to ~/.claude.json
 cd /path/to/project-a
 dev mcp install
 
@@ -302,11 +310,11 @@ cd /path/to/project-b
 dev mcp install
 ```
 
-The CLI generates unique server names (`dev-agent-project-a`, `dev-agent-project-b`) in `claude_desktop_config.json`.
+The CLI uses `claude mcp add` to register each repository in your user config.
 
 **Option 2: Project-Specific Configs**
 
-Create `.claude.json` in each repository root:
+Create `.mcp.json` in each repository root (shared via git):
 ```json
 {
   "mcpServers": {
@@ -320,6 +328,8 @@ Create `.claude.json` in each repository root:
   }
 }
 ```
+
+This way your team members can use the same MCP configuration.
 
 ## Updating
 
