@@ -11,6 +11,14 @@
       "require": "./dist/index.js"
     }
   },
+  "files": [
+    "dist",
+    "!dist/**/*.test.js",
+    "!dist/**/*.test.d.ts",
+    "!dist/**/*.test.d.ts.map",
+    "!dist/**/*.test.js.map",
+    "!dist/**/__tests__"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",

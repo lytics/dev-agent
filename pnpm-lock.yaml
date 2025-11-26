@@ -53,6 +53,12 @@ importers:
       '@lytics/kero':
         specifier: workspace:*
         version: link:../logger
+      chalk:
+        specifier: ^5.6.2
+        version: 5.6.2
+      commander:
+        specifier: ^12.1.0
+        version: 12.1.0
       ora:
         specifier: ^8.0.1
         version: 8.2.0
@@ -60,12 +66,6 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.1
-      chalk:
-        specifier: ^5.6.2
-        version: 5.6.2
-      commander:
-        specifier: ^12.1.0
-        version: 12.1.0
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
@@ -109,6 +109,57 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
+
+  packages/dev-agent:
+    dependencies:
+      '@lancedb/lancedb':
+        specifier: ^0.22.3
+        version: 0.22.3(apache-arrow@18.1.0)
+      '@lytics/dev-agent-cli':
+        specifier: 0.1.0
+        version: link:../cli
+      '@lytics/dev-agent-core':
+        specifier: 0.1.0
+        version: link:../core
+      '@lytics/dev-agent-mcp':
+        specifier: 0.1.0
+        version: link:../mcp-server
+      '@lytics/dev-agent-subagents':
+        specifier: 0.1.0
+        version: link:../subagents
+      '@lytics/kero':
+        specifier: 0.1.0
+        version: link:../logger
+      '@xenova/transformers':
+        specifier: ^2.17.2
+        version: 2.17.2
+      chalk:
+        specifier: ^5.6.2
+        version: 5.6.2
+      commander:
+        specifier: ^12.1.0
+        version: 12.1.0
+      globby:
+        specifier: ^16.0.0
+        version: 16.0.0
+      ora:
+        specifier: ^8.0.1
+        version: 8.2.0
+      remark:
+        specifier: ^15.0.1
+        version: 15.0.1
+      remark-parse:
+        specifier: ^11.0.0
+        version: 11.0.0
+      remark-stringify:
+        specifier: ^11.0.0
+        version: 11.0.0
+      ts-morph:
+        specifier: ^27.0.2
+        version: 27.0.2
+      unified:
+        specifier: ^11.0.5
+        version: 11.0.5
 
   packages/integrations:
     dependencies:
@@ -2192,7 +2243,7 @@ packages:
   /commander@12.1.0:
     resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
     engines: {node: '>=18'}
-    dev: true
+    dev: false
 
   /compare-func@2.0.0:
     resolution: {integrity: sha512-zHig5N+tPWARooBnb0Zx1MFcdfpyJrfTJ3Y5L+IFvUm8rM74hHz66z0gw0x4tijh5CorKkKUCnW82R2vmpeCRA==}

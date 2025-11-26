@@ -63,4 +63,4 @@ Thumbs.db
 
 # Temporary files and invalid paths
 temp/
-*-github/
+*-github/*.tgz
