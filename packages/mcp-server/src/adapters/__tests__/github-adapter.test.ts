@@ -254,8 +254,10 @@ describe('GitHubAdapter', () => {
 
       expect(result.success).toBe(true);
       const content = (result.data as { content: string })?.content;
-      expect(content).toContain('🪙');
-      expect(content).toMatch(/~\d+ tokens$/);
+      expect(content).toBeDefined();
+      // Token info is now in metadata, not content
+      expect(result.metadata).toHaveProperty('tokens');
+      expect(result.metadata?.tokens).toBeGreaterThan(0);
     });
   });
 

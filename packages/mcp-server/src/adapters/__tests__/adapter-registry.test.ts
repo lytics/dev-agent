@@ -153,7 +153,7 @@ describe('AdapterRegistry', () => {
     it('should include execution time in metadata', async () => {
       const result = await registry.executeTool('mock_echo', { message: 'test' }, context);
 
-      expect(result.metadata?.executionTime).toBeGreaterThanOrEqual(0);
+      expect(result.metadata?.duration_ms).toBeGreaterThanOrEqual(0);
     });
 
     it('should handle tool execution errors', async () => {

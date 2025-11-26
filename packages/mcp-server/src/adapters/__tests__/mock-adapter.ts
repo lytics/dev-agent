@@ -100,7 +100,10 @@ export class MockAdapter extends ToolAdapter {
         timestamp: new Date().toISOString(),
       },
       metadata: {
-        tokenEstimate: 10,
+        tokens: 10,
+        duration_ms: 1,
+        timestamp: new Date().toISOString(),
+        cached: false,
       },
     };
   }

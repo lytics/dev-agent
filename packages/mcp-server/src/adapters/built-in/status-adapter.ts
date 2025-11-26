@@ -7,6 +7,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { RepositoryIndexer } from '@lytics/dev-agent-core';
 import { GitHubIndexer } from '@lytics/dev-agent-subagents';
+import { estimateTokensForText } from '../../formatters/utils';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
 
@@ -228,6 +229,7 @@ export class StatusAdapter extends ToolAdapter {
     }
 
     try {
+      const startTime = Date.now();
       context.logger.debug('Executing status check', { section, format });
 
       // Generate status content based on section
@@ -237,7 +239,10 @@ export class StatusAdapter extends ToolAdapter {
         context
       );
 
-      context.logger.info('Status check completed', { section, format });
+      const duration_ms = Date.now() - startTime;
+      const tokens = estimateTokensForText(content);
+
+      context.logger.info('Status check completed', { section, format, duration_ms });
 
       return {
         success: true,
@@ -245,6 +250,12 @@ export class StatusAdapter extends ToolAdapter {
           section,
           format,
           content,
+        },
+        metadata: {
+          tokens,
+          duration_ms,
+          timestamp: new Date().toISOString(),
+          cached: false,
         },
       };
     } catch (error) {
