@@ -1,9 +1,18 @@
 name: Release
 
 # This workflow runs after CI succeeds on the main branch.
-# By default, all packages are private and won't be published to npm.
-# To enable publishing: set "private": false in package.json and add NPM_TOKEN secret.
-# See README.md for detailed setup instructions.
+# Uses Changesets for version management and automatic releases.
+# 
+# Features:
+# - Creates version PRs automatically when changesets are merged
+# - Publishes to npm with provenance (trusted publishing)
+# - Creates GitHub releases automatically
+# 
+# Setup:
+# 1. Set "private": false in package.json to enable publishing
+# 2. Configure npm trusted publishing (no token needed with provenance)
+# 3. Merge changeset files to trigger version PR
+# 4. Merge version PR to publish and create GitHub release
 
 on:
   workflow_run:
@@ -27,6 +36,10 @@ jobs:
     runs-on: ubuntu-latest
     # Only run if CI workflow succeeded
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    permissions:
+      contents: write        # Create releases and tags
+      pull-requests: write   # Create version PRs
+      id-token: write        # Trusted publishing with npm
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
@@ -57,9 +70,10 @@ jobs:
         uses: changesets/action@v1
         with:
           version: pnpm changeset version
-          publish: pnpm changeset publish
+          publish: pnpm changeset publish --provenance
           commit: 'chore(release): version packages'
           title: 'chore(release): version packages'
+          createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
