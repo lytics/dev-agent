@@ -16,7 +16,7 @@ This file provides guidance to AI agents (Claude, Cursor, etc.) when working wit
 - Linter/Formatter: Biome
 - Testing: Vitest (1100+ tests)
 - Vector Storage: LanceDB
-- Embeddings: TensorFlow.js
+- Embeddings: @xenova/transformers (all-MiniLM-L6-v2)
 - AI Integration: MCP (Model Context Protocol)
 - CI/CD: GitHub Actions
 - Node.js: >= 22 (LTS)
@@ -147,7 +147,7 @@ Repository scanning, vector storage, GitHub integration, utilities.
 **Key Components:**
 - **Scanner:** TypeScript Compiler API for code analysis
 - **Indexer:** Semantic indexing with LanceDB
-- **Vector Store:** TensorFlow.js embeddings
+- **Vector Store:** @xenova/transformers embeddings
 - **GitHub:** Issue/PR indexing and search
 - **Utils:** Retry logic, circular buffers
 
