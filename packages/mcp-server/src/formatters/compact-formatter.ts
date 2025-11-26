@@ -59,7 +59,7 @@ export class CompactFormatter implements ResultFormatter {
       const content = 'No results found';
       return {
         content,
-        tokenEstimate: estimateTokensForText(content),
+        tokens: estimateTokensForText(content),
       };
     }
 
@@ -71,16 +71,13 @@ export class CompactFormatter implements ResultFormatter {
       return `${index + 1}. ${this.formatResult(result)}`;
     });
 
-    // Calculate total tokens
-    const contentLines = formatted.join('\n');
-    const tokenEstimate = estimateTokensForText(contentLines);
-
-    // Add token footer
-    const content = `${contentLines}\n\n🪙 ~${tokenEstimate} tokens`;
+    // Calculate total tokens (content only, no footer)
+    const content = formatted.join('\n');
+    const tokens = estimateTokensForText(content);
 
     return {
       content,
-      tokenEstimate,
+      tokens,
     };
   }
 
