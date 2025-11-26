@@ -16,6 +16,7 @@ export default defineConfig({
         '**/test/**',
         '**/types.ts', // Type definition files
         '**/*.types.ts',
+        '**/index.ts', // Re-export files
       ],
     },
   },
