@@ -57,6 +57,8 @@ export class StatusAdapter extends ToolAdapter {
   private vectorStorePath: string;
   private defaultSection: StatusSection;
   private githubIndexer?: GitHubIndexer;
+  private githubStatePath?: string; // Track state file path for reload
+  private lastStateFileModTime?: number; // Track state file modification time for auto-reload
 
   constructor(config: StatusAdapterConfig) {
     super();
@@ -76,11 +78,15 @@ export class StatusAdapter extends ToolAdapter {
     try {
       // Try to load repository from state file
       let repository: string | undefined;
-      const statePath = path.join(this.repositoryPath, '.dev-agent/github-state.json');
+      this.githubStatePath = path.join(this.repositoryPath, '.dev-agent/github-state.json');
       try {
-        const stateContent = await fs.promises.readFile(statePath, 'utf-8');
+        const stateContent = await fs.promises.readFile(this.githubStatePath, 'utf-8');
         const state = JSON.parse(stateContent);
         repository = state.repository;
+
+        // Track initial modification time
+        const stats = await fs.promises.stat(this.githubStatePath);
+        this.lastStateFileModTime = stats.mtimeMs;
       } catch {
         // State file doesn't exist, will try gh CLI
       }
@@ -88,8 +94,8 @@ export class StatusAdapter extends ToolAdapter {
       this.githubIndexer = new GitHubIndexer(
         {
           vectorStorePath: `${this.vectorStorePath}-github`,
-          statePath, // Use absolute path
-          autoUpdate: true,
+          statePath: this.githubStatePath, // Use absolute path
+          autoUpdate: false, // We handle updates via file watching
           staleThreshold: 15 * 60 * 1000,
         },
         repository
@@ -98,6 +104,73 @@ export class StatusAdapter extends ToolAdapter {
     } catch (error) {
       context.logger.warn('GitHub indexer initialization failed', { error });
       // Not fatal, GitHub section will show "not indexed"
+    }
+  }
+
+  /**
+   * Check if GitHub state file has been modified since last load
+   * Returns true if file was modified and indexer needs reload
+   */
+  private async hasGitHubStateChanged(): Promise<boolean> {
+    if (!this.githubStatePath || !this.lastStateFileModTime) {
+      return false;
+    }
+
+    try {
+      const stats = await fs.promises.stat(this.githubStatePath);
+      const currentModTime = stats.mtimeMs;
+      return currentModTime > this.lastStateFileModTime;
+    } catch {
+      // File doesn't exist or can't be accessed
+      return false;
+    }
+  }
+
+  /**
+   * Reload the GitHub indexer to pick up fresh data
+   */
+  private async reloadGitHubIndexer(): Promise<void> {
+    if (!this.githubIndexer || !this.githubStatePath) {
+      return;
+    }
+
+    try {
+      // Close existing indexer
+      await this.githubIndexer.close();
+
+      // Load fresh repository from state file
+      const stateContent = await fs.promises.readFile(this.githubStatePath, 'utf-8');
+      const state = JSON.parse(stateContent);
+      const repository: string | undefined = state.repository;
+
+      // Update modification time
+      const stats = await fs.promises.stat(this.githubStatePath);
+      this.lastStateFileModTime = stats.mtimeMs;
+
+      // Re-initialize with fresh data
+      this.githubIndexer = new GitHubIndexer(
+        {
+          vectorStorePath: `${this.vectorStorePath}-github`,
+          statePath: this.githubStatePath,
+          autoUpdate: false,
+          staleThreshold: 15 * 60 * 1000,
+        },
+        repository
+      );
+      await this.githubIndexer.initialize();
+    } catch (error) {
+      // Log error but don't crash - old indexer might still work
+      console.error('[StatusAdapter] Failed to reload GitHub indexer:', error);
+    }
+  }
+
+  /**
+   * Ensure GitHub indexer is up-to-date
+   * Checks for file modifications and reloads if needed
+   */
+  private async ensureGitHubIndexerUpToDate(): Promise<void> {
+    if (this.githubIndexer && (await this.hasGitHubStateChanged())) {
+      await this.reloadGitHubIndexer();
     }
   }
 
@@ -419,6 +492,9 @@ export class StatusAdapter extends ToolAdapter {
    * Generate GitHub status
    */
   private async generateGitHubStatus(format: string): Promise<string> {
+    // Check for index updates and reload if needed
+    await this.ensureGitHubIndexerUpToDate();
+
     const stats = this.githubIndexer?.getStats() ?? null;
 
     const lines: string[] = ['## GitHub Integration', ''];
@@ -454,7 +530,7 @@ export class StatusAdapter extends ToolAdapter {
     if (format === 'verbose') {
       lines.push('');
       lines.push('**Configuration:**');
-      lines.push('- Auto-update: Enabled (every 15 minutes)');
+      lines.push('- Auto-reload: Enabled (on file change)');
       lines.push('- Authentication: GitHub CLI (gh)');
     }
 

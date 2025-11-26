@@ -69,7 +69,7 @@ describe('GitHubAdapter', () => {
       expect(definition.name).toBe('dev_gh');
       expect(definition.description).toContain('Search GitHub');
       expect(definition.inputSchema.required).toEqual(['action']);
-      expect(definition.inputSchema.properties.action.enum).toEqual([
+      expect(definition.inputSchema.properties?.action.enum).toEqual([
         'search',
         'context',
         'related',
@@ -417,6 +417,136 @@ describe('GitHubAdapter', () => {
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('GITHUB_ERROR');
+    });
+  });
+
+  describe('Auto-Reload on File Changes', () => {
+    it('should detect state file modifications', async () => {
+      const fs = await import('node:fs/promises');
+      const path = await import('node:path');
+      const os = await import('node:os');
+
+      // Create temporary state file
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'github-adapter-test-'));
+      const statePath = path.join(tempDir, 'github-state.json');
+      const vectorPath = path.join(tempDir, 'vectors');
+
+      // Write initial state
+      await fs.writeFile(
+        statePath,
+        JSON.stringify({
+          version: '1.0.0',
+          repository: 'test/repo',
+          lastIndexed: '2024-01-01T00:00:00Z',
+          totalDocuments: 10,
+        }),
+        'utf-8'
+      );
+
+      // Create adapter with file paths (lazy initialization)
+      const lazyAdapter = new GitHubAdapter({
+        repositoryPath: '/test/repo',
+        vectorStorePath: vectorPath,
+        statePath,
+        defaultLimit: 10,
+        defaultFormat: 'compact',
+      });
+
+      // Initialize adapter
+      await lazyAdapter.initialize({
+        logger: mockContext.logger,
+      } as any);
+
+      // Trigger lazy initialization by calling ensureGitHubIndexer
+      // This will load the state file and track its modification time
+      try {
+        await (lazyAdapter as any).ensureGitHubIndexer();
+      } catch {
+        // Indexer initialization may fail (no vector storage), but that's ok
+        // We just need it to track the state file modification time
+      }
+
+      // Wait a bit to ensure file system timestamps differ
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Update state file (simulating `dev gh index` running)
+      await fs.writeFile(
+        statePath,
+        JSON.stringify({
+          version: '1.0.0',
+          repository: 'test/repo',
+          lastIndexed: '2024-01-02T00:00:00Z', // Updated timestamp
+          totalDocuments: 20, // More documents
+        }),
+        'utf-8'
+      );
+
+      // Access the private method through type assertion for testing
+      const hasChanged = await (lazyAdapter as any).hasStateFileChanged();
+
+      expect(hasChanged).toBe(true);
+
+      // Cleanup
+      await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    it('should not detect changes when file unchanged', async () => {
+      const fs = await import('node:fs/promises');
+      const path = await import('node:path');
+      const os = await import('node:os');
+
+      // Create temporary state file
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'github-adapter-test-'));
+      const statePath = path.join(tempDir, 'github-state.json');
+      const vectorPath = path.join(tempDir, 'vectors');
+
+      // Write initial state
+      await fs.writeFile(
+        statePath,
+        JSON.stringify({
+          version: '1.0.0',
+          repository: 'test/repo',
+          lastIndexed: '2024-01-01T00:00:00Z',
+          totalDocuments: 10,
+        }),
+        'utf-8'
+      );
+
+      // Create adapter with file paths
+      const lazyAdapter = new GitHubAdapter({
+        repositoryPath: '/test/repo',
+        vectorStorePath: vectorPath,
+        statePath,
+        defaultLimit: 10,
+        defaultFormat: 'compact',
+      });
+
+      // Initialize adapter
+      await lazyAdapter.initialize({
+        logger: mockContext.logger,
+      } as any);
+
+      // Don't modify file - check for changes immediately
+      const hasChanged = await (lazyAdapter as any).hasStateFileChanged();
+
+      expect(hasChanged).toBe(false);
+
+      // Cleanup
+      await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    it('should handle missing state file gracefully', async () => {
+      const lazyAdapter = new GitHubAdapter({
+        repositoryPath: '/test/repo',
+        vectorStorePath: '/nonexistent/vectors',
+        statePath: '/nonexistent/state.json',
+        defaultLimit: 10,
+        defaultFormat: 'compact',
+      });
+
+      // Should not throw
+      const hasChanged = await (lazyAdapter as any).hasStateFileChanged();
+      expect(hasChanged).toBe(false);
     });
   });
 });
