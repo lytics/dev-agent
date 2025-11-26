@@ -8,6 +8,7 @@ export * from './indexer';
 export * from './observability';
 export * from './scanner';
 export * from './storage';
+export * from './utils';
 export * from './vector';
 
 export interface CoreConfig {
