@@ -318,5 +318,29 @@ describe('Coordinator → Explorer Integration', () => {
       const agents = coordinator.getAgents();
       expect(agents).toHaveLength(0);
     });
+
+    it('should cleanup event listeners on stop', async () => {
+      const eventBus = coordinator.getEventBus();
+      let eventFired = false;
+
+      // Subscribe to an event
+      eventBus.on('test.event', () => {
+        eventFired = true;
+      });
+
+      // Verify event listener works before stop
+      await eventBus.emit('test.event', {});
+      expect(eventFired).toBe(true);
+
+      // Stop coordinator (should clean up listeners)
+      await coordinator.stop();
+
+      // Reset flag and try to emit again
+      eventFired = false;
+      await eventBus.emit('test.event', {});
+
+      // Event listener should have been removed (event won't fire)
+      expect(eventFired).toBe(false);
+    });
   });
 });
