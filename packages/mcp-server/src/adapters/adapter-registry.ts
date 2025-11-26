@@ -146,9 +146,9 @@ export class AdapterRegistry {
       const startTime = Date.now();
       const result = await adapter.execute(args, context);
 
-      // Add execution time if not present
-      if (result.success && result.metadata) {
-        result.metadata.executionTime = Date.now() - startTime;
+      // Ensure duration is tracked (adapters should set this, but fallback here)
+      if (result.success && result.metadata && !result.metadata.duration_ms) {
+        result.metadata.duration_ms = Date.now() - startTime;
       }
 
       return result;

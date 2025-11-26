@@ -373,10 +373,13 @@ describe('StatusAdapter', () => {
       it('should log completion', async () => {
         await adapter.execute({ section: 'summary' }, mockExecutionContext);
 
-        expect(mockExecutionContext.logger.info).toHaveBeenCalledWith('Status check completed', {
-          section: 'summary',
-          format: 'compact',
-        });
+        expect(mockExecutionContext.logger.info).toHaveBeenCalledWith(
+          'Status check completed',
+          expect.objectContaining({
+            section: 'summary',
+            format: 'compact',
+          })
+        );
       });
     });
   });

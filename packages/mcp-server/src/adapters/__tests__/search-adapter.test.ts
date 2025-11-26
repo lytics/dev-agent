@@ -260,9 +260,10 @@ describe('SearchAdapter', () => {
 
       expect(result.success).toBe(true);
       expect(result.data).toHaveProperty('query', 'authentication');
-      expect(result.data).toHaveProperty('resultCount', 2);
-      expect(result.data).toHaveProperty('results');
-      expect(result.data).toHaveProperty('tokenEstimate');
+      expect(result.data).toHaveProperty('content');
+      expect(result.metadata).toHaveProperty('tokens');
+      expect(result.metadata).toHaveProperty('duration_ms');
+      expect(result.metadata).toHaveProperty('results_total', 2);
       expect(mockIndexer.search).toHaveBeenCalledWith('authentication', {
         limit: 10,
         scoreThreshold: 0,
@@ -278,9 +279,9 @@ describe('SearchAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(typeof result.data?.results).toBe('string');
-      expect((result.data?.results as string).length).toBeGreaterThan(0);
-      expect(result.data?.results as string).toContain('authenticate');
+      expect(typeof result.data?.content).toBe('string');
+      expect((result.data?.content as string).length).toBeGreaterThan(0);
+      expect(result.data?.content as string).toContain('authenticate');
     });
 
     it('should respect limit parameter', async () => {
@@ -297,7 +298,7 @@ describe('SearchAdapter', () => {
         limit: 3,
         scoreThreshold: 0,
       });
-      expect(result.data?.resultCount).toBe(2); // Mock returns 2 results
+      expect(result.metadata?.results_total).toBe(2); // Mock returns 2 results
     });
 
     it('should respect score threshold parameter', async () => {
@@ -336,8 +337,8 @@ describe('SearchAdapter', () => {
       expect(compactResult.success).toBe(true);
       expect(verboseResult.success).toBe(true);
 
-      const compactTokens = compactResult.data?.tokenEstimate as number;
-      const verboseTokens = verboseResult.data?.tokenEstimate as number;
+      const compactTokens = compactResult.metadata?.tokens as number;
+      const verboseTokens = verboseResult.metadata?.tokens as number;
 
       expect(verboseTokens).toBeGreaterThan(compactTokens);
     });
@@ -354,8 +355,8 @@ describe('SearchAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.data?.resultCount).toBe(0);
-      expect(result.data?.results as string).toContain('No results');
+      expect(result.metadata?.results_total).toBe(0);
+      expect(result.data?.content as string).toContain('No results');
     });
   });
 

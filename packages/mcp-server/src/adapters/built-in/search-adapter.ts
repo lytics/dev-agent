@@ -166,6 +166,7 @@ export class SearchAdapter extends ToolAdapter {
     }
 
     try {
+      const startTime = Date.now();
       context.logger.debug('Executing search', { query, format, limit, scoreThreshold });
 
       // Perform search
@@ -178,20 +179,30 @@ export class SearchAdapter extends ToolAdapter {
       const formatter = format === 'verbose' ? this.verboseFormatter : this.compactFormatter;
       const formatted = formatter.formatResults(results);
 
+      const duration_ms = Date.now() - startTime;
+
       context.logger.info('Search completed', {
         query,
         resultCount: results.length,
-        tokenEstimate: formatted.tokenEstimate,
+        tokens: formatted.tokens,
+        duration_ms,
       });
 
       return {
         success: true,
         data: {
           query,
-          resultCount: results.length,
           format,
-          results: formatted.content,
-          tokenEstimate: formatted.tokenEstimate,
+          content: formatted.content,
+        },
+        metadata: {
+          tokens: formatted.tokens,
+          duration_ms,
+          timestamp: new Date().toISOString(),
+          cached: false,
+          results_total: results.length,
+          results_returned: Math.min(results.length, limit as number),
+          results_truncated: results.length > (limit as number),
         },
       };
     } catch (error) {

@@ -291,13 +291,16 @@ export class GitHubAdapter extends ToolAdapter {
     }
 
     try {
+      const startTime = Date.now();
       context.logger.debug('Executing GitHub action', { action, query, number });
 
       let content: string;
+      let resultsTotal = 0;
+      let resultsReturned = 0;
 
       switch (action) {
-        case 'search':
-          content = await this.searchGitHub(
+        case 'search': {
+          const result = await this.searchGitHub(
             query as string,
             {
               type: type as 'issue' | 'pull_request' | undefined,
@@ -308,14 +311,27 @@ export class GitHubAdapter extends ToolAdapter {
             },
             format
           );
+          content = result.content;
+          resultsTotal = result.resultsTotal;
+          resultsReturned = result.resultsReturned;
           break;
+        }
         case 'context':
           content = await this.getIssueContext(number as number, format);
+          resultsTotal = 1;
+          resultsReturned = 1;
           break;
-        case 'related':
-          content = await this.getRelated(number as number, limit, format);
+        case 'related': {
+          const result = await this.getRelated(number as number, limit, format);
+          content = result.content;
+          resultsTotal = result.resultsTotal;
+          resultsReturned = result.resultsReturned;
           break;
+        }
       }
+
+      const duration_ms = Date.now() - startTime;
+      const tokens = estimateTokensForText(content);
 
       return {
         success: true,
@@ -324,6 +340,14 @@ export class GitHubAdapter extends ToolAdapter {
           query: query || number,
           format,
           content,
+        },
+        metadata: {
+          tokens,
+          duration_ms,
+          timestamp: new Date().toISOString(),
+          cached: false,
+          results_total: resultsTotal,
+          results_returned: resultsReturned,
         },
       };
     } catch (error) {
@@ -370,35 +394,27 @@ export class GitHubAdapter extends ToolAdapter {
     query: string,
     options: GitHubSearchOptions,
     format: string
-  ): Promise<string> {
+  ): Promise<{ content: string; resultsTotal: number; resultsReturned: number }> {
     const indexer = await this.ensureGitHubIndexer();
-
-    // Debug logging to understand what's happening
-    console.log(`[GitHub Search] Query: "${query}", Options:`, JSON.stringify(options, null, 2));
 
     const results = await indexer.search(query, options);
 
-    console.log(`[GitHub Search] Found ${results.length} results`);
-    if (results.length > 0) {
-      console.log(`[GitHub Search] First result:`, {
-        title: results[0].document.title,
-        number: results[0].document.number,
-        score: results[0].score,
-      });
-    }
-
     if (results.length === 0) {
-      const noResultsMsg =
+      const content =
         '## GitHub Search Results\n\nNo matching issues or PRs found. Try:\n- Using different keywords\n- Removing filters (type, state, labels)\n- Re-indexing GitHub data with "dev gh index"';
-      const tokens = estimateTokensForText(noResultsMsg);
-      return `${noResultsMsg}\n\n🪙 ~${tokens} tokens`;
+      return { content, resultsTotal: 0, resultsReturned: 0 };
     }
 
-    if (format === 'verbose') {
-      return this.formatSearchVerbose(query, results, options);
-    }
+    const content =
+      format === 'verbose'
+        ? this.formatSearchVerbose(query, results, options)
+        : this.formatSearchCompact(query, results, options);
 
-    return this.formatSearchCompact(query, results, options);
+    return {
+      content,
+      resultsTotal: results.length,
+      resultsReturned: Math.min(results.length, options.limit ?? this.defaultLimit),
+    };
   }
 
   /**
@@ -439,7 +455,11 @@ export class GitHubAdapter extends ToolAdapter {
   /**
    * Find related issues and PRs
    */
-  private async getRelated(number: number, limit: number, format: string): Promise<string> {
+  private async getRelated(
+    number: number,
+    limit: number,
+    format: string
+  ): Promise<{ content: string; resultsTotal: number; resultsReturned: number }> {
     // First get the main issue/PR using the same logic as getIssueContext
     const indexer = await this.ensureGitHubIndexer();
 
@@ -468,14 +488,23 @@ export class GitHubAdapter extends ToolAdapter {
     const related = relatedResults.filter((r) => r.document.number !== number).slice(0, limit);
 
     if (related.length === 0) {
-      return `## Related Issues/PRs\n\n**#${number}: ${mainDoc.title}**\n\nNo related issues or PRs found.`;
+      return {
+        content: `## Related Issues/PRs\n\n**#${number}: ${mainDoc.title}**\n\nNo related issues or PRs found.`,
+        resultsTotal: 0,
+        resultsReturned: 0,
+      };
     }
 
-    if (format === 'verbose') {
-      return this.formatRelatedVerbose(mainDoc, related);
-    }
+    const content =
+      format === 'verbose'
+        ? this.formatRelatedVerbose(mainDoc, related)
+        : this.formatRelatedCompact(mainDoc, related);
 
-    return this.formatRelatedCompact(mainDoc, related);
+    return {
+      content,
+      resultsTotal: related.length,
+      resultsReturned: related.length,
+    };
   }
 
   /**
@@ -513,9 +542,7 @@ export class GitHubAdapter extends ToolAdapter {
       lines.push('', `_...and ${results.length - 5} more results_`);
     }
 
-    const content = lines.join('\n');
-    const tokens = estimateTokensForText(content);
-    return `${content}\n\n🪙 ~${tokens} tokens`;
+    return lines.join('\n');
   }
 
   /**
@@ -559,9 +586,7 @@ export class GitHubAdapter extends ToolAdapter {
       lines.push('');
     }
 
-    const content = lines.join('\n');
-    const tokens = estimateTokensForText(content);
-    return `${content}\n\n🪙 ~${tokens} tokens`;
+    return lines.join('\n');
   }
 
   /**
@@ -588,9 +613,7 @@ export class GitHubAdapter extends ToolAdapter {
       `**URL:** ${doc.url}`,
     ].filter(Boolean) as string[];
 
-    const content = lines.join('\n');
-    const tokens = estimateTokensForText(content);
-    return `${content}\n\n🪙 ~${tokens} tokens`;
+    return lines.join('\n');
   }
 
   /**
@@ -634,9 +657,7 @@ export class GitHubAdapter extends ToolAdapter {
       `**URL:** ${doc.url}`,
     ].filter(Boolean) as string[];
 
-    const content = lines.join('\n');
-    const tokens = estimateTokensForText(content);
-    return `${content}\n\n🪙 ~${tokens} tokens`;
+    return lines.join('\n');
   }
 
   /**
