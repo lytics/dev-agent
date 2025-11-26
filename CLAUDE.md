@@ -61,23 +61,26 @@ pnpm -F "@lytics/dev-agent-core" dev
 
 ### Key Technologies
 - TypeScript Compiler API for repository analysis
-- Chroma DB for vector storage
+- LanceDB for vector storage (replaced Chroma DB for better performance)
 - TensorFlow.js for embeddings
-- Express.js for context API server
 - GitHub CLI for metadata integration
 - Turborepo for build orchestration
 - Biome for linting/formatting
-- Vitest for testing
+- Vitest for testing (1100+ tests)
 - MCP (Model Context Protocol) for AI tool integration
+- Token Bucket algorithm for rate limiting
+- Exponential backoff for retry logic
 
 ### Core Components
 - **Scanner**: Uses TypeScript Compiler API to extract components and relationships
-- **Vector Storage**: Semantic search with Chroma DB and TensorFlow.js embeddings
-- **Context API**: HTTP server providing repository context to AI tools
-- **GitHub Integration**: Metadata extraction using GitHub CLI
+- **Vector Storage**: Semantic search with LanceDB and TensorFlow.js embeddings
+- **GitHub Integration**: Metadata extraction and semantic search for issues/PRs using GitHub CLI
 - **Subagent System**: Specialized agents for planning, exploration, and PR management
 - **MCP Server**: Model Context Protocol server for AI tool integration
-- **Logger**: Centralized logging with multiple transports and formatters
+- **Logger**: Centralized logging with multiple transports and formatters (@lytics/kero)
+- **Rate Limiting**: Token bucket algorithm prevents abuse (configurable per-tool)
+- **Retry Logic**: Exponential backoff with jitter for transient failures
+- **Health Monitoring**: Component health checks for diagnostics
 
 ## Build Dependencies
 
@@ -121,10 +124,13 @@ Always run `pnpm build` before `pnpm typecheck` since TypeScript needs built `.d
 
 The MCP server provides AI tools with structured access to repository context through:
 - Adapter pattern for tool integration
-- Built-in adapters for search, exploration, planning, GitHub integration
+- Built-in adapters for search, exploration, planning, GitHub integration, health monitoring
 - Configurable formatters (compact/verbose)
 - STDIO transport for AI tool communication
-- Comprehensive test coverage with integration tests
+- Rate limiting (100 req burst, configurable per-tool with token bucket algorithm)
+- Retry logic with exponential backoff for transient failures
+- Health checks for proactive monitoring
+- Comprehensive test coverage (1100+ tests including integration tests)
 
 ## Claude Code Integration
 
@@ -147,15 +153,16 @@ dev mcp install
 
 That's it! Claude Code now has access to all dev-agent capabilities.
 
-### Available Tools in Claude Code
+### Available Tools in Claude Code & Cursor
 
-Once installed, Claude Code gains access to these powerful tools:
+Once installed, AI tools gain access to these powerful capabilities:
 
 - **`dev_search`** - Semantic code search across indexed repositories
 - **`dev_status`** - Repository indexing status and health information  
 - **`dev_plan`** - Generate implementation plans from GitHub issues
 - **`dev_explore`** - Explore code patterns, find similar code, analyze relationships
-- **`dev_gh`** - Search GitHub issues and pull requests with semantic context
+- **`dev_gh`** - Search GitHub issues and pull requests with semantic context (auto-reloads on index changes)
+- **`dev_health`** - Check MCP server health and component status (vector storage, repository, GitHub index)
 
 ### MCP Command Reference
 
@@ -166,12 +173,37 @@ dev mcp start [--verbose] [--transport stdio|http]
 # Install dev-agent in Claude Code
 dev mcp install [--repository /path/to/repo]
 
-# Remove dev-agent from Claude Code  
-dev mcp uninstall
+# Install dev-agent in Cursor
+dev mcp install --cursor [--repository /path/to/repo]
+
+# Remove dev-agent from Claude Code/Cursor
+dev mcp uninstall [--cursor]
 
 # List all configured MCP servers
-dev mcp list
+dev mcp list [--cursor]
 ```
+
+### Cursor Integration
+
+Dev-Agent seamlessly integrates with Cursor IDE through MCP:
+
+```bash
+# Install for Cursor (one command!)
+dev mcp install --cursor
+
+# List Cursor MCP servers
+dev mcp list --cursor
+
+# Uninstall from Cursor
+dev mcp uninstall --cursor
+```
+
+**Features:**
+- Dynamic workspace detection (`WORKSPACE_FOLDER_PATHS`)
+- Single server config works across all projects
+- Automatic context switching when changing workspaces
+- Graceful process cleanup (no zombie processes)
+- Robust stdin closure detection
 
 ### Manual Configuration
 
@@ -179,9 +211,18 @@ For advanced users or development, you can manually configure the MCP server:
 
 1. **Server Configuration**: The MCP server runs with full feature set including:
    - Subagent coordinator with explorer, planner, and PR agents
-   - All 5 adapters (search, status, plan, explore, github)
-   - STDIO transport for direct Claude Code communication
+   - All 6 adapters (search, status, plan, explore, github, health)
+   - STDIO transport for direct AI tool communication
+   - Rate limiting (100 req/min default, configurable per-tool)
+   - Retry logic with exponential backoff
+   - Auto-reload for GitHub index changes
 
 2. **Storage**: Uses centralized storage at `~/.dev-agent/indexes/` for cross-project sharing
 
 3. **Requirements**: Repository must be indexed first with `dev index .`
+
+4. **Production Features**:
+   - Memory leak prevention (circular buffers for history/metrics)
+   - Graceful shutdown (proper event listener cleanup)
+   - Health monitoring (`dev_health` tool)
+   - Comprehensive logging with @lytics/kero
