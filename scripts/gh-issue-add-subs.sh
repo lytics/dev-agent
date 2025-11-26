@@ -107,7 +107,7 @@ for child in "${children[@]}"; do
     issueId: \"$parent_id\"
     subIssueId: \"$child_id\"
   }) {
-    parentIssue {
+    issue {
       number
       title
     }
