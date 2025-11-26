@@ -1,0 +1,52 @@
+{
+  "name": "@lytics/dev-agent",
+  "version": "0.1.0",
+  "description": "Deep code intelligence + AI subagents via MCP. Local-first semantic code search, GitHub integration, and development planning for AI tools like Cursor and Claude Code.",
+  "keywords": [
+    "code-intelligence",
+    "semantic-search",
+    "mcp",
+    "cursor",
+    "claude",
+    "ai-tools",
+    "developer-tools",
+    "code-analysis",
+    "typescript",
+    "vector-search",
+    "github-integration"
+  ],
+  "homepage": "https://github.com/lytics/dev-agent#readme",
+  "bugs": {
+    "url": "https://github.com/lytics/dev-agent/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lytics/dev-agent.git"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "prosdev",
+    "url": "https://github.com/prosdev"
+  },
+  "bin": {
+    "dev": "./bin/dev.js"
+  },
+  "files": [
+    "bin/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "prepublishOnly": "echo 'Ensure CLI is built before publishing'"
+  },
+  "dependencies": {
+    "@lytics/dev-agent-cli": "0.1.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
+
