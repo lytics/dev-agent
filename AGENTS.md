@@ -1,31 +1,41 @@
 # AGENTS.md
 
-This is a TypeScript monorepo starter template designed to be cloned and customized by developers.
+This file provides guidance to AI agents (Claude, Cursor, etc.) when working with the dev-agent codebase.
 
 ## Project Overview
 
-A modern TypeScript monorepo using pnpm workspaces, Turborepo for build orchestration, Biome for linting/formatting, Vitest for testing, and Changesets for versioning. By default, all packages are private to prevent accidental publishing when users clone the template.
+**Dev-Agent** is a local-first repository context provider for AI tools. It provides semantic code search, GitHub integration, and development planning capabilities through the Model Context Protocol (MCP).
+
+**Mission:** Enable AI tools to understand codebases without hallucinations by providing accurate, semantic context.
 
 **Tech Stack:**
 
-- Package manager: pnpm 8.15.4
-- Build system: Turborepo
+- Language: TypeScript (strict mode)
+- Package Manager: pnpm 8.15.4
+- Build System: Turborepo  
 - Linter/Formatter: Biome
-- Testing: Vitest (run from root)
-- CI/CD: GitHub Actions (separate CI and Release workflows)
-- Versioning: Changesets
+- Testing: Vitest (1100+ tests)
+- Vector Storage: LanceDB
+- Embeddings: TensorFlow.js
+- AI Integration: MCP (Model Context Protocol)
+- CI/CD: GitHub Actions
 - Node.js: >= 22 (LTS)
 
 ## Repository Structure
 
 ```
 packages/
-├── core/          # Core package with tests
-├── utils/         # Utilities (depends on core)
-└── feature-a/     # Feature package (depends on core and utils)
-```
+├── core/          # Repository scanning, vector storage, GitHub integration
+├── cli/           # Command-line interface (Commander.js)
+├── subagents/     # Coordinator, planner, explorer, PR agents
+├── mcp-server/    # MCP server with built-in adapters
+├── integrations/  # Claude Code, VS Code integrations
+└── logger/        # Centralized logging (@lytics/kero)
 
-Each package has its own `package.json`, `tsconfig.json`, and `src/` directory. All packages are currently marked as `"private": true`.
+docs/              # Architecture, workflow documentation
+examples/          # Real-world usage examples
+scripts/           # Development utilities
+```
 
 ## Setup Commands
 
@@ -36,249 +46,359 @@ pnpm install
 # Build all packages (required before typecheck)
 pnpm build
 
-# Lint all packages
-pnpm lint
+# Run all tests (1100+ tests)
+pnpm test
+pnpm test:watch
+pnpm test:coverage
 
-# Type check all packages (must run AFTER build)
+# Linting and formatting
+pnpm lint
+pnpm format
+
+# Type checking (run AFTER build)
 pnpm typecheck
 
-# Run all tests (runs from root using centralized vitest config)
-pnpm test
-
-# Watch mode for tests
-pnpm test:watch
+# Development mode (watch)
+pnpm dev
 
 # Clean all build outputs
 pnpm clean
+
+# Release management
+pnpm changeset
+pnpm version
+pnpm release
 ```
 
-## Development Workflow
+## Build Order
 
-### Working on a specific package
+Critical build dependencies (Turborepo handles automatically):
 
-```bash
-# Build a specific package
-pnpm -F "@monorepo/core" build
+1. **@lytics/kero** (logger) - No dependencies
+2. **@lytics/dev-agent-core** - Depends on logger
+3. **@lytics/dev-agent-cli** - Depends on core
+4. **@lytics/dev-agent-subagents** - Depends on core
+5. **@lytics/dev-agent-mcp** - Depends on core, subagents
+6. **@lytics/dev-agent-integrations** - Depends on multiple packages
 
-# Watch mode for development
-pnpm -F "@monorepo/core" dev
+**Critical:** Always run `pnpm build` before `pnpm typecheck` because TypeScript needs built `.d.ts` files.
 
-# Run tests for a specific package (note: tests run from root)
-cd packages/core && pnpm test:watch
-```
+## Testing Strategy
 
-### Important: Build Order
+Tests use centralized Vitest configuration at root (`vitest.config.ts`):
 
-Packages with dependencies must be built in order. Turborepo handles this automatically, but be aware:
+- **Test Pattern:** `packages/**/*.{test,spec}.ts`
+- **Run Command:** `pnpm test` (NOT `turbo test`)
+- **Coverage:** v8 provider with comprehensive reporting
+- **Test Count:** 1100+ tests (unit + integration)
+- **Package Aliases:** Configured in `vitest.config.ts` for cross-package imports
 
-- `@monorepo/core` has no dependencies (builds first)
-- `@monorepo/utils` depends on `@monorepo/core`
-- `@monorepo/feature-a` depends on both `@monorepo/core` and `@monorepo/utils`
-
-**Critical:** Always run `pnpm build` before `pnpm typecheck` because TypeScript needs the built `.d.ts` files from dependencies.
-
-## Testing Instructions
-
-Tests use Vitest with a centralized configuration at the root (`vitest.config.ts`).
-
-- Test files: `**/*.test.ts` or `**/*.spec.ts` in `packages/*/src/`
-- Run from root: `pnpm test` (NOT `turbo test`)
-- The test script in root package.json runs `vitest run`, not `turbo test`
-- Only `@monorepo/core` currently has tests (`packages/core/src/index.test.ts`)
-
-**When adding tests:**
+**When Adding Tests:**
 
 1. Place test files next to source files: `src/myModule.test.ts`
-2. Import from the source file: `import { MyClass } from './myModule'`
+2. Import from source: `import { MyClass } from './myModule'`
 3. Run `pnpm test` from root to verify
+4. For integration tests, use descriptive names: `*.integration.test.ts`
 
 ## Code Style
 
-- TypeScript strict mode enabled
-- Biome handles linting and formatting (config in `biome.json`)
-- Run `pnpm lint` to check, `pnpm format` to auto-fix
-- Conventional Commits enforced via Commitlint
-- Husky hooks run typecheck on pre-commit
+- **TypeScript:** Strict mode enabled, no `any` types (except tests)
+- **Linter:** Biome (config in `biome.json`)
+- **Formatter:** Biome with auto-fix on save
+- **Commits:** Conventional Commits via Commitlint
+- **Pre-commit:** Husky hooks run typecheck
 
-**Commit message format:**
+**Commit Message Format:**
 
 ```
 type(scope): description
 
-# Examples:
-feat(core): add new authentication method
-fix(utils): resolve import path issue
+Examples:
+feat(mcp): add health check adapter
+fix(core): resolve vector search timeout
+docs: update CLAUDE.md with new tools
 chore: update dependencies
 ```
+
+**Allowed Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`
 
 ## CI/CD Workflows
 
 ### CI Workflow (`.github/workflows/ci.yml`)
 
-- Triggers: Push to main OR Pull Request to main
-- Node version: 22.x (LTS)
-- Steps: Install → Lint → Build → Typecheck → Test
-- **Important:** Build runs BEFORE typecheck (required for type definitions)
+- **Triggers:** Push to main OR Pull Request to main
+- **Node Version:** 22.x (LTS)
+- **Steps:** Install → Lint → Build → Typecheck → Test
+- **Important:** Build runs BEFORE typecheck (required for `.d.ts` files)
 
 ### Release Workflow (`.github/workflows/release.yml`)
 
-- Triggers: After CI succeeds on main branch (workflow_run)
-- Uses Changesets to version and publish packages
-- **By default, does nothing** because all packages are private
-- To enable publishing: Set `"private": false` in package.json and add `NPM_TOKEN` secret
+- **Triggers:** After CI succeeds on main branch
+- **Tool:** Changesets for version management
+- **Status:** Currently disabled (packages are private)
+- **Future:** Enable when ready for npm publishing
 
-## Adding a New Package
+## Core Packages
 
-1. Create directory: `packages/new-package/`
-2. Add `package.json`:
-   ```json
-   {
-     "name": "@monorepo/new-package",
-     "version": "0.1.0",
-     "private": true,
-     "main": "./dist/index.js",
-     "types": "./dist/index.d.ts",
-     "scripts": {
-       "build": "tsc",
-       "typecheck": "tsc --noEmit",
-       "lint": "biome lint ./src"
-     }
-   }
-   ```
-3. Add `tsconfig.json` extending from root
-4. Create `src/index.ts`
-5. Add to `vitest.config.ts` alias if needed
-6. Run `pnpm install` to link workspace packages
+### @lytics/dev-agent-core
 
-## Package Dependencies
+Repository scanning, vector storage, GitHub integration, utilities.
 
-Use workspace protocol for internal dependencies:
+**Key Components:**
+- **Scanner:** TypeScript Compiler API for code analysis
+- **Indexer:** Semantic indexing with LanceDB
+- **Vector Store:** TensorFlow.js embeddings
+- **GitHub:** Issue/PR indexing and search
+- **Utils:** Retry logic, circular buffers
 
-```json
-"dependencies": {
-  "@monorepo/core": "workspace:*"
-}
-```
+**Test Coverage:** Extensive unit and integration tests
 
-Turborepo automatically builds dependencies in the correct order.
+### @lytics/dev-agent-cli
 
-## Versioning and Changesets
+Command-line interface for repository indexing and MCP setup.
 
-1. Make changes to packages
-2. Run `pnpm changeset` to document changes
-3. Select packages that changed and semantic version bump
-4. Commit the changeset file
-5. On merge to main, Changesets creates a version PR
-6. Merge version PR to publish (only if packages are not private)
+**Commands:**
+- `dev index <path>` - Index repository
+- `dev mcp install [--cursor]` - Install MCP integration
+- `dev mcp uninstall [--cursor]` - Remove MCP integration
+- `dev mcp list [--cursor]` - List MCP servers
+- `dev gh index` - Index GitHub issues/PRs
 
-## Publishing to npm
+### @lytics/dev-agent-subagents
 
-**Template ships with all packages private by default.**
+Specialized agents for development tasks.
 
-To publish a package:
+**Agents:**
+- **ExplorerAgent:** Code exploration and pattern analysis
+- **PlannerAgent:** Generate implementation plans from GitHub issues
+- **PrAgent:** PR management and review assistance
 
-1. In `packages/your-package/package.json`:
-   - Change `"private": true` to `"private": false`
-   - Add `"publishConfig": { "access": "public" }`
-2. Ensure unique package name or use scoped name
-3. Add `NPM_TOKEN` secret in GitHub repo settings
-4. Release workflow will publish on next version bump
+**Coordinator:** Routes tasks to appropriate agents with context management.
 
-## Common Patterns
+### @lytics/dev-agent-mcp
 
-### Running commands in all packages
+MCP server with built-in adapters for AI tools.
+
+**Adapters:**
+- **SearchAdapter:** Semantic code search (`dev_search`)
+- **StatusAdapter:** Repository status (`dev_status`)
+- **PlanAdapter:** Planning from issues (`dev_plan`)
+- **ExploreAdapter:** Code exploration (`dev_explore`)
+- **GitHubAdapter:** Issue/PR search (`dev_gh`)
+- **HealthAdapter:** Server health checks (`dev_health`)
+
+**Features:**
+- Rate limiting (token bucket, 100 req burst)
+- Retry logic (exponential backoff with jitter)
+- Auto-reload for GitHub index changes
+- Graceful shutdown (no zombie processes)
+
+### @lytics/kero
+
+Centralized logging system with multiple transports and formatters.
+
+**Features:**
+- Multiple log levels (debug, info, warn, error)
+- Console and file transports
+- JSON and pretty formatters
+- Structured logging with metadata
+
+## MCP Integration
+
+Dev-Agent integrates with AI tools via Model Context Protocol:
+
+**Supported Tools:**
+- Claude Code (via `dev mcp install`)
+- Cursor IDE (via `dev mcp install --cursor`)
+
+**Dynamic Workspace Detection:**
+- Cursor: Uses `WORKSPACE_FOLDER_PATHS` env var
+- Single server config works across all projects
+- Automatic context switching
+
+**Transport:**
+- STDIO for direct AI tool communication
+- Robust stdin closure detection
+- Graceful process cleanup
+
+## Production Features
+
+### Memory Management
+
+- **Circular Buffers:** Prevent unbounded growth in history/metrics
+- **Max History Size:** Configurable (default: 1000 messages)
+- **Event Cleanup:** Proper listener removal on shutdown
+
+### Rate Limiting
+
+- **Algorithm:** Token bucket with refill
+- **Default:** 100 requests burst, configurable per-tool
+- **Error:** Returns HTTP 429 with `retryAfterMs`
+
+### Retry Logic
+
+- **Algorithm:** Exponential backoff with jitter
+- **Default Retries:** 3 attempts
+- **Retriable Errors:** ETIMEDOUT, ECONNRESET, rate limits
+- **Jitter:** Prevents thundering herd problem
+
+### Health Checks
+
+- **Tool:** `dev_health` available to AI assistants
+- **Components:** Vector storage, repository, GitHub index
+- **Status:** healthy, degraded, unhealthy
+- **Granularity:** pass/warn/fail per component
+
+## Common Tasks
+
+### Adding a New Adapter
+
+1. Create adapter in `packages/mcp-server/src/adapters/built-in/`
+2. Extend `ToolAdapter` class
+3. Implement `getToolDefinition()` and `execute()`
+4. Add comprehensive tests in `__tests__/`
+5. Register in `bin/dev-agent-mcp.ts`
+6. Export from `built-in/index.ts`
+7. Update documentation (README, CLAUDE.md)
+
+### Running Package-Specific Commands
 
 ```bash
-pnpm -r <command>  # Run in all packages
-turbo <command>    # Run via Turborepo with caching
+# Build specific package
+pnpm -F "@lytics/dev-agent-core" build
+
+# Watch mode for development
+pnpm -F "@lytics/dev-agent-core" dev
+
+# Run package tests
+cd packages/core && pnpm test:watch
 ```
 
-### Filtering specific packages
+### Creating Changesets
 
 ```bash
-pnpm -F "@monorepo/core" build
-pnpm --filter "@monorepo/*" test
-```
+# Document changes
+pnpm changeset
 
-### Checking package locations
-
-```bash
-pnpm list --depth 0  # See all workspace packages
+# Select packages and version bump type
+# Commit the changeset file
+git add .changeset/*.md
+git commit -m "chore: add changeset for feature X"
 ```
 
 ## Troubleshooting
 
-**TypeScript errors about missing types:**
+### TypeScript Errors
 
-- Run `pnpm build` first to generate `.d.ts` files
-- Check that dependencies are listed in package.json
-- Verify workspace links: `pnpm install`
+**Problem:** Missing types for dependencies
 
-**Tests not found:**
+**Solution:**
+```bash
+pnpm build  # Generate .d.ts files
+pnpm typecheck
+```
 
-- Tests must match `packages/**/*.{test,spec}.ts` pattern
-- Run from root: `pnpm test` (NOT from package directory with turbo)
+### Build Failures
 
-**Build failures:**
+**Problem:** Dependency order issues
 
-- Check dependency order (core → utils → feature-a)
-- Clear cache: `pnpm clean` then `pnpm build`
-- Remove node_modules: `pnpm clean && pnpm install`
+**Solution:**
+```bash
+pnpm clean
+pnpm install
+pnpm build
+```
 
-**CI failures on typecheck:**
+### Test Failures
 
-- Ensure build step runs before typecheck in workflow
-- Local: `pnpm build && pnpm typecheck`
+**Problem:** Tests not found or failing
 
-## Security Considerations
+**Solution:**
+- Ensure test pattern matches: `**/*.{test,spec}.ts`
+- Run from root: `pnpm test`
+- Check package aliases in `vitest.config.ts`
 
-- Never commit `.env` files or secrets
-- NPM_TOKEN is stored as GitHub secret (not in code)
-- All packages default to private to prevent accidental publishing
-- Review dependencies regularly: `pnpm audit`
+### MCP Server Issues
 
-## Versioning Strategy
+**Problem:** Server not starting or zombie processes
 
-This template follows [Semantic Versioning 2.0.0](https://semver.org/) at the **repository level**, not per-package.
+**Solution:**
+- Check repository is indexed: `dev index .`
+- Verify storage paths: `~/.dev-agent/indexes/`
+- Restart AI tool (Cursor/Claude Code)
+- Check logs: Use `--verbose` flag
 
-### Repository Versioning
+### Rate Limiting
 
-Git tags use the format `vMAJOR.MINOR.PATCH` (e.g., `v1.0.0`, `v1.1.0`):
+**Problem:** Tool returns 429 errors
 
-- **MAJOR**: Breaking changes to template structure, tooling, or workflows
-  - Example: Changing package manager, build system, or major workflow restructuring
-  - Users must adapt their code when upgrading
+**Solution:**
+- Wait for `retryAfterMs` period
+- Check rate limit status via `dev_health`
+- Adjust limits in `AdapterRegistry` config if needed
 
-- **MINOR**: New features, packages, or improvements (backward compatible)
-  - Example: Adding new example packages, new GitHub Actions workflows, new tooling
-  - Users can adopt new features without breaking changes
+## Security
 
-- **PATCH**: Bug fixes, documentation updates, dependency patches
-  - Example: Fixing CI configuration, updating README, security patches
-  - Safe to update without any code changes
+- **Local-First:** All data stays on your machine
+- **No Cloud:** No data sent to external services
+- **Secrets:** Never commit `.env` files or tokens
+- **NPM Token:** Stored as GitHub secret (not in code)
+- **Private Packages:** All packages default to private
 
-### Package Versioning
+## Contributing
 
-Individual packages remain at `0.1.0` by default:
-- Packages are private by default (`"private": true`)
-- Users customize package names and versions after cloning
-- Version according to [Semantic Versioning](https://semver.org/) once users start developing
+1. Follow conventional commit format
+2. Add tests for new features
+3. Run `pnpm lint` and `pnpm typecheck` before committing
+4. Use `pnpm changeset` to document changes
+5. Ensure all 1100+ tests pass
+6. Update documentation (README, CLAUDE.md, AGENTS.md)
 
-### Pre-release Versions
+## Resources
 
-Use pre-release tags for experimental features:
-- `v2.0.0-alpha.1` - Early testing, unstable
-- `v2.0.0-beta.1` - Feature complete, testing phase
-- `v2.0.0-rc.1` - Release candidate, final testing
+- **Architecture:** See `ARCHITECTURE.md`
+- **Workflow:** See `docs/WORKFLOW.md`
+- **Examples:** See `examples/` directory
+- **Troubleshooting:** See `TROUBLESHOOTING.md` (coming soon)
+- **Contributing:** See `CONTRIBUTING.md`
 
-## Template Customization
+## Version Strategy
 
-When using this template:
+- **Repository Level:** Semantic Versioning 2.0.0
+- **Current Version:** 0.1.0 (pre-release)
+- **Git Tags:** `vMAJOR.MINOR.PATCH`
+- **Package Versions:** Follow repository version
 
-1. Update package names in all `package.json` files (change `@monorepo/*` scope)
-2. Update repository URL in root `package.json`
-3. Update LICENSE file with your information
-4. Customize README.md for your project
-5. Decide which packages should be public vs private
-6. Update GitHub secrets if publishing to npm
-7. Start versioning your packages from `0.1.0` according to your development needs
+**Version Bumps:**
+- **MAJOR:** Breaking changes
+- **MINOR:** New features (backward compatible)
+- **PATCH:** Bug fixes, documentation updates
+
+## Quick Reference
+
+```bash
+# Common workflows
+pnpm install && pnpm build && pnpm test  # Full setup
+pnpm dev                                  # Watch mode
+pnpm lint && pnpm typecheck              # Quality checks
+dev index .                              # Index repository
+dev mcp install --cursor                 # Install for Cursor
+dev gh index                             # Index GitHub
+
+# Debugging
+dev mcp start --verbose                  # Verbose MCP server
+pnpm test:coverage                       # Check test coverage
+pnpm clean && pnpm build                 # Clean rebuild
+
+# Release (when ready)
+pnpm changeset                           # Document changes
+pnpm version                             # Bump versions
+pnpm release                             # Publish packages
+```
+
+---
+
+**Last Updated:** 2025-11-26  
+**Codebase Status:** Production-ready with comprehensive stability features
+**Test Coverage:** 1100+ tests passing
+**AI Integration:** Claude Code & Cursor via MCP
