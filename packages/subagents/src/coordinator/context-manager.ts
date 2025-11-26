@@ -10,6 +10,7 @@
 import type { RepositoryIndexer } from '@lytics/dev-agent-core';
 import type { ContextManager, Message } from '../types';
 import { MemoryStorageAdapter, type StorageAdapter } from './storage';
+import { CircularBuffer } from './utils/circular-buffer';
 
 /**
  * Options for ContextManager
@@ -26,12 +27,12 @@ export interface ContextManagerOptions {
 export class ContextManagerImpl implements ContextManager {
   private sessionStorage: StorageAdapter;
   private persistentStorage: StorageAdapter;
-  private history: Message[] = [];
+  private history: CircularBuffer<Message>;
   private indexer: RepositoryIndexer | null = null;
-  private readonly maxHistorySize: number;
 
   constructor(options: ContextManagerOptions = {}) {
-    this.maxHistorySize = options.maxHistorySize ?? 1000;
+    const maxHistorySize = options.maxHistorySize ?? 1000;
+    this.history = new CircularBuffer<Message>(maxHistorySize);
     this.sessionStorage = options.sessionStorage ?? new MemoryStorageAdapter();
     this.persistentStorage = options.persistentStorage ?? new MemoryStorageAdapter();
   }
@@ -210,28 +211,23 @@ export class ContextManagerImpl implements ContextManager {
    */
   getHistory(limit?: number): Message[] {
     if (limit) {
-      return this.history.slice(-limit);
+      return this.history.getRecent(limit);
     }
-    return [...this.history];
+    return this.history.getAll();
   }
 
   /**
-   * Add message to history
+   * Add message to history (automatic overflow handling via circular buffer)
    */
   addToHistory(message: Message): void {
     this.history.push(message);
-
-    // Trim history if it exceeds max size
-    if (this.history.length > this.maxHistorySize) {
-      this.history = this.history.slice(-this.maxHistorySize);
-    }
   }
 
   /**
    * Clear history
    */
   clearHistory(): void {
-    this.history = [];
+    this.history.clear();
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -274,8 +270,8 @@ export class ContextManagerImpl implements ContextManager {
     return {
       sessionSize,
       persistentSize,
-      historySize: this.history.length,
-      maxHistorySize: this.maxHistorySize,
+      historySize: this.history.size(),
+      maxHistorySize: this.history.getMaxSize(),
       hasIndexer: this.hasIndexer(),
     };
   }
