@@ -24,7 +24,8 @@ import {
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
-import { logger } from '../utils/logger.js';
+import { addCursorServer, listCursorServers, removeCursorServer } from '../utils/cursor-config';
+import { logger } from '../utils/logger';
 
 export const mcpCommand = new Command('mcp')
   .description('MCP (Model Context Protocol) server integration')
@@ -35,7 +36,8 @@ export const mcpCommand = new Command('mcp')
       .option('-t, --transport <type>', 'Transport type: stdio (default) or http', 'stdio')
       .option('-v, --verbose', 'Verbose logging', false)
       .action(async (options) => {
-        const repositoryPath = process.cwd();
+        // Use REPOSITORY_PATH env var if set (for IDE integration), otherwise use cwd
+        const repositoryPath = process.env.REPOSITORY_PATH || process.cwd();
         const logLevel = options.verbose ? 'debug' : 'info';
 
         try {
@@ -169,15 +171,17 @@ export const mcpCommand = new Command('mcp')
   )
   .addCommand(
     new Command('install')
-      .description('Install dev-agent MCP server in Claude Code')
+      .description('Install dev-agent MCP server in Claude Code or Cursor')
       .option(
         '-r, --repository <path>',
         'Repository path (default: current directory)',
         process.cwd()
       )
+      .option('--cursor', 'Install for Cursor IDE instead of Claude Code')
       .action(async (options) => {
         const repositoryPath = path.resolve(options.repository);
-        const spinner = ora('Installing dev-agent MCP server in Claude Code...').start();
+        const targetIDE = options.cursor ? 'Cursor' : 'Claude Code';
+        const spinner = ora(`Installing dev-agent MCP server in ${targetIDE}...`).start();
 
         try {
           // Check if repository is indexed
@@ -193,46 +197,25 @@ export const mcpCommand = new Command('mcp')
             process.exit(1);
           }
 
-          // Add to Claude Code using claude CLI
-          const claudeAddCommand = [
-            'claude',
-            'mcp',
-            'add',
-            '--transport',
-            'stdio',
-            'dev-agent',
-            '--env',
-            `REPOSITORY_PATH=${repositoryPath}`,
-            '--',
-            'dev',
-            'mcp',
-            'start',
-          ];
+          if (options.cursor) {
+            // Install for Cursor
+            spinner.text = 'Checking Cursor configuration...';
+            const result = await addCursorServer(repositoryPath);
 
-          spinner.text = 'Registering with Claude Code...';
-
-          const result = spawn(claudeAddCommand[0], claudeAddCommand.slice(1), {
-            stdio: ['inherit', 'pipe', 'pipe'],
-          });
-
-          let output = '';
-          let error = '';
-
-          result.stdout?.on('data', (data) => {
-            output += data.toString();
-          });
-
-          result.stderr?.on('data', (data) => {
-            error += data.toString();
-          });
-
-          result.on('close', (code) => {
-            if (code === 0) {
-              spinner.succeed(chalk.green('MCP server installed in Claude Code!'));
+            if (result.alreadyExists) {
+              spinner.info(chalk.yellow('MCP server already installed in Cursor!'));
+              logger.log('');
+              logger.log(`Server name: ${chalk.cyan(result.serverName)}`);
+              logger.log(`Repository: ${chalk.gray(repositoryPath)}`);
+              logger.log('');
+              logger.log(`Run ${chalk.cyan('dev mcp list --cursor')} to see all servers`);
+            } else {
+              spinner.succeed(chalk.green('MCP server installed in Cursor!'));
               logger.log('');
               logger.log(chalk.bold('Integration complete! 🎉'));
               logger.log('');
-              logger.log('Available tools in Claude Code:');
+              logger.log(`Server name: ${chalk.cyan(result.serverName)}`);
+              logger.log('Available tools in Cursor:');
               logger.log(`  ${chalk.cyan('dev_search')}  - Semantic code search`);
               logger.log(`  ${chalk.cyan('dev_status')}  - Repository status`);
               logger.log(`  ${chalk.cyan('dev_plan')}    - Generate development plans`);
@@ -241,17 +224,70 @@ export const mcpCommand = new Command('mcp')
               logger.log('');
               logger.log(`Repository: ${chalk.yellow(repositoryPath)}`);
               logger.log(`Storage: ${chalk.yellow(storagePath)}`);
-            } else {
-              spinner.fail('Failed to install MCP server in Claude Code');
-              if (error) {
-                logger.error(error);
-              }
-              if (output) {
-                logger.log(output);
-              }
-              process.exit(1);
+              logger.log('');
+              logger.log(chalk.yellow('⚠️  Please restart Cursor to apply changes'));
             }
-          });
+          } else {
+            // Install for Claude Code using claude CLI
+            const claudeAddCommand = [
+              'claude',
+              'mcp',
+              'add',
+              '--transport',
+              'stdio',
+              'dev-agent',
+              '--env',
+              `REPOSITORY_PATH=${repositoryPath}`,
+              '--',
+              'dev',
+              'mcp',
+              'start',
+            ];
+
+            spinner.text = 'Registering with Claude Code...';
+
+            const result = spawn(claudeAddCommand[0], claudeAddCommand.slice(1), {
+              stdio: ['inherit', 'pipe', 'pipe'],
+            });
+
+            let output = '';
+            let error = '';
+
+            result.stdout?.on('data', (data) => {
+              output += data.toString();
+            });
+
+            result.stderr?.on('data', (data) => {
+              error += data.toString();
+            });
+
+            result.on('close', (code) => {
+              if (code === 0) {
+                spinner.succeed(chalk.green('MCP server installed in Claude Code!'));
+                logger.log('');
+                logger.log(chalk.bold('Integration complete! 🎉'));
+                logger.log('');
+                logger.log('Available tools in Claude Code:');
+                logger.log(`  ${chalk.cyan('dev_search')}  - Semantic code search`);
+                logger.log(`  ${chalk.cyan('dev_status')}  - Repository status`);
+                logger.log(`  ${chalk.cyan('dev_plan')}    - Generate development plans`);
+                logger.log(`  ${chalk.cyan('dev_explore')} - Explore code patterns`);
+                logger.log(`  ${chalk.cyan('dev_gh')}      - Search GitHub issues/PRs`);
+                logger.log('');
+                logger.log(`Repository: ${chalk.yellow(repositoryPath)}`);
+                logger.log(`Storage: ${chalk.yellow(storagePath)}`);
+              } else {
+                spinner.fail('Failed to install MCP server in Claude Code');
+                if (error) {
+                  logger.error(error);
+                }
+                if (output) {
+                  logger.log(output);
+                }
+                process.exit(1);
+              }
+            });
+          }
         } catch (error) {
           spinner.fail('Failed to install MCP server');
           logger.error(error instanceof Error ? error.message : String(error));
@@ -261,23 +297,45 @@ export const mcpCommand = new Command('mcp')
   )
   .addCommand(
     new Command('uninstall')
-      .description('Remove dev-agent MCP server from Claude Code')
-      .action(async () => {
-        const spinner = ora('Removing dev-agent MCP server from Claude Code...').start();
+      .description('Remove dev-agent MCP server from Claude Code or Cursor')
+      .option(
+        '-r, --repository <path>',
+        'Repository path (default: current directory)',
+        process.cwd()
+      )
+      .option('--cursor', 'Uninstall from Cursor IDE instead of Claude Code')
+      .action(async (options) => {
+        const targetIDE = options.cursor ? 'Cursor' : 'Claude Code';
+        const spinner = ora(`Removing dev-agent MCP server from ${targetIDE}...`).start();
 
         try {
-          const result = spawn('claude', ['mcp', 'remove', 'dev-agent'], {
-            stdio: ['inherit', 'pipe', 'pipe'],
-          });
+          if (options.cursor) {
+            // Remove from Cursor
+            const repositoryPath = path.resolve(options.repository);
+            const removed = await removeCursorServer(repositoryPath);
 
-          result.on('close', (code) => {
-            if (code === 0) {
-              spinner.succeed(chalk.green('MCP server removed from Claude Code!'));
+            if (removed) {
+              spinner.succeed(chalk.green('MCP server removed from Cursor!'));
+              logger.log('');
+              logger.log(chalk.yellow('⚠️  Please restart Cursor to apply changes'));
             } else {
-              spinner.fail('Failed to remove MCP server from Claude Code');
-              process.exit(1);
+              spinner.warn('No MCP server found for this repository in Cursor');
             }
-          });
+          } else {
+            // Remove from Claude Code
+            const result = spawn('claude', ['mcp', 'remove', 'dev-agent'], {
+              stdio: ['inherit', 'pipe', 'pipe'],
+            });
+
+            result.on('close', (code) => {
+              if (code === 0) {
+                spinner.succeed(chalk.green('MCP server removed from Claude Code!'));
+              } else {
+                spinner.fail('Failed to remove MCP server from Claude Code');
+                process.exit(1);
+              }
+            });
+          }
         } catch (error) {
           spinner.fail('Failed to remove MCP server');
           logger.error(error instanceof Error ? error.message : String(error));
@@ -287,19 +345,48 @@ export const mcpCommand = new Command('mcp')
   )
   .addCommand(
     new Command('list')
-      .description('List all configured MCP servers in Claude Code')
-      .action(async () => {
+      .description('List all configured MCP servers in Claude Code or Cursor')
+      .option('--cursor', 'List servers in Cursor IDE instead of Claude Code')
+      .action(async (options) => {
         try {
-          const result = spawn('claude', ['mcp', 'list'], {
-            stdio: 'inherit',
-          });
+          if (options.cursor) {
+            // List Cursor servers
+            const servers = await listCursorServers();
 
-          result.on('close', (code) => {
-            if (code !== 0) {
-              logger.error('Failed to list MCP servers');
-              process.exit(1);
+            if (servers.length === 0) {
+              logger.log(chalk.yellow('No MCP servers configured in Cursor'));
+              logger.log('');
+              logger.log(`Run ${chalk.cyan('dev mcp install --cursor')} to add one`);
+              return;
             }
-          });
+
+            logger.log('');
+            logger.log(chalk.bold('MCP Servers in Cursor:'));
+            logger.log('');
+
+            for (const server of servers) {
+              logger.log(`  ${chalk.cyan(server.name)}`);
+              logger.log(`    Command: ${chalk.gray(server.command)}`);
+              if (server.repository) {
+                logger.log(`    Repository: ${chalk.gray(server.repository)}`);
+              }
+              logger.log('');
+            }
+
+            logger.log(`Total: ${chalk.yellow(servers.length)} server(s)`);
+          } else {
+            // List Claude Code servers
+            const result = spawn('claude', ['mcp', 'list'], {
+              stdio: 'inherit',
+            });
+
+            result.on('close', (code) => {
+              if (code !== 0) {
+                logger.error('Failed to list MCP servers');
+                process.exit(1);
+              }
+            });
+          }
         } catch (error) {
           logger.error('Failed to list MCP servers');
           logger.error(error instanceof Error ? error.message : String(error));
