@@ -13,6 +13,7 @@ export class StdioTransport extends Transport {
   private errorHandler?: (error: Error) => void;
   private ready = false;
   private readline?: readline.Interface;
+  private isGracefulShutdown = false;
 
   async start(): Promise<void> {
     if (this.ready) {
@@ -40,13 +41,19 @@ export class StdioTransport extends Transport {
 
     // Handle stdin closure (when IDE closes)
     this.readline.on('close', () => {
-      // IDE closed the connection, exit gracefully
-      process.exit(0);
+      // Only exit if this wasn't a graceful shutdown initiated by stop()
+      if (!this.isGracefulShutdown) {
+        // IDE closed the connection unexpectedly, exit gracefully
+        process.exit(0);
+      }
     });
 
     process.stdin.on('end', () => {
-      // Stdin stream ended, exit gracefully
-      process.exit(0);
+      // Only exit if this wasn't a graceful shutdown initiated by stop()
+      if (!this.isGracefulShutdown) {
+        // Stdin stream ended unexpectedly, exit gracefully
+        process.exit(0);
+      }
     });
 
     // Handle process exit signals
@@ -65,6 +72,9 @@ export class StdioTransport extends Transport {
     if (!this.ready) {
       return;
     }
+
+    // Mark as graceful shutdown to prevent process.exit() in close handler
+    this.isGracefulShutdown = true;
 
     if (this.readline) {
       this.readline.close();
