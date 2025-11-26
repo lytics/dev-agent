@@ -136,6 +136,30 @@ The MCP server provides 5 powerful adapters (tools) and 8 guided prompts:
    - Semantic search with filters
    - Full context retrieval
    - Offline operation with cache
+   - **Auto-reload**: Automatically picks up new data when `dev gh index` runs
+
+### Auto-Reload Feature
+
+The GitHub adapter automatically reloads index data when it detects changes, eliminating the need to restart the MCP server:
+
+- **How it works**: Monitors GitHub state file modification time
+- **When it reloads**: On next query after `dev gh index` updates the data
+- **No user action required**: Changes are picked up automatically
+- **Efficient**: Only checks file timestamps (no polling)
+
+**Example workflow:**
+```bash
+# 1. Query GitHub data in Claude Code/Cursor
+> Use dev_gh to search for "authentication issues"
+
+# 2. Update the index (in terminal)
+$ dev gh index
+✓ Indexed 59 documents (32 issues + 27 PRs)
+
+# 3. Query again - new data appears automatically!
+> Use dev_gh to search for "authentication issues"
+# Results now include newly created issues #58, #59
+```
 
 ### Prompts (Guided Workflows)
 
@@ -368,7 +392,7 @@ All adapters are fully tested and production-ready:
 
 - **StatusAdapter** (`dev_status`) - Repository health and statistics
   - Code index status
-  - GitHub integration status
+  - GitHub integration status (auto-reloads on change)
   - Health checks and storage metrics
 
 - **PlanAdapter** (`dev_plan`) - Implementation planning from GitHub issues
@@ -385,6 +409,7 @@ All adapters are fully tested and production-ready:
   - Semantic search with filters
   - Full context retrieval
   - Works offline with cached data
+  - **Auto-reload**: Automatically picks up index updates without restart
   - Token cost display: 🪙 ~36 tokens (compact) to ~462 tokens (verbose)
 
 ## Configuration
@@ -530,7 +555,6 @@ console.log(tools);
 - ⚠️ Stdio transport only (HTTP planned for v2)
 - ⚠️ Sequential tool execution (parallel execution planned)
 - ⚠️ No built-in authentication (use OS-level permissions)
-- ⚠️ No adapter hot-reloading (restart required)
 
 **Planned Features:**
 - HTTP/WebSocket transport (#31)
