@@ -10,7 +10,7 @@
 
 dev-agent combines two powerful capabilities:
 
-1. **🧠 Deep Code Intelligence** - Multi-language AST analysis, semantic search, type-aware understanding
+1. **🧠 Deep Code Intelligence** - TypeScript/JavaScript AST analysis, semantic search, type-aware understanding
 2. **🤖 Specialized Subagents** - Action-capable AI agents for planning, exploring, and automating code workflows
 
 Unlike generic code search tools or agent platforms, dev-agent specializes in **understanding and acting on codebases**.
@@ -18,9 +18,10 @@ Unlike generic code search tools or agent platforms, dev-agent specializes in **
 ### Key Features
 
 **Intelligence Layer:**
-- 🌍 **Multi-language analysis** - TypeScript, JavaScript, Go, Python, Rust, Markdown
+- 🌍 **TypeScript & JavaScript analysis** - Deep AST analysis using ts-morph and TypeScript Compiler API
+- 📝 **Markdown parsing** - Documentation extraction with remark
 - 🔍 **Semantic + structural search** - Combine vector embeddings with AST relationships
-- 📊 **Type-aware** - Deep integration with TypeScript types, future Go modules
+- 📊 **Type-aware** - Deep integration with TypeScript types and inference
 - 📦 **Local-first** - Works 100% offline with local embeddings
 
 **Subagent Layer:**
@@ -49,11 +50,12 @@ dev-agent/
 │   ├── core/                 # Core context provider
 │   │   ├── src/
 │   │   │   ├── scanner/      # Repository scanning
-│   │   │   ├── vector/       # Vector storage
+│   │   │   ├── vector/       # Vector storage (LanceDB)
 │   │   │   ├── github/       # GitHub integration
 │   │   │   ├── context/      # Context provider
 │   │   │   ├── events/       # Event bus (pub/sub)
 │   │   │   ├── observability/# Logging, metrics, request tracking
+│   │   │   ├── utils/        # Retry logic, helpers
 │   │   │   └── api/          # HTTP API server
 │   │
 │   ├── cli/                  # Command-line interface
@@ -64,15 +66,16 @@ dev-agent/
 │   │
 │   ├── subagents/            # Subagent system
 │   │   ├── src/
-│   │   │   ├── coordinator/  # Subagent coordinator + context + storage
+│   │   │   ├── coordinator/  # Coordinator + context + storage + circular buffers
 │   │   │   ├── planner/      # Planner subagent
 │   │   │   ├── explorer/     # Explorer subagent
+│   │   │   ├── github/       # GitHub indexer
 │   │   │   └── pr/           # PR subagent
 │   │
 │   ├── mcp-server/           # MCP protocol server
 │   │   ├── src/
-│   │   │   ├── adapters/     # Tool adapters (search, explore, plan, github)
-│   │   │   ├── server/       # MCP server, prompts, protocol
+│   │   │   ├── adapters/     # Tool adapters (search, status, plan, explore, github, health)
+│   │   │   ├── server/       # MCP server, prompts, protocol, rate limiting
 │   │   │   └── formatters/   # Output formatting with token estimation
 │   │
 │   └── integrations/         # Tool integrations
@@ -100,8 +103,8 @@ dev-agent/
 - Turborepo (monorepo build orchestration)
 
 **Intelligence Layer:**
-- tree-sitter (universal multi-language parsing)
-- ts-morph (enhanced TypeScript analysis)
+- ts-morph (TypeScript AST analysis)
+- TypeScript Compiler API (type inference and relationships)
 - remark (Markdown documentation parsing)
 - @xenova/transformers (local embeddings with all-MiniLM-L6-v2)
 - LanceDB (embedded vector storage)
@@ -110,9 +113,16 @@ dev-agent/
 - Message-based agent coordination (inspired by claude-flow patterns)
 - GitHub CLI (native GitHub integration)
 
+**Production Features:**
+- Token bucket rate limiting (100 req/min burst)
+- Exponential backoff retry logic with jitter
+- Circular buffers for memory leak prevention
+- Component health monitoring
+- Event listener cleanup
+
 **Tooling:**
 - Biome (linting & formatting)
-- Vitest (testing)
+- Vitest (testing - 1100+ tests)
 - GitHub Actions (CI/CD)
 
 ## Philosophy
@@ -158,6 +168,26 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed design decisions.
 
 ### Installation
 
+**Option 1: Global Install (Recommended for Users)**
+
+```bash
+# Install globally via npm
+npm install -g dev-agent
+
+# Verify installation
+dev --version
+
+# Index your repository
+cd /path/to/your/repository
+dev index .
+
+# Install MCP integration
+dev mcp install --cursor  # For Cursor IDE
+dev mcp install           # For Claude Code
+```
+
+**Option 2: From Source (For Development)**
+
 ```bash
 # Clone the repository
 git clone https://github.com/lytics/dev-agent.git
@@ -168,20 +198,13 @@ pnpm install
 
 # Build all packages
 pnpm build
-```
 
-### Quick Start
-
-**For Local Development:**
-
-```bash
-# Link the CLI globally for local testing
+# Link CLI globally
 cd packages/cli
 npm link
 
 # Now you can use 'dev' anywhere
 cd ~/your-project
-dev init
 dev index .
 ```
 
@@ -243,6 +266,53 @@ $ dev_search with query "token estimation"
 
 Notice the 🪙 token footer - helps you track AI costs in real-time!
 
+## MCP Tools
+
+When integrated with Cursor or Claude Code, dev-agent provides 6 powerful tools:
+
+### 1. `dev_search` - Semantic Code Search
+Natural language search across your indexed repository.
+```
+Find authentication middleware that handles JWT tokens
+```
+
+### 2. `dev_status` - Repository Status
+View indexing status, component health, and repository information.
+```
+Show repository status
+```
+
+### 3. `dev_explore` - Code Exploration
+Discover patterns, find similar code, analyze relationships.
+```
+Find code similar to src/auth/middleware.ts
+```
+
+### 4. `dev_plan` - Implementation Planning
+Generate actionable plans from GitHub issues with code context.
+```
+Create a plan for issue #42
+```
+
+### 5. `dev_gh` - GitHub Search
+Search issues and PRs with semantic understanding. Auto-reloads when you run `dev gh index`.
+```
+Find authentication-related bugs
+```
+
+### 6. `dev_health` - Health Monitoring
+Check MCP server and component health (vector storage, repository, GitHub index).
+```
+Check server health with verbose details
+```
+
+**Production Features:**
+- 🛡️ **Rate Limiting:** 100 requests/minute burst per tool (token bucket algorithm)
+- 🔄 **Retry Logic:** Automatic retry with exponential backoff for transient failures
+- 💚 **Health Checks:** Proactive monitoring of all components
+- 🧹 **Memory Safe:** Circular buffers prevent unbounded growth
+- 🔌 **Graceful Shutdown:** Proper cleanup, no zombie processes
+
 **Tips for Better Results:**
 - **Use natural language**: "how do agents communicate" works better than "agent message"
 - **Adjust thresholds**: Default is 0.7 (precise), use 0.25-0.4 for exploration
@@ -252,24 +322,30 @@ Notice the 🪙 token footer - helps you track AI costs in real-time!
 
 **✅ Production Ready:**
 - Core intelligence layer (scanner, vectors, indexer) - Complete
-- MCP server with 5 adapters (search, status, plan, explore, GitHub) - Production ready
+- MCP server with 6 adapters (search, status, plan, explore, github, health) - Production ready
 - Prompts system with 8 guided workflows - Shipped
 - Token cost visibility and accurate estimation - Validated (<1% error)
-- **892 tests passing** across all packages
-- CLI and MCP integrations - Fully functional
+- **1100+ tests passing** across all packages
+- CLI and MCP integrations - Fully functional (Cursor + Claude Code)
+- Production hardening complete (rate limiting, retry, health, memory safety)
 
 **🚀 Available Now:**
 - Semantic code search with type-aware understanding
-- GitHub issue/PR indexing and search (works offline)
+- GitHub issue/PR indexing and search (auto-reload, works offline)
 - Implementation planning from GitHub issues
 - Code pattern exploration and relationship mapping
-- Repository health monitoring and statistics
+- Repository and component health monitoring
+- Cursor IDE integration with dynamic workspace detection
+- Claude Code integration with ~/.claude.json support
 
 **🔧 Infrastructure:**
-- **Event Bus** - Async pub/sub with typed events (`packages/core/src/events/`)
-- **Observability** - Request tracking, structured logging, metrics (`packages/core/src/observability/`)
+- **Event Bus** - Async pub/sub with typed events + cleanup
+- **Observability** - Request tracking, structured logging, metrics
 - **StorageAdapter** - Pluggable persistence for session/persistent state
-- **SubagentCoordinator** - Integrated with MCP server for agent dispatch
+- **SubagentCoordinator** - Integrated with MCP server + circular buffers
+- **Rate Limiting** - Token bucket algorithm (100 req/min burst)
+- **Retry Logic** - Exponential backoff with jitter
+- **Health Monitoring** - Component health checks (`dev_health` tool)
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for technical decisions and [packages/mcp-server/README.md](./packages/mcp-server/README.md) for MCP integration details.
 
