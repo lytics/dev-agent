@@ -20,6 +20,7 @@ import {
 import {
   ExploreAdapter,
   GitHubAdapter,
+  HealthAdapter,
   PlanAdapter,
   SearchAdapter,
   StatusAdapter,
@@ -173,6 +174,12 @@ async function main() {
       defaultFormat: 'compact',
     });
 
+    const healthAdapter = new HealthAdapter({
+      repositoryPath,
+      vectorStorePath: filePaths.vectors,
+      githubStatePath: filePaths.githubState,
+    });
+
     // Create MCP server with coordinator
     const server = new MCPServer({
       serverInfo: {
@@ -184,7 +191,14 @@ async function main() {
         logLevel,
       },
       transport: 'stdio',
-      adapters: [searchAdapter, statusAdapter, planAdapter, exploreAdapter, githubAdapter],
+      adapters: [
+        searchAdapter,
+        statusAdapter,
+        planAdapter,
+        exploreAdapter,
+        githubAdapter,
+        healthAdapter,
+      ],
       coordinator,
     });
 
