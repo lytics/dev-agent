@@ -6,4 +6,4 @@
 // 2. Publish @lytics/dev-agent as the user-facing package
 // 3. Optionally publish other packages (@lytics/dev-agent-core, etc.) later
 
-require('@lytics/dev-agent-cli/dist/cli.js');
+require('@lytics/dev-agent-cli/cli');

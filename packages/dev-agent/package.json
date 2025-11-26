@@ -40,8 +40,30 @@
     "prepublishOnly": "echo 'Ensure CLI is built before publishing'"
   },
   "dependencies": {
-    "@lytics/dev-agent-cli": "0.1.0"
+    "@lytics/dev-agent-cli": "0.1.0",
+    "@lytics/dev-agent-core": "0.1.0",
+    "@lytics/dev-agent-mcp": "0.1.0",
+    "@lytics/dev-agent-subagents": "0.1.0",
+    "@lytics/kero": "0.1.0",
+    "@lancedb/lancedb": "^0.22.3",
+    "@xenova/transformers": "^2.17.2",
+    "chalk": "^5.6.2",
+    "commander": "^12.1.0",
+    "globby": "^16.0.0",
+    "ora": "^8.0.1",
+    "remark": "^15.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-stringify": "^11.0.0",
+    "ts-morph": "^27.0.2",
+    "unified": "^11.0.5"
   },
+  "bundleDependencies": [
+    "@lytics/dev-agent-cli",
+    "@lytics/dev-agent-core",
+    "@lytics/dev-agent-mcp",
+    "@lytics/dev-agent-subagents",
+    "@lytics/kero"
+  ],
   "engines": {
     "node": ">=22.0.0"
   },
