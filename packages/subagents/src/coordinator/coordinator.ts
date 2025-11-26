@@ -16,6 +16,7 @@ import type {
 } from '../types';
 import { ContextManagerImpl } from './context-manager';
 import { TaskQueue } from './task-queue';
+import { CircularBuffer } from './utils/circular-buffer';
 
 export class SubagentCoordinator {
   private agents: Map<string, Agent> = new Map();
@@ -25,12 +26,12 @@ export class SubagentCoordinator {
   private options: Required<CoordinatorOptions>;
   private eventBus: AsyncEventBus;
 
-  // Statistics
+  // Statistics (with memory bounds to prevent leaks)
   private stats = {
     messagesSent: 0,
     messagesReceived: 0,
     messageErrors: 0,
-    responseTimes: [] as number[],
+    responseTimes: new CircularBuffer<number>(1000), // Max 1000 response times
   };
 
   private startTime: number;
@@ -405,9 +406,10 @@ export class SubagentCoordinator {
    * Get coordinator statistics (neural activity)
    */
   getStats(): CoordinatorStats {
+    const responseTimes = this.stats.responseTimes.getAll();
     const avgResponseTime =
-      this.stats.responseTimes.length > 0
-        ? this.stats.responseTimes.reduce((a, b) => a + b, 0) / this.stats.responseTimes.length
+      responseTimes.length > 0
+        ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length
         : 0;
 
     const taskStats = this.taskQueue.getStats();
