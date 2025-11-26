@@ -1,80 +1,65 @@
 name: Release
 
-# This workflow runs after CI succeeds on the main branch.
-# Uses Changesets for version management and automatic releases.
-# 
-# Features:
-# - Creates version PRs automatically when changesets are merged
-# - Publishes to npm with provenance (trusted publishing)
-# - Creates GitHub releases automatically
-# 
-# Setup:
-# 1. Set "private": false in package.json to enable publishing
-# 2. Configure npm trusted publishing (no token needed with provenance)
-# 3. Merge changeset files to trigger version PR
-# 4. Merge version PR to publish and create GitHub release
-
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types:
-      - completed
+  push:
     branches:
       - main
-  workflow_dispatch:
-    inputs:
-      force_publish:
-        description: 'Force publish all packages'
-        type: boolean
-        default: false
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write  # Required for OIDC trusted publishing
 
 jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    # Only run if CI workflow succeeded
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-    permissions:
-      contents: write        # Create releases and tags
-      pull-requests: write   # Create version PRs
-      id-token: write        # Trusted publishing with npm
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
         with:
-          # This makes Actions fetch all Git history so that Changesets can generate changelogs
+          # This makes sure we fetch all history so Changesets can compare versions
           fetch-depth: 0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@v4
         with:
           version: 8
 
-      - name: Setup Node.js
+      - name: Setup Node.js 22.x
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.x
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
 
+      # Ensure npm 11.5.1+ for trusted publishing support
+      - name: Update npm
+        run: npm install -g npm@latest
+
       - name: Install Dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Build Packages
         run: pnpm build
-        
+
       - name: Create Release Pull Request or Publish to npm
         id: changesets
         uses: changesets/action@v1
         with:
+          # This creates a "Version Packages" PR when changesets are added
           version: pnpm changeset version
-          publish: pnpm changeset publish --provenance
-          commit: 'chore(release): version packages'
-          title: 'chore(release): version packages'
+          # This publishes to npm when the version PR is merged
+          # Uses OIDC trusted publishing - no NPM_TOKEN needed!
+          publish: pnpm changeset publish
+          # Commit message for version bumps
+          commit: 'chore: release packages'
+          # PR title for version bumps
+          title: 'chore: release packages'
+          # Create GitHub Releases
           createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # No NPM_TOKEN needed - OIDC handles authentication!

@@ -48,6 +48,8 @@
     "ts-morph": "^27.0.2"
   },
   "devDependencies": {
+    "@lytics/dev-agent-cli": "workspace:*",
+    "@lytics/dev-agent-mcp": "workspace:*",
     "tsup": "^8.3.0"
   },
   "engines": {

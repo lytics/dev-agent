@@ -122,6 +122,12 @@ importers:
         specifier: ^27.0.2
         version: 27.0.2
     devDependencies:
+      '@lytics/dev-agent-cli':
+        specifier: workspace:*
+        version: link:../cli
+      '@lytics/dev-agent-mcp':
+        specifier: workspace:*
+        version: link:../mcp-server
       tsup:
         specifier: ^8.3.0
         version: 8.5.1(typescript@5.9.3)
