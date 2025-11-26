@@ -1,0 +1,161 @@
+# Architecture
+
+dev-agent is built as a TypeScript monorepo with specialized packages for different concerns.
+
+## System Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         AI Tools                                    │
+│                 (Cursor / Claude Code / VS Code)                    │
+└─────────────────────────┬───────────────────────────────────────────┘
+                          │ Model Context Protocol (MCP)
+┌─────────────────────────▼───────────────────────────────────────────┐
+│                      MCP Server                                     │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                    Adapter Registry                          │    │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐        │    │
+│  │  │ Search   │ │  Plan    │ │ Explore  │ │  GitHub  │  ...   │    │
+│  │  │ Adapter  │ │ Adapter  │ │ Adapter  │ │ Adapter  │        │    │
+│  │  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘        │    │
+│  └───────┼────────────┼────────────┼────────────┼───────────────┘    │
+│          │            │            │            │                   │
+│  ┌───────▼────────────▼────────────▼────────────▼───────────────┐   │
+│  │                    Subagent Coordinator                       │   │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐                      │   │
+│  │  │ Planner  │ │ Explorer │ │ PR Agent │                      │   │
+│  │  └──────────┘ └──────────┘ └──────────┘                      │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+└─────────────────────────┬───────────────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────────────┐
+│                         Core                                        │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
+│  │   Scanner    │  │   Indexer    │  │   GitHub     │              │
+│  │  (AST Parse) │  │  (Embeddings)│  │  Integration │              │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘              │
+│         │                 │                 │                       │
+│  ┌──────▼─────────────────▼─────────────────▼───────────────────┐   │
+│  │                    Vector Storage                             │   │
+│  │                      (LanceDB)                                │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## Packages
+
+### @lytics/dev-agent-core
+
+The foundation layer providing:
+
+- **Scanner** — Multi-language AST parsing using TypeScript Compiler API and ts-morph
+- **Indexer** — Converts code components to vector embeddings
+- **Vector Storage** — LanceDB for fast similarity search
+- **GitHub Integration** — Fetches and indexes issues/PRs via GitHub CLI
+
+### @lytics/dev-agent-cli
+
+Command-line interface:
+
+```bash
+dev index .              # Index repository
+dev mcp install          # Install MCP integration
+dev gh index             # Index GitHub issues/PRs
+dev status               # Check indexing status
+```
+
+### @lytics/dev-agent-mcp
+
+MCP server with tool adapters:
+
+- **AdapterRegistry** — Manages tool registration and execution
+- **Built-in Adapters** — Search, Plan, Explore, GitHub, Status, Health
+- **Rate Limiting** — Token bucket algorithm (100 req burst)
+- **Retry Logic** — Exponential backoff with jitter
+
+### @lytics/dev-agent-subagents
+
+Specialized AI agents:
+
+- **PlannerAgent** — Generates implementation plans from issues
+- **ExplorerAgent** — Code pattern analysis and relationship mapping
+- **PRAgent** — PR management and review assistance
+- **Coordinator** — Routes tasks to appropriate agents
+
+### @lytics/kero
+
+Centralized logging:
+
+- Multiple log levels (debug, info, warn, error)
+- Console and file transports
+- JSON and pretty formatters
+- Structured metadata
+
+## Key Technologies
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Language | TypeScript (strict) | Type safety |
+| Build | Turborepo | Monorepo orchestration |
+| Testing | Vitest | 1100+ tests |
+| Linting | Biome | Fast linting/formatting |
+| Vector DB | LanceDB | Embedded vector storage |
+| Embeddings | @xenova/transformers | Local ML inference |
+| Model | all-MiniLM-L6-v2 | Sentence embeddings |
+| Protocol | MCP | AI tool integration |
+
+## Data Flow
+
+### Indexing Flow
+
+```
+Source Code
+    │
+    ▼
+┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
+│  Glob    │ ──▶ │  Parse   │ ──▶ │ Extract  │ ──▶ │  Embed   │
+│  Files   │     │   AST    │     │Components│     │ Vectors  │
+└──────────┘     └──────────┘     └──────────┘     └──────────┘
+                                                        │
+                                                        ▼
+                                                  ┌──────────┐
+                                                  │ LanceDB  │
+                                                  └──────────┘
+```
+
+### Query Flow
+
+```
+User Query: "Where is auth handled?"
+    │
+    ▼
+┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
+│  Embed   │ ──▶ │  Vector  │ ──▶ │  Rank    │ ──▶ │  Format  │
+│  Query   │     │  Search  │     │ Results  │     │  Output  │
+└──────────┘     └──────────┘     └──────────┘     └──────────┘
+```
+
+## Storage
+
+All data is stored locally in `~/.dev-agent/`:
+
+```
+~/.dev-agent/
+├── indexes/
+│   └── <repo-hash>/
+│       ├── code.lance/        # Code vector index
+│       └── metadata.json      # Index metadata
+├── github/
+│   └── <repo-hash>/
+│       ├── issues.lance/      # Issues vector index
+│       └── prs.lance/         # PRs vector index
+└── config.json                # Global config (optional)
+```
+
+## Security
+
+- **100% Local** — No data sent to external services
+- **No Cloud** — All processing happens on your machine
+- **Embeddings** — Generated locally via @xenova/transformers
+- **GitHub Data** — Fetched via authenticated GitHub CLI
+

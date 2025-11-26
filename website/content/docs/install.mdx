@@ -1,0 +1,133 @@
+# Installation
+
+## Requirements
+
+- **Node.js 22+** (LTS recommended)
+- **pnpm**, **npm**, or **yarn**
+- **Cursor** or **Claude Code** (for MCP integration)
+
+## Install dev-agent
+
+**npm:**
+```bash
+npm install -g @lytics/dev-agent
+```
+
+**pnpm:**
+```bash
+pnpm add -g @lytics/dev-agent
+```
+
+**yarn:**
+```bash
+yarn global add @lytics/dev-agent
+```
+
+Verify the installation:
+
+```bash
+dev --version
+```
+
+## Setup for Cursor
+
+### 1. Index your repository
+
+Navigate to your project and index it:
+
+```bash
+cd /path/to/your/project
+dev index .
+```
+
+This creates a local vector database in `~/.dev-agent/indexes/`.
+
+### 2. Install MCP integration
+
+```bash
+dev mcp install --cursor
+```
+
+This configures Cursor to use dev-agent's MCP server.
+
+### 3. Restart Cursor
+
+Restart Cursor to pick up the new MCP configuration.
+
+### 4. Verify it works
+
+In Cursor's AI chat, ask:
+
+> "Use dev_search to find authentication code"
+
+If dev-agent is working, you'll see semantic search results from your codebase.
+
+## Setup for Claude Code
+
+### 1. Index your repository
+
+```bash
+cd /path/to/your/project
+dev index .
+```
+
+### 2. Install MCP integration
+
+```bash
+dev mcp install
+```
+
+### 3. Restart Claude Code
+
+The MCP tools should now be available in Claude Code.
+
+## Configuration
+
+dev-agent stores its data in `~/.dev-agent/`:
+
+```
+~/.dev-agent/
+├── indexes/           # Vector databases (per-repo)
+├── github/            # GitHub metadata cache
+└── config.json        # Global configuration (optional)
+```
+
+> **Note:** Each repository gets its own index. Indexes are keyed by the repository's absolute path.
+
+## Troubleshooting
+
+### "Command not found: dev"
+
+Make sure npm's global bin is in your PATH:
+
+```bash
+# Check where npm installs global packages
+npm config get prefix
+
+# Add to PATH (add to ~/.zshrc or ~/.bashrc)
+export PATH="$(npm config get prefix)/bin:$PATH"
+```
+
+### MCP tools not showing in Cursor
+
+1. Check the MCP configuration:
+   ```bash
+   dev mcp list --cursor
+   ```
+
+2. Verify your repository is indexed:
+   ```bash
+   dev status
+   ```
+
+3. Restart Cursor completely (not just reload window)
+
+### Index errors
+
+If indexing fails, try:
+
+```bash
+# Clean and re-index
+dev clean
+dev index .
+```

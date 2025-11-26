@@ -1,0 +1,91 @@
+# dev_search
+
+Semantic code search across your indexed repository. Find code by meaning, not just keywords.
+
+## Usage
+
+```
+dev_search(query, format?, limit?, scoreThreshold?)
+```
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `query` | string | required | Natural language search query |
+| `format` | `"compact"` \| `"verbose"` | `"compact"` | Output format |
+| `limit` | number | 10 | Maximum results (1-50) |
+| `scoreThreshold` | number | 0 | Minimum similarity score (0-1) |
+
+## Examples
+
+### Basic Search
+
+> "Use dev_search to find authentication code"
+
+```
+1. [89%] class: AuthMiddleware (src/auth/middleware.ts:15)
+2. [84%] function: verifyToken (src/auth/jwt.ts:5)
+3. [72%] function: validateSession (src/auth/session.ts:23)
+```
+
+### With Parameters
+
+> "Use dev_search with query 'database connection', limit 5, format verbose"
+
+```
+1. [Score: 91.2%] function: connectDB
+   Location: src/db/connection.ts:20
+   Signature: export async function connectDB(config: DBConfig): Promise<Connection>
+   Metadata: language: typescript, exported: true, lines: 35
+
+2. [Score: 85.4%] class: ConnectionPool
+   Location: src/db/pool.ts:8
+   Signature: export class ConnectionPool implements Pool {...}
+   Metadata: language: typescript, exported: true, lines: 120
+```
+
+### High Precision Search
+
+> "Use dev_search with query 'error handling middleware', scoreThreshold 0.8"
+
+Only returns results with 80%+ similarity.
+
+## How It Works
+
+1. **Query embedding** — Your query is converted to a vector using MiniLM-L6-v2
+2. **Vector search** — LanceDB finds semantically similar code components
+3. **Ranking** — Results are sorted by cosine similarity score
+4. **Formatting** — Results are formatted for LLM context windows
+
+## What Gets Indexed
+
+dev_search indexes these code components:
+
+- **Functions** — Named functions and arrow functions
+- **Classes** — Class declarations and their methods
+- **Interfaces** — TypeScript interfaces
+- **Types** — Type aliases
+- **Variables** — Exported constants and variables
+- **Markdown sections** — Headers and content blocks
+
+## Tips
+
+> **Ask questions, not keywords.** Instead of "auth middleware", try "Where do we validate user sessions?"
+
+> **Use scoreThreshold** for precision. Set to 0.7+ when you want only highly relevant results.
+
+## Response Metadata
+
+```json
+{
+  "metadata": {
+    "tokens": 245,
+    "duration_ms": 89,
+    "results_total": 23,
+    "results_returned": 10,
+    "results_truncated": true
+  }
+}
+```
+
