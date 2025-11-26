@@ -1,0 +1,96 @@
+# dev_health
+
+Monitor MCP server health and component status. Useful for diagnostics and proactive monitoring.
+
+## Usage
+
+```
+dev_health(format?)
+```
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `format` | `"compact"` \| `"verbose"` | `"compact"` | Output format |
+
+## Example
+
+> "Use dev_health"
+
+```
+## MCP Server Health
+
+Status: ✅ Healthy
+Uptime: 2h 34m 12s
+
+Components:
+- Vector Storage: ✅ Pass (24ms)
+- Repository Index: ✅ Pass (12ms)
+- GitHub Index: ✅ Pass (8ms)
+- Rate Limiter: ✅ Pass (89/100 tokens available)
+```
+
+## Verbose Output
+
+> "Use dev_health format verbose"
+
+```
+## MCP Server Health (Verbose)
+
+Status: ✅ Healthy
+Version: 0.1.0
+Started: 2024-01-15T08:00:00Z
+Uptime: 2h 34m 12s
+Process ID: 12345
+
+Components:
+┌─────────────────┬────────┬──────────┬─────────────────────┐
+│ Component       │ Status │ Latency  │ Details             │
+├─────────────────┼────────┼──────────┼─────────────────────┤
+│ Vector Storage  │ ✅ Pass │ 24ms     │ LanceDB connected   │
+│ Repository Index│ ✅ Pass │ 12ms     │ 1,832 components    │
+│ GitHub Index    │ ✅ Pass │ 8ms      │ 172 documents       │
+│ Rate Limiter    │ ✅ Pass │ <1ms     │ 89/100 tokens       │
+└─────────────────┴────────┴──────────┴─────────────────────┘
+
+Memory Usage: 145 MB
+CPU: 2.3%
+```
+
+## Health States
+
+| State | Meaning |
+|-------|---------|
+| ✅ **Healthy** | All components operational |
+| ⚠️ **Degraded** | Some components have warnings |
+| ❌ **Unhealthy** | Critical components failing |
+
+## Component Checks
+
+| Component | What It Checks |
+|-----------|----------------|
+| **Vector Storage** | LanceDB connection and query capability |
+| **Repository Index** | Index exists and is readable |
+| **GitHub Index** | GitHub metadata is accessible |
+| **Rate Limiter** | Token bucket has capacity |
+
+## Use Cases
+
+> **Proactive monitoring.** Check health before important operations to catch issues early.
+
+> **Debugging tool failures.** If a tool returns errors, health check can identify the root cause.
+
+## Response Metadata
+
+```json
+{
+  "metadata": {
+    "tokens": 156,
+    "duration_ms": 45,
+    "status": "healthy",
+    "components_checked": 4
+  }
+}
+```
+

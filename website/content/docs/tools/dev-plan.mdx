@@ -1,0 +1,106 @@
+# dev_plan
+
+Generate implementation plans from GitHub issues. Creates structured task breakdowns with estimates and dependencies.
+
+## Usage
+
+```
+dev_plan(issue, detailLevel?, format?, useExplorer?)
+```
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `issue` | number | required | GitHub issue number |
+| `detailLevel` | `"simple"` \| `"detailed"` | `"detailed"` | Task granularity |
+| `format` | `"compact"` \| `"verbose"` | `"compact"` | Output format |
+| `useExplorer` | boolean | true | Find relevant code via semantic search |
+
+## Examples
+
+### Basic Planning
+
+> "Use dev_plan to create a plan for issue 42"
+
+```
+## Implementation Plan: Add user preferences API (#42)
+
+### Tasks
+- [ ] 1. Create preferences schema (2h)
+- [ ] 2. Add database migration (1h)
+- [ ] 3. Implement GET /preferences endpoint (2h)
+- [ ] 4. Implement PUT /preferences endpoint (2h)
+- [ ] 5. Add validation middleware (1h)
+- [ ] 6. Write unit tests (2h)
+- [ ] 7. Update API documentation (1h)
+
+### Relevant Code
+- src/api/routes/user.ts (existing user routes)
+- src/db/migrations/ (migration patterns)
+- src/middleware/validation.ts (validation examples)
+
+### Estimated Total: 11 hours
+```
+
+### Simple Plan
+
+> "Use dev_plan for issue 42, detailLevel simple"
+
+```
+## Implementation Plan: Add user preferences API (#42)
+
+- [ ] Create preferences model and migration
+- [ ] Implement API endpoints
+- [ ] Add tests and documentation
+
+### Estimated Total: 4-6 hours
+```
+
+## How It Works
+
+1. **Fetch issue** — Retrieves issue title, body, labels, and comments from GitHub
+2. **Analyze context** — Understands the feature request or bug report
+3. **Explore code** — Uses semantic search to find relevant existing code
+4. **Generate plan** — Creates structured tasks with estimates
+5. **Map dependencies** — Identifies task ordering and blockers
+
+## Requirements
+
+> ⚠️ **GitHub CLI required.** dev_plan uses `gh` to fetch issue data. Install it from [cli.github.com](https://cli.github.com).
+
+Make sure you're authenticated:
+
+```bash
+gh auth status
+```
+
+## Index GitHub First
+
+For best results, index your GitHub issues:
+
+```bash
+dev gh index
+```
+
+This enables semantic search across your project's issues and PRs.
+
+## Tips
+
+> **Use detailed plans for complex features.** The default `detailed` level produces 10-15 actionable tasks.
+
+> **Plans improve with codebase context.** The `useExplorer` option (default: true) finds relevant code patterns to inform the plan.
+
+## Response Metadata
+
+```json
+{
+  "metadata": {
+    "tokens": 892,
+    "duration_ms": 1234,
+    "issue_number": 42,
+    "tasks_generated": 7
+  }
+}
+```
+

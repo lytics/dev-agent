@@ -1,0 +1,82 @@
+# MCP Tools Overview
+
+dev-agent provides six tools through the Model Context Protocol (MCP). These tools give AI assistants deep understanding of your codebase.
+
+## Available Tools
+
+| Tool | Purpose |
+|------|---------|
+| [`dev_search`](/docs/tools/dev-search) | Semantic code search |
+| [`dev_plan`](/docs/tools/dev-plan) | Generate implementation plans from GitHub issues |
+| [`dev_explore`](/docs/tools/dev-explore) | Explore code patterns and relationships |
+| [`dev_gh`](/docs/tools/dev-gh) | Search GitHub issues and PRs |
+| [`dev_status`](/docs/tools/dev-status) | Check repository indexing status |
+| [`dev_health`](/docs/tools/dev-health) | Monitor MCP server health |
+
+## How Tools Are Exposed
+
+Tools are exposed via the Model Context Protocol (MCP), a standard for AI tool integration:
+
+```
+AI Assistant (Cursor/Claude)
+        │
+        │ MCP Protocol (stdio)
+        ▼
+   dev-agent MCP Server
+        │
+        ├── SearchAdapter      → dev_search
+        ├── PlanAdapter        → dev_plan
+        ├── ExploreAdapter     → dev_explore
+        ├── GitHubAdapter      → dev_gh
+        ├── StatusAdapter      → dev_status
+        └── HealthAdapter      → dev_health
+```
+
+## Tool Response Format
+
+All tools return structured responses with metadata:
+
+```json
+{
+  "success": true,
+  "data": {
+    "query": "authentication",
+    "content": "1. [89%] class: AuthMiddleware..."
+  },
+  "metadata": {
+    "tokens": 245,
+    "duration_ms": 123,
+    "results_total": 15,
+    "results_returned": 10
+  }
+}
+```
+
+The `metadata` field helps AI assistants understand:
+- **Token cost** of the response
+- **Performance** metrics
+- **Result completeness** (truncated or full)
+
+## Output Formats
+
+Most tools support two output formats:
+
+- **`compact`** (default) — Token-efficient, summaries only
+- **`verbose`** — Full details including signatures and metadata
+
+```
+// compact format
+1. [89%] class: AuthMiddleware (src/auth/middleware.ts:15)
+
+// verbose format
+1. [Score: 89.0%] class: AuthMiddleware
+   Location: src/auth/middleware.ts:15
+   Signature: export class AuthMiddleware implements Middleware {...}
+   Metadata: language: typescript, exported: true, lines: 28
+```
+
+## Next Steps
+
+- [dev_search →](/docs/tools/dev-search) — Semantic code search
+- [dev_plan →](/docs/tools/dev-plan) — Implementation planning
+

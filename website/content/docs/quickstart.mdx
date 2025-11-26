@@ -1,0 +1,92 @@
+# Quickstart
+
+Get from zero to semantic search in 5 minutes.
+
+## Prerequisites
+
+- Node.js 22+ installed
+- Cursor IDE (or Claude Code)
+- A code repository to index
+
+## Step 1: Install dev-agent
+
+```bash
+npm install -g @lytics/dev-agent
+```
+
+## Step 2: Index your repository
+
+```bash
+cd ~/your-project
+dev index .
+```
+
+You'll see output like:
+
+```
+Scanning repository...
+Found 247 files to index
+Generating embeddings...
+████████████████████████████████████████ 100%
+Indexed 1,832 code components in 12.3s
+```
+
+## Step 3: Connect to Cursor
+
+```bash
+dev mcp install --cursor
+```
+
+Then restart Cursor.
+
+## Step 4: Try semantic search
+
+Open Cursor's AI chat and ask:
+
+> "Use dev_search to find where we handle user authentication"
+
+You'll get results like:
+
+```
+1. [89%] class: AuthMiddleware (src/auth/middleware.ts:15)
+2. [84%] function: verifyToken (src/auth/jwt.ts:5)
+3. [72%] function: validateSession (src/auth/session.ts:23)
+```
+
+## Step 5: Explore more tools
+
+Try these prompts:
+
+**Planning from GitHub issues:**
+> "Use dev_plan to create an implementation plan for issue #42"
+
+**Find similar code:**
+> "Use dev_explore to find code similar to src/utils/cache.ts"
+
+**Search GitHub issues:**
+> "Use dev_gh to search for issues about performance"
+
+## What's Happening Under the Hood
+
+When you run `dev index .`:
+
+1. **Scanner** parses your code using the TypeScript Compiler API
+2. **Extractor** identifies functions, classes, interfaces, types
+3. **Embedder** generates vector embeddings locally (MiniLM-L6-v2)
+4. **Storage** saves everything to LanceDB (`~/.dev-agent/indexes/`)
+
+When AI tools call `dev_search`:
+
+1. **Query** gets embedded using the same model
+2. **Vector search** finds semantically similar code
+3. **Formatter** returns results optimized for LLM context windows
+
+## Next Steps
+
+- [MCP Tools →](/docs/tools) — Learn about all available tools
+- [Architecture →](/docs/architecture) — Understand how dev-agent works
+
+> **Pro tip:** Re-index after major code changes to keep search results accurate:
+> ```bash
+> dev index . --force
+> ```

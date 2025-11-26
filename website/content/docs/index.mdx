@@ -1,0 +1,46 @@
+# Introduction
+
+**dev-agent** is a local-first repository context provider for AI tools. It gives AI assistants like Cursor and Claude Code deep understanding of your codebase through semantic search, code analysis, and GitHub integration.
+
+## The Problem
+
+AI coding assistants are powerful, but they struggle with context:
+
+- They can't search your codebase semantically
+- They don't understand relationships between files
+- They lack awareness of your GitHub issues and PRs
+- They hallucinate about code that doesn't exist
+
+## The Solution
+
+dev-agent solves this by:
+
+1. **Indexing your codebase** with local embeddings (all-MiniLM-L6-v2)
+2. **Exposing semantic search** via the Model Context Protocol (MCP)
+3. **Integrating with GitHub** to understand your project's history
+4. **Providing specialized tools** for planning, exploration, and more
+
+## Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Semantic Search** | Find code by meaning, not keywords |
+| **AST Analysis** | Type-aware understanding of your code |
+| **GitHub Integration** | Search issues and PRs semantically |
+| **Local-First** | Your code never leaves your machine |
+| **MCP Native** | Works with Cursor, Claude Code, VS Code |
+
+## Architecture Overview
+
+dev-agent is built as a monorepo with specialized packages:
+
+- **@lytics/dev-agent-core** — Repository scanning, vector storage, GitHub integration
+- **@lytics/dev-agent-cli** — Command-line interface
+- **@lytics/dev-agent-mcp** — MCP server with tool adapters
+- **@lytics/dev-agent-subagents** — Specialized agents (planner, explorer, PR manager)
+
+## Next Steps
+
+- [Installation →](/docs/install) — Get dev-agent installed in under 2 minutes
+- [Quickstart →](/docs/quickstart) — From zero to semantic search in 5 minutes
+

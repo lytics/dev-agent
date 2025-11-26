@@ -1,0 +1,70 @@
+---
+title: dev-agent
+---
+
+# dev-agent
+
+Deep code intelligence + AI subagents via MCP. Local-first semantic search for Cursor and Claude Code.
+
+[Get Started](/docs) · [View on GitHub](https://github.com/lytics/dev-agent)
+
+## Why dev-agent?
+
+AI coding assistants are only as good as the context they receive. dev-agent gives your AI tools **deep understanding** of your codebase:
+
+| Feature | Description |
+|---------|-------------|
+| 🔍 **Semantic Search** | Find code by meaning, not keywords. "Where do we handle auth?" actually works. |
+| 📋 **Smart Planning** | Generate implementation plans from GitHub issues with accurate estimates. |
+| 🐙 **GitHub Integration** | Search issues and PRs semantically. Understand project history. |
+| 🧭 **Code Exploration** | Find patterns, similar code, and trace relationships across your codebase. |
+
+## Quick Start
+
+```bash
+# Install globally
+npm install -g @lytics/dev-agent
+
+# Index your repository
+cd your-project
+dev index .
+
+# Install in Cursor
+dev mcp install --cursor
+```
+
+That's it. Your AI assistant now has superpowers.
+
+## How It Works
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Your AI Tool                           │
+│                  (Cursor / Claude Code)                     │
+└─────────────────────┬───────────────────────────────────────┘
+                      │ MCP Protocol
+┌─────────────────────▼───────────────────────────────────────┐
+│                     dev-agent                               │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │ dev_search  │  │  dev_plan   │  │     dev_explore     │  │
+│  │ dev_status  │  │   dev_gh    │  │     dev_health      │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+│                           │                                 │
+│  ┌────────────────────────▼────────────────────────────┐    │
+│  │              Local Vector Storage                   │    │
+│  │         (LanceDB + MiniLM embeddings)               │    │
+│  └─────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Features
+
+- **100% Local** — Your code never leaves your machine
+- **Multi-Language** — TypeScript, JavaScript, Markdown (more coming)
+- **Fast** — Sub-second semantic search across large codebases
+- **MCP Native** — Works with any MCP-compatible AI tool
+- **GitHub Aware** — Understands your issues, PRs, and project history
+
+---
+
+MIT License • Built by [Lytics](https://github.com/lytics)

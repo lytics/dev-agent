@@ -1,0 +1,109 @@
+# dev_status
+
+Check repository indexing status, configuration, and health. Useful for debugging and monitoring.
+
+## Usage
+
+```
+dev_status(section?, format?)
+```
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `section` | `"summary"` \| `"repo"` \| `"indexes"` \| `"github"` \| `"health"` | `"summary"` | Section to display |
+| `format` | `"compact"` \| `"verbose"` | `"compact"` | Output format |
+
+## Sections
+
+### Summary (Default)
+
+> "Use dev_status"
+
+```
+## dev-agent Status
+
+Repository: /Users/you/project
+Indexed: ✅ Yes (2 hours ago)
+Components: 1,832 indexed
+GitHub: ✅ 127 issues, 45 PRs indexed
+Health: ✅ All systems operational
+```
+
+### Repository Details
+
+> "Use dev_status section repo"
+
+```
+## Repository Status
+
+Path: /Users/you/project
+Name: my-project
+Languages: TypeScript, JavaScript, Markdown
+Last Indexed: 2024-01-15T10:30:00Z
+Index Duration: 12.3s
+```
+
+### Index Information
+
+> "Use dev_status section indexes"
+
+```
+## Index Status
+
+Vector Storage: LanceDB
+Location: ~/.dev-agent/indexes/my-project
+Size: 24.5 MB
+Components: 1,832
+  - Functions: 892
+  - Classes: 156
+  - Interfaces: 234
+  - Types: 189
+  - Variables: 361
+```
+
+### GitHub Integration
+
+> "Use dev_status section github"
+
+```
+## GitHub Status
+
+Repository: lytics/dev-agent
+Indexed: ✅ Yes
+Issues: 127 (89 open, 38 closed)
+Pull Requests: 45 (12 open, 33 merged)
+Last Synced: 2024-01-15T09:00:00Z
+```
+
+### Health Check
+
+> "Use dev_status section health"
+
+```
+## Health Status
+
+Overall: ✅ Healthy
+
+Components:
+- Vector Storage: ✅ Pass
+- Repository Index: ✅ Pass
+- GitHub Index: ✅ Pass
+- MCP Server: ✅ Pass
+```
+
+## Use Cases
+
+| Use Case | Description |
+|----------|-------------|
+| **Debugging** | Check if repository is indexed before searching |
+| **Monitoring** | Verify all components are healthy |
+| **Planning** | See index size before operations |
+
+## Tips
+
+> **Check status first.** If searches return no results, run `dev_status` to verify indexing.
+
+> **Use verbose for debugging.** The verbose format includes timestamps, paths, and detailed metrics.
+
