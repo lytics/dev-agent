@@ -249,4 +249,136 @@ describe('AdapterRegistry', () => {
       expect(registry.getStats().totalAdapters).toBe(0);
     });
   });
+
+  describe('rate limiting', () => {
+    it('should enforce rate limits by default', async () => {
+      const limitedRegistry = new AdapterRegistry({
+        rateLimitCapacity: 3,
+        rateLimitRefillRate: 1,
+      });
+
+      limitedRegistry.register(mockAdapter);
+      await limitedRegistry.initializeAll(context);
+
+      const executionContext = { logger: context.logger, requestId: 'test' };
+
+      // First 3 requests should succeed
+      for (let i = 0; i < 3; i++) {
+        const result = await limitedRegistry.executeTool(
+          'mock_echo',
+          { message: 'test' },
+          executionContext
+        );
+        expect(result.success).toBe(true);
+      }
+
+      // 4th request should be rate limited
+      const result = await limitedRegistry.executeTool(
+        'mock_echo',
+        { message: 'test' },
+        executionContext
+      );
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('429');
+      expect(result.error?.message).toContain('Rate limit exceeded');
+    });
+
+    it('should allow disabling rate limiting', async () => {
+      const unlimitedRegistry = new AdapterRegistry({
+        enableRateLimiting: false,
+      });
+
+      unlimitedRegistry.register(mockAdapter);
+      await unlimitedRegistry.initializeAll(context);
+
+      const executionContext = { logger: context.logger, requestId: 'test' };
+
+      // Should allow unlimited requests
+      for (let i = 0; i < 100; i++) {
+        const result = await unlimitedRegistry.executeTool(
+          'mock_echo',
+          { message: 'test' },
+          executionContext
+        );
+        expect(result.success).toBe(true);
+      }
+    });
+
+    it('should track rate limits per tool independently', async () => {
+      const multiToolRegistry = new AdapterRegistry({
+        rateLimitCapacity: 2,
+        rateLimitRefillRate: 1,
+      });
+
+      const secondAdapter = new MockAdapter('mock_echo_2');
+      multiToolRegistry.register(mockAdapter);
+      multiToolRegistry.register(secondAdapter);
+      await multiToolRegistry.initializeAll(context);
+
+      const executionContext = { logger: context.logger, requestId: 'test' };
+
+      // Exhaust first tool
+      await multiToolRegistry.executeTool('mock_echo', { message: 'test' }, executionContext);
+      await multiToolRegistry.executeTool('mock_echo', { message: 'test' }, executionContext);
+
+      // First tool should be rate limited
+      const result1 = await multiToolRegistry.executeTool(
+        'mock_echo',
+        { message: 'test' },
+        executionContext
+      );
+      expect(result1.success).toBe(false);
+      expect(result1.error?.code).toBe('429');
+
+      // Second tool should still work
+      const result2 = await multiToolRegistry.executeTool(
+        'mock_echo_2',
+        { message: 'test' },
+        executionContext
+      );
+      expect(result2.success).toBe(true);
+    });
+
+    it('should provide rate limit status', () => {
+      const statusRegistry = new AdapterRegistry({
+        rateLimitCapacity: 10,
+        rateLimitRefillRate: 1,
+      });
+
+      const status = statusRegistry.getRateLimitStatus();
+      expect(status).not.toBeNull();
+      expect(status instanceof Map).toBe(true);
+    });
+
+    it('should allow resetting rate limits', async () => {
+      const resetRegistry = new AdapterRegistry({
+        rateLimitCapacity: 2,
+        rateLimitRefillRate: 1,
+      });
+
+      resetRegistry.register(mockAdapter);
+      await resetRegistry.initializeAll(context);
+
+      const executionContext = { logger: context.logger, requestId: 'test' };
+
+      // Exhaust rate limit
+      await resetRegistry.executeTool('mock_echo', { message: 'test' }, executionContext);
+      await resetRegistry.executeTool('mock_echo', { message: 'test' }, executionContext);
+
+      // Should be rate limited
+      let result = await resetRegistry.executeTool(
+        'mock_echo',
+        { message: 'test' },
+        executionContext
+      );
+      expect(result.success).toBe(false);
+
+      // Reset rate limit
+      resetRegistry.resetRateLimit('mock_echo');
+
+      // Should work again
+      result = await resetRegistry.executeTool('mock_echo', { message: 'test' }, executionContext);
+      expect(result.success).toBe(true);
+    });
+  });
 });
