@@ -15,7 +15,7 @@ export type FormatMode = 'compact' | 'verbose';
  */
 export interface FormattedResult {
   content: string;
-  tokenEstimate: number;
+  tokens: number;
 }
 
 /**
