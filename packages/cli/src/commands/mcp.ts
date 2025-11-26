@@ -36,8 +36,10 @@ export const mcpCommand = new Command('mcp')
       .option('-t, --transport <type>', 'Transport type: stdio (default) or http', 'stdio')
       .option('-v, --verbose', 'Verbose logging', false)
       .action(async (options) => {
-        // Use REPOSITORY_PATH env var if set (for IDE integration), otherwise use cwd
-        const repositoryPath = process.env.REPOSITORY_PATH || process.cwd();
+        // Smart workspace detection:
+        // Priority: WORKSPACE_FOLDER_PATHS (Cursor) > REPOSITORY_PATH (explicit) > cwd (fallback)
+        const repositoryPath =
+          process.env.WORKSPACE_FOLDER_PATHS || process.env.REPOSITORY_PATH || process.cwd();
         const logLevel = options.verbose ? 'debug' : 'info';
 
         try {
