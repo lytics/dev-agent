@@ -38,7 +38,18 @@ export class StdioTransport extends Transport {
       }
     });
 
-    // Handle process exit
+    // Handle stdin closure (when IDE closes)
+    this.readline.on('close', () => {
+      // IDE closed the connection, exit gracefully
+      process.exit(0);
+    });
+
+    process.stdin.on('end', () => {
+      // Stdin stream ended, exit gracefully
+      process.exit(0);
+    });
+
+    // Handle process exit signals
     process.on('SIGINT', () => {
       void this.stop();
     });

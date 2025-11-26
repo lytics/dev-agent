@@ -26,9 +26,20 @@ import {
 } from '../src/adapters/built-in';
 import { MCPServer } from '../src/server/mcp-server';
 
-// Get config from environment
-const repositoryPath = process.env.REPOSITORY_PATH || process.cwd();
+// Get config from environment with smart workspace detection
+// Priority: WORKSPACE_FOLDER_PATHS (Cursor dynamic) > REPOSITORY_PATH (explicit) > cwd (fallback)
+const repositoryPath =
+  process.env.WORKSPACE_FOLDER_PATHS || process.env.REPOSITORY_PATH || process.cwd();
 const logLevel = (process.env.LOG_LEVEL as 'debug' | 'info' | 'warn' | 'error') || 'info';
+
+console.error('[MCP] Workspace detection:', {
+  detected: repositoryPath,
+  source: process.env.WORKSPACE_FOLDER_PATHS
+    ? 'WORKSPACE_FOLDER_PATHS'
+    : process.env.REPOSITORY_PATH
+      ? 'REPOSITORY_PATH'
+      : 'cwd',
+});
 
 // Lazy-loaded indexer
 let indexer: RepositoryIndexer | undefined;
