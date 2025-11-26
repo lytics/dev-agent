@@ -29,12 +29,12 @@
     "@lytics/dev-agent-mcp": "workspace:*",
     "@lytics/dev-agent-subagents": "workspace:*",
     "@lytics/kero": "workspace:*",
+    "chalk": "^5.6.2",
+    "commander": "^12.1.0",
     "ora": "^8.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "chalk": "^5.6.2",
-    "commander": "^12.1.0",
     "typescript": "^5.3.3"
   }
 }
