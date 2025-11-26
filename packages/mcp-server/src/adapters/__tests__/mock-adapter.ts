@@ -22,6 +22,12 @@ export class MockAdapter extends ToolAdapter {
   private initializeCount = 0;
   private shutdownCount = 0;
   private executeCount = 0;
+  private toolName: string;
+
+  constructor(toolName = 'mock_echo') {
+    super();
+    this.toolName = toolName;
+  }
 
   async initialize(context: AdapterContext): Promise<void> {
     this.initializeCount++;
@@ -38,7 +44,7 @@ export class MockAdapter extends ToolAdapter {
 
   getToolDefinition(): ToolDefinition {
     return {
-      name: 'mock_echo',
+      name: this.toolName,
       description: 'Echo back the input message',
       inputSchema: {
         type: 'object',

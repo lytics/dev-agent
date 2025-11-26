@@ -4,19 +4,35 @@
  */
 
 import { ErrorCode } from '../server/protocol/types';
+import { RateLimiter } from '../server/utils/rate-limiter';
 import type { ToolAdapter } from './tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from './types';
 
 export interface RegistryConfig {
   autoDiscover?: boolean;
   customAdaptersPath?: string;
+  /** Enable rate limiting (default: true) */
+  enableRateLimiting?: boolean;
+  /** Default rate limit: capacity (burst) */
+  rateLimitCapacity?: number;
+  /** Default rate limit: refill rate (per second) */
+  rateLimitRefillRate?: number;
 }
 
 export class AdapterRegistry {
   private adapters = new Map<string, ToolAdapter>();
+  private rateLimiter: RateLimiter | null;
 
-  // biome-ignore lint/complexity/noUselessConstructor: Config reserved for future use (auto-discovery, custom adapter paths)
-  constructor(_config: RegistryConfig = {}) {}
+  constructor(config: RegistryConfig = {}) {
+    // Initialize rate limiter if enabled (default: true)
+    if (config.enableRateLimiting !== false) {
+      const capacity = config.rateLimitCapacity ?? 100; // 100 requests burst
+      const refillRate = config.rateLimitRefillRate ?? 10; // 10 req/sec = 600/min
+      this.rateLimiter = new RateLimiter(capacity, refillRate);
+    } else {
+      this.rateLimiter = null;
+    }
+  }
 
   /**
    * Register a single adapter
@@ -85,6 +101,27 @@ export class AdapterRegistry {
           recoverable: false,
         },
       };
+    }
+
+    // Check rate limit
+    if (this.rateLimiter) {
+      const rateLimit = this.rateLimiter.check(toolName);
+      if (!rateLimit.allowed) {
+        context.logger.warn('Rate limit exceeded', {
+          toolName,
+          retryAfter: rateLimit.retryAfter,
+        });
+
+        return {
+          success: false,
+          error: {
+            code: '429', // HTTP 429 Too Many Requests
+            message: `Rate limit exceeded for ${toolName}. Try again in ${rateLimit.retryAfter} second(s).`,
+            recoverable: true,
+            suggestion: `Wait ${rateLimit.retryAfter} second(s) before retrying`,
+          },
+        };
+      }
     }
 
     // Optional validation
@@ -177,5 +214,26 @@ export class AdapterRegistry {
 
     await Promise.all(shutdownPromises);
     this.adapters.clear();
+  }
+
+  /**
+   * Get rate limit status for all tools
+   */
+  getRateLimitStatus(): Map<string, { available: number; capacity: number }> | null {
+    return this.rateLimiter?.getStatus() ?? null;
+  }
+
+  /**
+   * Reset rate limit for specific tool (for testing/admin)
+   */
+  resetRateLimit(toolName: string): void {
+    this.rateLimiter?.reset(toolName);
+  }
+
+  /**
+   * Reset all rate limits (for testing/admin)
+   */
+  resetAllRateLimits(): void {
+    this.rateLimiter?.resetAll();
   }
 }
