@@ -381,6 +381,12 @@ export class SubagentCoordinator {
       await this.unregisterAgent(agentName);
     }
 
+    // Clean up all event listeners to prevent memory leaks
+    this.eventBus.removeAllListeners();
+
+    // Shutdown context manager
+    await this.contextManager.shutdown();
+
     this.logger.info('Coordinator stopped');
   }
 
