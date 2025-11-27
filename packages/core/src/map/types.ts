@@ -51,6 +51,10 @@ export interface MapOptions {
   includeHotPaths?: boolean;
   /** Maximum hot paths to show (default: 5) */
   maxHotPaths?: number;
+  /** Use smart depth - expand dense directories, collapse sparse ones (default: false) */
+  smartDepth?: boolean;
+  /** Minimum components to expand a directory when using smart depth (default: 10) */
+  smartDepthThreshold?: number;
   /** Token budget for output (default: 2000) */
   tokenBudget?: number;
 }

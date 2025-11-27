@@ -18,6 +18,8 @@ const DEFAULT_OPTIONS: Required<MapOptions> = {
   maxExportsPerDir: 5,
   includeHotPaths: true,
   maxHotPaths: 5,
+  smartDepth: false,
+  smartDepthThreshold: 10,
   tokenBudget: 2000,
 };
 
@@ -98,8 +100,12 @@ function buildDirectoryTree(docs: SearchResult[], opts: Required<MapOptions>): M
     insertIntoTree(root, dir, dirDocs, opts);
   }
 
-  // Prune tree to depth
-  pruneToDepth(root, opts.depth);
+  // Prune tree to depth (smart or fixed)
+  if (opts.smartDepth) {
+    smartPruneTree(root, opts.depth, opts.smartDepthThreshold);
+  } else {
+    pruneToDepth(root, opts.depth);
+  }
 
   // Sort children alphabetically
   sortTree(root);
@@ -203,6 +209,38 @@ function pruneToDepth(node: MapNode, depth: number, currentDepth = 0): void {
 
   for (const child of node.children) {
     pruneToDepth(child, depth, currentDepth + 1);
+  }
+}
+
+/**
+ * Smart prune tree - expand dense directories, collapse sparse ones
+ * Uses information density heuristic: expand if componentCount >= threshold
+ */
+function smartPruneTree(
+  node: MapNode,
+  maxDepth: number,
+  threshold: number,
+  currentDepth = 0
+): void {
+  // Always stop at max depth
+  if (currentDepth >= maxDepth) {
+    node.children = [];
+    return;
+  }
+
+  // For each child, decide whether to expand or collapse
+  for (const child of node.children) {
+    // Expand if:
+    // 1. We're within first 2 levels (always show some structure)
+    // 2. OR the child has enough components to be "interesting"
+    const shouldExpand = currentDepth < 2 || child.componentCount >= threshold;
+
+    if (shouldExpand) {
+      smartPruneTree(child, maxDepth, threshold, currentDepth + 1);
+    } else {
+      // Collapse this branch - it's too sparse to be interesting
+      child.children = [];
+    }
   }
 }
 
