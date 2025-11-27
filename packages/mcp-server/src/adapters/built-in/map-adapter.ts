@@ -6,6 +6,7 @@
 import {
   formatCodebaseMap,
   generateCodebaseMap,
+  LocalGitExtractor,
   type MapOptions,
   type RepositoryIndexer,
 } from '@lytics/dev-agent-core';
@@ -21,6 +22,11 @@ export interface MapAdapterConfig {
    * Repository indexer instance
    */
   repositoryIndexer: RepositoryIndexer;
+
+  /**
+   * Repository path for git operations
+   */
+  repositoryPath?: string;
 
   /**
    * Default depth for map generation
@@ -46,11 +52,13 @@ export class MapAdapter extends ToolAdapter {
   };
 
   private indexer: RepositoryIndexer;
-  private config: Required<MapAdapterConfig>;
+  private repositoryPath?: string;
+  private config: Required<Omit<MapAdapterConfig, 'repositoryPath'>>;
 
   constructor(config: MapAdapterConfig) {
     super();
     this.indexer = config.repositoryIndexer;
+    this.repositoryPath = config.repositoryPath;
     this.config = {
       repositoryIndexer: config.repositoryIndexer,
       defaultDepth: config.defaultDepth ?? 2,
@@ -96,6 +104,12 @@ export class MapAdapter extends ToolAdapter {
             maximum: 10000,
             default: this.config.defaultTokenBudget,
           },
+          includeChangeFrequency: {
+            type: 'boolean',
+            description:
+              'Include change frequency (commits per directory) - requires git access (default: false)',
+            default: false,
+          },
         },
         required: [],
       },
@@ -108,11 +122,13 @@ export class MapAdapter extends ToolAdapter {
       focus,
       includeExports = true,
       tokenBudget = this.config.defaultTokenBudget,
+      includeChangeFrequency = false,
     } = args as {
       depth?: number;
       focus?: string;
       includeExports?: boolean;
       tokenBudget?: number;
+      includeChangeFrequency?: boolean;
     };
 
     // Validate depth
@@ -155,6 +171,7 @@ export class MapAdapter extends ToolAdapter {
         focus,
         includeExports,
         tokenBudget,
+        includeChangeFrequency,
       });
 
       const mapOptions: MapOptions = {
@@ -162,10 +179,17 @@ export class MapAdapter extends ToolAdapter {
         focus: focus || '',
         includeExports,
         tokenBudget,
+        includeChangeFrequency,
       };
 
+      // Create git extractor if change frequency is requested
+      const gitExtractor =
+        includeChangeFrequency && this.repositoryPath
+          ? new LocalGitExtractor(this.repositoryPath)
+          : undefined;
+
       // Generate the map
-      const map = await generateCodebaseMap(this.indexer, mapOptions);
+      const map = await generateCodebaseMap({ indexer: this.indexer, gitExtractor }, mapOptions);
 
       // Format the output
       let content = formatCodebaseMap(map, mapOptions);
@@ -179,10 +203,10 @@ export class MapAdapter extends ToolAdapter {
         let reducedDepth = depth;
         while (tokens > tokenBudget && reducedDepth > 1) {
           reducedDepth--;
-          const reducedMap = await generateCodebaseMap(this.indexer, {
-            ...mapOptions,
-            depth: reducedDepth,
-          });
+          const reducedMap = await generateCodebaseMap(
+            { indexer: this.indexer, gitExtractor },
+            { ...mapOptions, depth: reducedDepth }
+          );
           content = formatCodebaseMap(reducedMap, { ...mapOptions, depth: reducedDepth });
           tokens = estimateTokensForText(content);
           truncated = true;

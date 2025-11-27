@@ -657,4 +657,95 @@ describe('Codebase Map', () => {
       expect(map.totalComponents).toBe(1);
     });
   });
+
+  describe('Change Frequency', () => {
+    it('should include change frequency when enabled with git extractor', async () => {
+      const mockGitExtractor = {
+        getCommits: vi.fn().mockResolvedValue([
+          {
+            hash: 'abc123',
+            shortHash: 'abc123',
+            subject: 'feat: test',
+            message: 'feat: test',
+            body: '',
+            author: { name: 'Test', email: 'test@test.com', date: new Date().toISOString() },
+            committer: { name: 'Test', email: 'test@test.com', date: new Date().toISOString() },
+            files: [],
+            stats: { additions: 0, deletions: 0, filesChanged: 0 },
+            refs: { branches: [], tags: [], issueRefs: [], prRefs: [] },
+            parents: [],
+          },
+          {
+            hash: 'def456',
+            shortHash: 'def456',
+            subject: 'fix: test',
+            message: 'fix: test',
+            body: '',
+            author: {
+              name: 'Test',
+              email: 'test@test.com',
+              date: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(), // 45 days ago
+            },
+            committer: {
+              name: 'Test',
+              email: 'test@test.com',
+              date: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
+            },
+            files: [],
+            stats: { additions: 0, deletions: 0, filesChanged: 0 },
+            refs: { branches: [], tags: [], issueRefs: [], prRefs: [] },
+            parents: [],
+          },
+        ]),
+      };
+
+      const indexer = createMockIndexer(mockSearchResults);
+      const map = await generateCodebaseMap(
+        { indexer, gitExtractor: mockGitExtractor as any },
+        { includeChangeFrequency: true }
+      );
+
+      // Root should have change frequency
+      expect(map.root.changeFrequency).toBeDefined();
+      expect(map.root.changeFrequency?.last90Days).toBeGreaterThan(0);
+    });
+
+    it('should not include change frequency when disabled', async () => {
+      const indexer = createMockIndexer(mockSearchResults);
+      const map = await generateCodebaseMap(indexer, { includeChangeFrequency: false });
+
+      expect(map.root.changeFrequency).toBeUndefined();
+    });
+
+    it('should format change frequency in output', async () => {
+      const mockGitExtractor = {
+        getCommits: vi.fn().mockResolvedValue([
+          {
+            hash: 'abc123',
+            shortHash: 'abc123',
+            subject: 'feat: test',
+            message: 'feat: test',
+            body: '',
+            author: { name: 'Test', email: 'test@test.com', date: new Date().toISOString() },
+            committer: { name: 'Test', email: 'test@test.com', date: new Date().toISOString() },
+            files: [],
+            stats: { additions: 0, deletions: 0, filesChanged: 0 },
+            refs: { branches: [], tags: [], issueRefs: [], prRefs: [] },
+            parents: [],
+          },
+        ]),
+      };
+
+      const indexer = createMockIndexer(mockSearchResults);
+      const map = await generateCodebaseMap(
+        { indexer, gitExtractor: mockGitExtractor as any },
+        { includeChangeFrequency: true }
+      );
+
+      const formatted = formatCodebaseMap(map, { includeChangeFrequency: true });
+
+      // Should include some frequency indicator
+      expect(formatted).toContain('commits');
+    });
+  });
 });
