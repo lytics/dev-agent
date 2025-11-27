@@ -212,5 +212,6 @@ export class PlannerAgent implements Agent {
   }
 }
 
+export type * from './context-types';
 // Export types
 export type * from './types';
