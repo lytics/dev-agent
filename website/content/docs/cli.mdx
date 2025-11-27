@@ -1,0 +1,290 @@
+# CLI Reference
+
+The `dev` command-line interface provides local access to dev-agent's code intelligence features.
+
+## Installation
+
+```bash
+npm install -g dev-agent
+```
+
+## Commands
+
+### `dev init`
+
+Initialize dev-agent in your repository.
+
+```bash
+dev init
+```
+
+Creates a `.dev-agent.json` configuration file with default settings.
+
+### `dev index`
+
+Index your repository for semantic search.
+
+```bash
+dev index .
+dev index /path/to/repo
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `-f, --force` | Force re-index even if unchanged |
+| `-v, --verbose` | Show verbose output |
+
+### `dev search`
+
+Search your indexed code semantically.
+
+```bash
+dev search "authentication logic"
+dev search "error handling" --limit 5 --threshold 0.4
+```
+
+**Options:**
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-l, --limit <n>` | Maximum results | 10 |
+| `-t, --threshold <n>` | Minimum similarity (0-1) | 0.7 |
+| `--json` | Output as JSON | false |
+
+**Threshold Guide:**
+- `0.7+` — Precise matches only
+- `0.4-0.6` — Balanced (good for most searches)
+- `0.25-0.3` — Exploratory (finds related concepts)
+
+### `dev explore`
+
+Explore code patterns and relationships.
+
+```bash
+# Find patterns semantically
+dev explore pattern "error handling" --limit 5
+
+# Find code similar to a file
+dev explore similar path/to/file.ts
+```
+
+**Options:**
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-l, --limit <n>` | Maximum results | 10 |
+| `-t, --threshold <n>` | Minimum similarity | 0.7 |
+
+### `dev plan`
+
+Assemble context for implementing a GitHub issue.
+
+```bash
+dev plan 42
+dev plan 42 --include-comments --include-history
+```
+
+**Options:**
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--include-comments` | Include issue comments | true |
+| `--include-history` | Include related PRs/issues | true |
+| `--token-budget <n>` | Max tokens for output | 4000 |
+
+### `dev gh`
+
+Index and search GitHub issues/PRs.
+
+```bash
+# Index GitHub metadata
+dev gh index
+
+# Search issues/PRs
+dev gh search "authentication bug"
+```
+
+### `dev update`
+
+Incrementally update the index with changed files.
+
+```bash
+dev update
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `-v, --verbose` | Show verbose output |
+
+### `dev stats`
+
+Show indexing statistics.
+
+```bash
+dev stats
+dev stats --json
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--json` | Output as JSON |
+
+### `dev clean`
+
+Remove all indexed data.
+
+```bash
+dev clean --force
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `-f, --force` | Skip confirmation prompt |
+
+### `dev storage`
+
+Manage storage locations.
+
+```bash
+dev storage path     # Show storage path
+dev storage size     # Show storage size
+```
+
+### `dev compact`
+
+Compact the vector database to reclaim space.
+
+```bash
+dev compact
+```
+
+---
+
+## MCP Commands
+
+Commands for Model Context Protocol integration with AI tools.
+
+### `dev mcp start`
+
+Start the MCP server for AI tool integration.
+
+```bash
+dev mcp start
+dev mcp start --verbose
+```
+
+**Options:**
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-t, --transport <type>` | Transport type (stdio/http) | stdio |
+| `-p, --port <port>` | Port for HTTP transport | 3000 |
+| `-v, --verbose` | Verbose logging | false |
+
+### `dev mcp install`
+
+Install dev-agent as an MCP server in Claude Code or Cursor.
+
+```bash
+# Install for Claude Code
+dev mcp install
+
+# Install for Cursor
+dev mcp install --cursor
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `-r, --repository <path>` | Repository path (default: cwd) |
+| `--cursor` | Install for Cursor instead of Claude Code |
+
+### `dev mcp uninstall`
+
+Remove dev-agent MCP server from Claude Code or Cursor.
+
+```bash
+dev mcp uninstall
+dev mcp uninstall --cursor
+```
+
+### `dev mcp list`
+
+List all configured MCP servers.
+
+```bash
+dev mcp list
+dev mcp list --cursor
+```
+
+---
+
+## Configuration
+
+The `.dev-agent.json` file configures the indexer:
+
+```json
+{
+  "repositoryPath": "/path/to/repo",
+  "vectorStorePath": ".dev-agent/vectors.lance",
+  "embeddingModel": "Xenova/all-MiniLM-L6-v2",
+  "dimension": 384,
+  "excludePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.git/**"
+  ],
+  "languages": ["typescript", "javascript", "markdown"]
+}
+```
+
+---
+
+## Examples
+
+### Basic Workflow
+
+```bash
+# Initialize and index
+dev init
+dev index .
+
+# Search for code
+dev search "user authentication"
+
+# View statistics
+dev stats
+```
+
+### Integration with Cursor
+
+```bash
+# Index your project
+dev index .
+
+# Install MCP server
+dev mcp install --cursor
+
+# Restart Cursor - tools are now available!
+```
+
+### Scripting with JSON Output
+
+```bash
+# Get file paths from search
+dev search "coordinator" --json | jq '.[].metadata.path' | sort -u
+
+# Check if indexed
+dev stats --json | jq '.filesIndexed'
+```
+
+### Exploratory Search
+
+```bash
+# Lower threshold for broader matches
+dev search "architectural patterns" --threshold 0.25 --limit 10
+
+# Find similar code
+dev explore similar src/utils/retry.ts --threshold 0.3
+```
+
