@@ -75,40 +75,76 @@ export class TypeScriptScanner implements Scanner {
   ): Document[] {
     const documents: Document[] = [];
 
+    // Extract file-level imports once (shared by all components in this file)
+    const imports = this.extractImports(sourceFile);
+
     // Extract functions
     for (const fn of sourceFile.getFunctions()) {
-      const doc = this.extractFunction(fn, relativeFile);
+      const doc = this.extractFunction(fn, relativeFile, imports);
       if (doc) documents.push(doc);
     }
 
     // Extract classes
     for (const cls of sourceFile.getClasses()) {
-      const doc = this.extractClass(cls, relativeFile);
+      const doc = this.extractClass(cls, relativeFile, imports);
       if (doc) documents.push(doc);
 
       // Extract methods
       for (const method of cls.getMethods()) {
-        const methodDoc = this.extractMethod(method, cls.getName() || 'Anonymous', relativeFile);
+        const methodDoc = this.extractMethod(
+          method,
+          cls.getName() || 'Anonymous',
+          relativeFile,
+          imports
+        );
         if (methodDoc) documents.push(methodDoc);
       }
     }
 
     // Extract interfaces
     for (const iface of sourceFile.getInterfaces()) {
-      const doc = this.extractInterface(iface, relativeFile);
+      const doc = this.extractInterface(iface, relativeFile, imports);
       if (doc) documents.push(doc);
     }
 
     // Extract type aliases
     for (const typeAlias of sourceFile.getTypeAliases()) {
-      const doc = this.extractTypeAlias(typeAlias, relativeFile);
+      const doc = this.extractTypeAlias(typeAlias, relativeFile, imports);
       if (doc) documents.push(doc);
     }
 
     return documents;
   }
 
-  private extractFunction(fn: FunctionDeclaration, file: string): Document | null {
+  /**
+   * Extract import module specifiers from a source file
+   * Handles: relative imports, package imports, scoped packages, node builtins
+   */
+  private extractImports(sourceFile: SourceFile): string[] {
+    const imports: string[] = [];
+
+    // Regular imports: import { x } from "module"
+    for (const importDecl of sourceFile.getImportDeclarations()) {
+      const moduleSpecifier = importDecl.getModuleSpecifierValue();
+      imports.push(moduleSpecifier);
+    }
+
+    // Re-exports: export { x } from "module"
+    for (const exportDecl of sourceFile.getExportDeclarations()) {
+      const moduleSpecifier = exportDecl.getModuleSpecifierValue();
+      if (moduleSpecifier) {
+        imports.push(moduleSpecifier);
+      }
+    }
+
+    return imports;
+  }
+
+  private extractFunction(
+    fn: FunctionDeclaration,
+    file: string,
+    imports: string[]
+  ): Document | null {
     const name = fn.getName();
     if (!name) return null; // Skip anonymous functions
 
@@ -143,11 +179,12 @@ export class TypeScriptScanner implements Scanner {
         exported: isExported,
         docstring: docComment,
         snippet,
+        imports,
       },
     };
   }
 
-  private extractClass(cls: ClassDeclaration, file: string): Document | null {
+  private extractClass(cls: ClassDeclaration, file: string, imports: string[]): Document | null {
     const name = cls.getName();
     if (!name) return null;
 
@@ -188,6 +225,7 @@ export class TypeScriptScanner implements Scanner {
         exported: isExported,
         docstring: docComment,
         snippet,
+        imports,
       },
     };
   }
@@ -195,7 +233,8 @@ export class TypeScriptScanner implements Scanner {
   private extractMethod(
     method: MethodDeclaration,
     className: string,
-    file: string
+    file: string,
+    imports: string[]
   ): Document | null {
     const name = method.getName();
     if (!name) return null;
@@ -230,11 +269,16 @@ export class TypeScriptScanner implements Scanner {
         exported: isPublic,
         docstring: docComment,
         snippet,
+        imports,
       },
     };
   }
 
-  private extractInterface(iface: InterfaceDeclaration, file: string): Document | null {
+  private extractInterface(
+    iface: InterfaceDeclaration,
+    file: string,
+    imports: string[]
+  ): Document | null {
     const name = iface.getName();
     const startLine = iface.getStartLineNumber();
     const endLine = iface.getEndLineNumber();
@@ -272,11 +316,16 @@ export class TypeScriptScanner implements Scanner {
         exported: isExported,
         docstring: docComment,
         snippet,
+        imports,
       },
     };
   }
 
-  private extractTypeAlias(typeAlias: TypeAliasDeclaration, file: string): Document | null {
+  private extractTypeAlias(
+    typeAlias: TypeAliasDeclaration,
+    file: string,
+    imports: string[]
+  ): Document | null {
     const name = typeAlias.getName();
     const startLine = typeAlias.getStartLineNumber();
     const endLine = typeAlias.getEndLineNumber();
@@ -309,6 +358,7 @@ export class TypeScriptScanner implements Scanner {
         exported: isExported,
         docstring: docComment,
         snippet,
+        imports,
       },
     };
   }

@@ -27,6 +27,7 @@ export interface DocumentMetadata {
   exported: boolean; // Is it a public API?
   docstring?: string; // Documentation comment
   snippet?: string; // Actual code content (truncated if large)
+  imports?: string[]; // File-level imports (module specifiers)
 
   // Extensible for future use
   custom?: Record<string, unknown>;
