@@ -22,6 +22,7 @@ import {
   GitHubAdapter,
   HealthAdapter,
   PlanAdapter,
+  RefsAdapter,
   SearchAdapter,
   StatusAdapter,
 } from '../src/adapters/built-in';
@@ -180,6 +181,11 @@ async function main() {
       githubStatePath: filePaths.githubState,
     });
 
+    const refsAdapter = new RefsAdapter({
+      repositoryIndexer: indexer,
+      defaultLimit: 20,
+    });
+
     // Create MCP server with coordinator
     const server = new MCPServer({
       serverInfo: {
@@ -198,6 +204,7 @@ async function main() {
         exploreAdapter,
         githubAdapter,
         healthAdapter,
+        refsAdapter,
       ],
       coordinator,
     });
