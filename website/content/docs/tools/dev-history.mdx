@@ -1,0 +1,124 @@
+# dev_history
+
+Semantic search over git commit history.
+
+## Overview
+
+`dev_history` provides intelligent access to git history that goes beyond `git log --grep`:
+
+- **Semantic search** — Find commits by meaning, not just text matching
+- **File history** — Track file changes with rename detection
+- **Issue/PR refs** — Extracted from commit messages
+- **Token-budgeted** — Output fits within specified limits
+
+This helps AI assistants understand *who changed what and why*.
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `query` | string | - | Semantic search query (required for search mode) |
+| `file` | string | - | File path for history (required for file mode) |
+| `mode` | `"search"` \| `"file"` | `"search"` | Search commits or get file history |
+| `limit` | number | `20` | Maximum commits to return |
+| `since` | string | - | Start date (ISO format or relative like "30 days ago") |
+| `until` | string | - | End date (ISO format or relative) |
+| `author` | string | - | Filter by author name or email |
+| `tokenBudget` | number | `2000` | Max tokens for output |
+| `format` | `"compact"` \| `"verbose"` | `"compact"` | Output format |
+
+## Example Output
+
+### Semantic Search
+
+```
+dev_history: { query: "authentication token fix" }
+```
+
+```markdown
+# Git History: "authentication token fix"
+
+## Commits (5 results)
+
+### 1. [92%] Fix JWT token refresh race condition
+**Hash:** `a1b2c3d` | **Author:** alice | **Date:** 2024-01-15
+**Files:** `src/auth/token.ts`, `src/auth/refresh.ts`
+**Refs:** #42, PR #45
+
+Resolved issue where concurrent token refreshes could cause duplicate sessions.
+
+---
+
+### 2. [87%] Add token expiry validation
+**Hash:** `e4f5g6h` | **Author:** bob | **Date:** 2024-01-10
+**Files:** `src/auth/validate.ts`
+**Refs:** #38
+
+Added middleware to check token expiration before processing requests.
+```
+
+### File History
+
+```
+dev_history: { mode: "file", file: "src/auth/middleware.ts" }
+```
+
+```markdown
+# File History: src/auth/middleware.ts
+
+## Changes (8 commits)
+
+| Date | Author | Message | Lines |
+|------|--------|---------|-------|
+| 2024-01-15 | alice | Fix JWT token refresh race condition | +12 -5 |
+| 2024-01-10 | bob | Add token expiry validation | +45 -0 |
+| 2024-01-05 | alice | Refactor auth middleware for clarity | +20 -35 |
+| 2023-12-20 | carol | Initial authentication middleware | +150 -0 |
+```
+
+## How It Works
+
+1. **Indexing** — Commit messages are embedded and stored in vector storage
+2. **Semantic search** — Queries are embedded and matched against commit embeddings
+3. **File history** — Uses `git log --follow` for rename tracking
+4. **Reference extraction** — Parses `#123`, `fixes #42`, `PR #45` from messages
+
+## Use Cases
+
+### Finding Related Changes
+
+```
+Find commits related to the database connection pooling issue
+```
+
+### Understanding Prior Work
+
+```
+What changes were made to authentication in the last month?
+```
+
+### Tracking File Evolution
+
+```
+Show me the history of src/core/indexer.ts
+```
+
+### Finding Bug Fixes
+
+```
+Find commits that fixed memory leaks
+```
+
+## Tips
+
+- **Use natural language** — "JWT refresh bug" not "fix: jwt"
+- **Combine with `dev_plan`** — Related commits are included automatically
+- **Check file history** — Before major refactors, understand the evolution
+- **Filter by author** — Find changes by specific team members
+
+## Related Tools
+
+- [`dev_plan`](/docs/tools/dev-plan) — Includes related commits in context
+- [`dev_map`](/docs/tools/dev-map) — Shows change frequency indicators
+- [`dev_search`](/docs/tools/dev-search) — Search code, not commits
+

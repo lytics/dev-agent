@@ -103,6 +103,10 @@ dev_map:
 dev_map:
   includeHotPaths: true
   smartDepth: true
+
+# Show change frequency (v0.4+)
+dev_map:
+  includeChangeFrequency: true
 ```
 
 **Output shows:**
@@ -110,6 +114,40 @@ dev_map:
 - Component counts per directory
 - Exported symbols with signatures
 - Hot paths (frequently referenced files)
+- Change frequency indicators (🔥 hot, ✏️ active, 📝 recent)
+
+---
+
+### `dev_history` - Git History Search ✨ v0.4
+
+Semantic search over git commits:
+
+```
+# Search commits by meaning
+dev_history:
+  query: "authentication token fix"
+
+# Get file history
+dev_history:
+  mode: "file"
+  file: "src/auth/middleware.ts"
+
+# Filter by author
+dev_history:
+  query: "performance optimization"
+  author: "alice"
+
+# Recent commits only
+dev_history:
+  query: "bug fix"
+  since: "30 days ago"
+```
+
+**Output shows:**
+- Commits with relevance scores
+- Author and date
+- Changed files
+- Issue/PR references extracted from messages
 
 ---
 
@@ -122,7 +160,7 @@ Get rich context for implementing a GitHub issue:
 dev_plan:
   issue: 42
 
-# Full context package
+# Full context package (v0.4+)
 dev_plan:
   issue: 42
   includeCode: true
@@ -133,6 +171,7 @@ dev_plan:
 **Returns:**
 - Issue details (title, body, labels, comments)
 - Relevant code snippets from semantic search
+- **Related commits** from git history (v0.4+)
 - Codebase patterns (test conventions, etc.)
 - Related issues/PRs
 
@@ -238,7 +277,12 @@ dev_health:
    dev_refs: { name: "suspectFunction", direction: "callees" }
    ```
 
-3. **Find similar issues:**
+3. **Find related commits:**
+   ```
+   dev_history: { query: "similar bug fix" }
+   ```
+
+4. **Find similar issues:**
    ```
    dev_gh: { action: "search", query: "similar error" }
    ```
@@ -259,10 +303,15 @@ dev_health:
 
 1. **Understand the change area:**
    ```
-   dev_map: { focus: "path/to/changed/dir" }
+   dev_map: { focus: "path/to/changed/dir", includeChangeFrequency: true }
    ```
 
-2. **Check impact:**
+2. **Check file history:**
+   ```
+   dev_history: { mode: "file", file: "path/to/changed/file.ts" }
+   ```
+
+3. **Check impact:**
    ```
    dev_refs: { name: "changedFunction", direction: "callers" }
    ```

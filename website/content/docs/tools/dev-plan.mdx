@@ -8,6 +8,7 @@ Assemble rich context for implementing GitHub issues.
 
 - Full issue content with comments
 - Relevant code snippets from semantic search
+- **Related commits** from git history (v0.4+)
 - Detected codebase patterns
 - Metadata for token budgeting
 
@@ -20,6 +21,7 @@ Assemble rich context for implementing GitHub issues.
 | `issue` | number | required | GitHub issue number |
 | `format` | `"compact"` \| `"verbose"` | `"compact"` | Output format |
 | `includeCode` | boolean | `true` | Include relevant code snippets |
+| `includeHistory` | boolean | `true` | Include related commits ✨ v0.4 |
 | `includePatterns` | boolean | `true` | Include codebase patterns |
 | `tokenBudget` | number | `4000` | Max tokens for output |
 
@@ -72,6 +74,16 @@ export function validateBody(schema: Schema) {
 - **Test naming:** *.test.ts
 - **Test location:** __tests__/
 
+## Related Commits ✨ v0.4
+
+### [92%] Add user preferences schema
+**Hash:** `a1b2c3d` | **Author:** bob | **Date:** 2024-01-10
+Related to preferences feature groundwork.
+
+### [85%] Implement validation middleware
+**Hash:** `e4f5g6h` | **Author:** alice | **Date:** 2024-01-05
+Similar pattern for request validation.
+
 ---
 *Context assembled at 2024-01-20T10:30:00Z | ~1250 tokens*
 ```
@@ -113,8 +125,9 @@ export function validateBody(schema: Schema) {
 
 1. **Fetch issue** — Retrieves issue with comments via GitHub CLI
 2. **Search code** — Finds relevant code using semantic search
-3. **Detect patterns** — Identifies test naming and location patterns
-4. **Assemble context** — Packages everything for LLM consumption
+3. **Search history** — Finds related commits via semantic search (v0.4+)
+4. **Detect patterns** — Identifies test naming and location patterns
+5. **Assemble context** — Packages everything for LLM consumption
 
 ## Requirements
 
@@ -168,6 +181,7 @@ In v0.2, `dev_plan` generated heuristic task breakdowns with estimates. In v0.3+
 
 ## Related Tools
 
+- [`dev_history`](/docs/tools/dev-history) — Search git history directly
 - [`dev_search`](/docs/tools/dev-search) — Search for more relevant code
 - [`dev_refs`](/docs/tools/dev-refs) — Understand relationships in relevant code
 - [`dev_gh`](/docs/tools/dev-gh) — Search related issues/PRs

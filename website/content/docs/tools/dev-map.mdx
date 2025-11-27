@@ -7,10 +7,11 @@ Get a high-level overview of your codebase structure.
 `dev_map` generates a hierarchical view of your repository showing:
 - Directory structure with component counts
 - **Hot Paths** — Most referenced files in the codebase
+- **Change Frequency** — Which directories are actively changing (v0.4+)
 - **Exports** — Public API with function signatures
 - **Smart Depth** — Adaptive expansion based on density
 
-This helps AI assistants quickly understand codebase organization.
+This helps AI assistants quickly understand codebase organization and activity.
 
 ## Parameters
 
@@ -20,10 +21,13 @@ This helps AI assistants quickly understand codebase organization.
 | `focus` | string | `""` | Focus on specific directory |
 | `includeExports` | boolean | `true` | Show exported symbols |
 | `includeHotPaths` | boolean | `true` | Show most referenced files |
+| `includeChangeFrequency` | boolean | `false` | Show change frequency indicators ✨ v0.4 |
 | `smartDepth` | boolean | `false` | Adaptive depth based on density |
 | `tokenBudget` | number | `2000` | Max tokens for output |
 
 ## Example Output
+
+### With Change Frequency (v0.4+)
 
 ```markdown
 # Codebase Map
@@ -36,17 +40,26 @@ This helps AI assistants quickly understand codebase organization.
 ## Directory Structure
 
 └── packages/ (195 components)
-    ├── core/ (45 components)
+    ├── 🔥 core/ (45 components) — 12 commits in 30d
     │   ├── src/ (42 components)
     │   │   └── exports: function search(query): Promise<Result[]>, class RepositoryIndexer
     │   └── dist/
-    ├── mcp-server/ (28 components)
+    ├── ✏️ mcp-server/ (28 components) — 3 commits in 30d
     │   └── exports: class MCPServer, class SearchAdapter
-    ├── cli/ (15 components)
+    ├── 📝 cli/ (15 components) — 2 commits in 90d
     └── subagents/ (35 components)
 
 **Total:** 195 indexed components across 24 directories
 ```
+
+### Change Frequency Indicators
+
+| Indicator | Meaning |
+|-----------|---------|
+| 🔥 | **Hot** — 5+ commits in the last 30 days |
+| ✏️ | **Active** — 1-4 commits in the last 30 days |
+| 📝 | **Recent** — Commits in the last 90 days |
+| (none) | No recent changes |
 
 ## Features
 
@@ -58,6 +71,21 @@ Shows the most referenced files in your codebase. These are typically:
 - Central orchestrators
 
 Useful for understanding which code is most critical.
+
+### Change Frequency ✨ v0.4
+
+Shows which directories are actively being modified:
+
+```json
+{
+  "includeChangeFrequency": true
+}
+```
+
+This helps AI assistants:
+- Identify areas under active development
+- Avoid conflicts with ongoing work
+- Understand project focus areas
 
 ### Smart Depth
 
@@ -129,6 +157,7 @@ Focus on packages/core/src with depth 4 to see all scanner components
 
 ## Related Tools
 
+- [`dev_history`](/docs/tools/dev-history) — Semantic search over git commits
 - [`dev_refs`](/docs/tools/dev-refs) — Query relationships for hot path files
 - [`dev_search`](/docs/tools/dev-search) — Search within focused area
 - [`dev_status`](/docs/tools/dev-status) — Check indexing completeness

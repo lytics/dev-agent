@@ -3,6 +3,7 @@ export default {
   'dev-search': 'dev_search',
   'dev-refs': 'dev_refs',
   'dev-map': 'dev_map',
+  'dev-history': 'dev_history',
   'dev-plan': 'dev_plan',
   'dev-explore': 'dev_explore',
   'dev-gh': 'dev_gh',

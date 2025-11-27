@@ -4,15 +4,16 @@
 [![pnpm](https://img.shields.io/badge/pnpm-8.15.4-orange.svg)](https://pnpm.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**Local-first repository context provider for AI tools. Semantic code search, relationship queries, and codebase mapping via MCP.**
+**Local-first repository context provider for AI tools. Semantic code search, git history, relationship queries, and codebase mapping via MCP.**
 
 ## What is dev-agent?
 
 dev-agent provides **rich, structured context** to AI assistants like Claude and Cursor. Instead of AI tools reading files one at a time, dev-agent gives them:
 
 - 🔍 **Semantic search** with code snippets and relationships
-- 🗺️ **Codebase maps** showing structure and hot paths
+- 🗺️ **Codebase maps** showing structure and change frequency
 - 🔗 **Relationship queries** (what calls what)
+- 📜 **Git history search** (who changed what and why)
 - 📋 **Issue context** assembled for planning
 
 **Philosophy:** Provide data, let LLMs reason. We don't try to be smart with heuristics—we provide comprehensive context so AI assistants can be smart.
@@ -36,7 +37,7 @@ dev mcp install           # For Claude Code
 
 ## MCP Tools
 
-When integrated with Cursor or Claude Code, dev-agent provides 8 powerful tools:
+When integrated with Cursor or Claude Code, dev-agent provides 9 powerful tools:
 
 ### `dev_search` - Semantic Code Search
 Natural language search with rich results including code snippets, imports, and relationships.
@@ -64,17 +65,19 @@ Find what functions validateToken calls
 - File paths and line numbers
 - Relevance scoring
 
-### `dev_map` - Codebase Overview ✨ New in v0.3
-Get a high-level view of repository structure.
+### `dev_map` - Codebase Overview ✨ Enhanced in v0.4
+Get a high-level view of repository structure with change frequency.
 
 ```
 Show me the codebase structure with depth 3
 Focus on the packages/core directory
+Show hot areas with recent changes
 ```
 
 **Features:**
 - Directory tree with component counts
 - **Hot Paths:** Most referenced files
+- **Change Frequency:** 🔥 Hot (5+ commits/30d), ✏️ Active (1-4/30d), 📝 Recent (90d)
 - **Smart Depth:** Adaptive expansion based on density
 - **Signatures:** Function/class signatures in exports
 
@@ -89,13 +92,27 @@ Focus on the packages/core directory
 ## Directory Structure
 
 └── packages/ (195 components)
-    ├── core/ (45 components)
+    ├── 🔥 core/ (45 components) — 12 commits in 30d
     │   └── exports: function search(query): Promise<Result[]>, class RepositoryIndexer
-    ├── mcp-server/ (28 components)
+    ├── ✏️ mcp-server/ (28 components) — 3 commits in 30d
     │   └── exports: class MCPServer, function createAdapter(config): Adapter
 ```
 
-### `dev_plan` - Context Assembly ✨ Refactored in v0.3
+### `dev_history` - Git History Search ✨ New in v0.4
+Semantic search over git commit history.
+
+```
+Find commits about authentication token fixes
+Show history for src/auth/middleware.ts
+```
+
+**Features:**
+- **Semantic search:** Find commits by meaning, not just text
+- **File history:** Track changes with rename detection
+- **Issue/PR refs:** Extracted from commit messages
+- **Token-budgeted output**
+
+### `dev_plan` - Context Assembly ✨ Enhanced in v0.4
 Assemble rich context for implementing GitHub issues.
 
 ```
@@ -105,6 +122,7 @@ Assemble context for issue #42
 **Returns:**
 - Full issue with comments
 - Relevant code snippets from semantic search
+- **Related commits** from git history (new in v0.4)
 - Detected codebase patterns (test naming, locations)
 - Metadata (tokens, timing)
 
@@ -245,6 +263,11 @@ pnpm typecheck
 
 ## Version History
 
+- **v0.4.0** - Intelligent Git History release
+  - New `dev_history` tool for semantic commit search
+  - Enhanced `dev_map` with change frequency indicators (🔥 hot, ✏️ active)
+  - Enhanced `dev_plan` with related commits from git history
+  - New `GitIndexer` and `LocalGitExtractor` in core
 - **v0.3.0** - Context Quality release
   - New `dev_refs` tool for relationship queries
   - Enhanced `dev_map` with hot paths, smart depth, signatures

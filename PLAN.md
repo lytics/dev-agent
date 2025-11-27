@@ -149,7 +149,7 @@ Focus on quality, documentation, and developer experience.
 
 ---
 
-## Current: Intelligent Git History (v0.4.0)
+## Completed: Intelligent Git History (v0.4.0) ✅
 
 > "Who changed what and why" - completing the context picture.
 
@@ -166,11 +166,11 @@ Git history is valuable context that LLMs can't easily access. We add intelligen
 
 | Task | Issue | Status |
 |------|-------|--------|
-| Git types and extractor infrastructure | #91 | 🔲 Todo |
-| Commit indexing in core | #92 | 🔲 Todo |
-| `dev_history` MCP adapter | #93 | 🔲 Todo |
-| Change frequency in `dev_map` | #94 | 🔲 Todo |
-| History integration in `dev_plan` | #95 | 🔲 Todo |
+| Git types and extractor infrastructure | #91 | ✅ Done |
+| Commit indexing in core | #92 | ✅ Done |
+| `dev_history` MCP adapter | #93 | ✅ Done |
+| Change frequency in `dev_map` | #94 | ✅ Done |
+| History integration in `dev_plan` | #95 | ✅ Done |
 
 ### Architecture
 
@@ -179,25 +179,24 @@ Git history is valuable context that LLMs can't easily access. We add intelligen
 - Blame methods stubbed (for future `dev_blame`)
 - Cross-repo `repository` field in types
 
-### Out of Scope (v0.5+)
+---
 
-- `dev_blame` (line-level attribution)
-- PR/issue linking from commits
-- Contributor expertise mapping
-- Cross-repo history
+## Current: Extended Git Intelligence (v0.5.0)
+
+> Building on git history with deeper insights.
+
+### Tasks
+
+| Task | Priority | Status |
+|------|----------|--------|
+| `dev_blame` - line attribution | 🟡 Medium | 🔲 Todo |
+| PR/issue linking from commits | 🟡 Medium | 🔲 Todo |
+| Contributor expertise mapping | 🟢 Low | 🔲 Todo |
+| Cross-repo history | 🟢 Low | 🔲 Todo |
 
 ---
 
-## Future: Extended Intelligence (v0.5+)
-
-### Git History Enhancements
-
-| Feature | Priority |
-|---------|----------|
-| `dev_blame` - line attribution | 🟡 Medium |
-| PR/issue linking from commits | 🟡 Medium |
-| Contributor expertise mapping | 🟢 Low |
-| Cross-repo history | 🟢 Low |
+## Future: Extended Intelligence (v0.6+)
 
 ### Multi-Language Support
 

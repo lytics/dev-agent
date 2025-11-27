@@ -1,6 +1,6 @@
 # MCP Tools Overview
 
-dev-agent provides eight tools through the Model Context Protocol (MCP). These tools give AI assistants deep understanding of your codebase.
+dev-agent provides nine tools through the Model Context Protocol (MCP). These tools give AI assistants deep understanding of your codebase.
 
 ## Available Tools
 
@@ -8,14 +8,21 @@ dev-agent provides eight tools through the Model Context Protocol (MCP). These t
 |------|---------|
 | [`dev_search`](/docs/tools/dev-search) | Semantic code search with snippets |
 | [`dev_refs`](/docs/tools/dev-refs) | Query code relationships (callers/callees) |
-| [`dev_map`](/docs/tools/dev-map) | Codebase structure overview |
+| [`dev_map`](/docs/tools/dev-map) | Codebase structure overview with change frequency |
+| [`dev_history`](/docs/tools/dev-history) | Semantic search over git commits ✨ v0.4 |
 | [`dev_plan`](/docs/tools/dev-plan) | Assemble context for GitHub issues |
 | [`dev_explore`](/docs/tools/dev-explore) | Explore code patterns and relationships |
 | [`dev_gh`](/docs/tools/dev-gh) | Search GitHub issues and PRs |
 | [`dev_status`](/docs/tools/dev-status) | Check repository indexing status |
 | [`dev_health`](/docs/tools/dev-health) | Monitor MCP server health |
 
-## New in v0.3.0
+## New in v0.4.0
+
+- **`dev_history`** — Semantic search over git commit history
+- **`dev_map`** — Change frequency indicators (🔥 hot, ✏️ active, 📝 recent)
+- **`dev_plan`** — Related commits included in context assembly
+
+## v0.3.0
 
 - **`dev_refs`** — Query what calls what and what is called by what
 - **`dev_map`** — Get codebase overview with hot paths and smart depth
@@ -35,6 +42,7 @@ AI Assistant (Cursor/Claude)
         ├── SearchAdapter      → dev_search
         ├── RefsAdapter        → dev_refs
         ├── MapAdapter         → dev_map
+        ├── HistoryAdapter     → dev_history  ✨ v0.4
         ├── PlanAdapter        → dev_plan
         ├── ExploreAdapter     → dev_explore
         ├── GitHubAdapter      → dev_gh
@@ -77,5 +85,6 @@ Most tools support two output formats:
 ## Next Steps
 
 - [dev_search →](/docs/tools/dev-search) — Semantic code search
+- [dev_history →](/docs/tools/dev-history) — Git commit search
 - [dev_refs →](/docs/tools/dev-refs) — Relationship queries
 - [dev_map →](/docs/tools/dev-map) — Codebase overview
