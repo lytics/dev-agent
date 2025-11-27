@@ -2,6 +2,8 @@
  * Vector storage and embedding types
  */
 
+import type { DocumentType } from '../scanner/types';
+
 /**
  * Document to be embedded and stored
  */
@@ -12,12 +14,36 @@ export interface EmbeddingDocument {
 }
 
 /**
+ * Metadata stored in search results
+ * Maps from DocumentMetadata with 'file' renamed to 'path' for convenience
+ *
+ * This interface provides type hints for common fields while allowing
+ * additional custom fields for different use cases (e.g., GitHub indexer).
+ */
+export interface SearchResultMetadata {
+  // Core fields (present in code search results)
+  path?: string; // File path (mapped from DocumentMetadata.file)
+  type?: DocumentType | string; // Type of code element (or custom type)
+  language?: string; // Programming language
+  name?: string; // Symbol name
+  startLine?: number; // Start line number
+  endLine?: number; // End line number
+  exported?: boolean; // Is it a public API?
+  signature?: string; // Full signature
+  docstring?: string; // Documentation comment
+  snippet?: string; // Actual code content (truncated if large)
+  imports?: string[]; // File-level imports (module specifiers)
+  // Allow additional custom fields for extensibility (e.g., GitHub indexer uses 'document')
+  [key: string]: unknown;
+}
+
+/**
  * Search result from vector store
  */
 export interface SearchResult {
   id: string;
   score: number; // Cosine similarity score (0-1)
-  metadata: Record<string, unknown>;
+  metadata: SearchResultMetadata;
 }
 
 /**

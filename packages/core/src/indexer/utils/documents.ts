@@ -39,6 +39,8 @@ export function prepareDocumentsForEmbedding(documents: Document[]): EmbeddingDo
       exported: doc.metadata.exported,
       signature: doc.metadata.signature,
       docstring: doc.metadata.docstring,
+      snippet: doc.metadata.snippet,
+      imports: doc.metadata.imports,
     },
   }));
 }
@@ -72,6 +74,8 @@ export function prepareDocumentForEmbedding(doc: Document): EmbeddingDocument {
       exported: doc.metadata.exported,
       signature: doc.metadata.signature,
       docstring: doc.metadata.docstring,
+      snippet: doc.metadata.snippet,
+      imports: doc.metadata.imports,
     },
   };
 }
