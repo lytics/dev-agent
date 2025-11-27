@@ -92,6 +92,26 @@ export interface RelatedHistory {
 }
 
 /**
+ * Related git commit
+ */
+export interface RelatedCommit {
+  /** Commit hash (short) */
+  hash: string;
+  /** Commit subject line */
+  subject: string;
+  /** Author name */
+  author: string;
+  /** Commit date (ISO) */
+  date: string;
+  /** Files changed */
+  filesChanged: string[];
+  /** Issue/PR references found in commit */
+  issueRefs: number[];
+  /** Relevance score (0-1) */
+  relevanceScore: number;
+}
+
+/**
  * Complete context package for LLM consumption
  */
 export interface ContextPackage {
@@ -103,6 +123,8 @@ export interface ContextPackage {
   codebasePatterns: CodebasePatterns;
   /** Related closed issues/PRs */
   relatedHistory: RelatedHistory[];
+  /** Related git commits (from semantic search) */
+  relatedCommits: RelatedCommit[];
   /** Metadata about the context assembly */
   metadata: ContextMetadata;
 }
@@ -119,6 +141,8 @@ export interface ContextMetadata {
   codeSearchUsed: boolean;
   /** Whether history search was used */
   historySearchUsed: boolean;
+  /** Whether git history was searched */
+  gitHistorySearchUsed: boolean;
   /** Repository path */
   repositoryPath: string;
 }
@@ -133,10 +157,14 @@ export interface ContextAssemblyOptions {
   includeHistory?: boolean;
   /** Include codebase patterns (default: true) */
   includePatterns?: boolean;
+  /** Include git commit history (default: true) */
+  includeGitHistory?: boolean;
   /** Maximum code results (default: 10) */
   maxCodeResults?: number;
   /** Maximum history results (default: 5) */
   maxHistoryResults?: number;
+  /** Maximum git commit results (default: 5) */
+  maxGitCommitResults?: number;
   /** Token budget for output (default: 4000) */
   tokenBudget?: number;
 }

@@ -156,8 +156,21 @@ async function main() {
       defaultSection: 'summary',
     });
 
+    // Create git extractor and indexer (needed by plan and history adapters)
+    const gitExtractor = new LocalGitExtractor(repositoryPath);
+    const gitVectorStorage = new VectorStorage({
+      storePath: `${filePaths.vectors}-git`,
+    });
+    await gitVectorStorage.initialize();
+
+    const gitIndexer = new GitIndexer({
+      extractor: gitExtractor,
+      vectorStorage: gitVectorStorage,
+    });
+
     const planAdapter = new PlanAdapter({
       repositoryIndexer: indexer,
+      gitIndexer,
       repositoryPath,
       defaultFormat: 'compact',
       timeout: 60000, // 60 seconds
@@ -196,19 +209,6 @@ async function main() {
       repositoryPath,
       defaultDepth: 2,
       defaultTokenBudget: 2000,
-    });
-
-    // Create git extractor and indexer for history adapter
-    // Note: GitIndexer uses the same vector storage for commit embeddings
-    const gitExtractor = new LocalGitExtractor(repositoryPath);
-    const gitVectorStorage = new VectorStorage({
-      storePath: `${filePaths.vectors}-git`,
-    });
-    await gitVectorStorage.initialize();
-
-    const gitIndexer = new GitIndexer({
-      extractor: gitExtractor,
-      vectorStorage: gitVectorStorage,
     });
 
     const historyAdapter = new HistoryAdapter({
