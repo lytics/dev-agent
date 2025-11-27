@@ -6,6 +6,7 @@
 export { ExploreAdapter, type ExploreAdapterConfig } from './explore-adapter';
 export { GitHubAdapter, type GitHubAdapterConfig } from './github-adapter';
 export { HealthAdapter, type HealthCheckConfig } from './health-adapter';
+export { MapAdapter, type MapAdapterConfig } from './map-adapter';
 export { PlanAdapter, type PlanAdapterConfig } from './plan-adapter';
 export { RefsAdapter, type RefsAdapterConfig } from './refs-adapter';
 export { SearchAdapter, type SearchAdapterConfig } from './search-adapter';

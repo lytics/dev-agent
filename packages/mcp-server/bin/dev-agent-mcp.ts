@@ -21,6 +21,7 @@ import {
   ExploreAdapter,
   GitHubAdapter,
   HealthAdapter,
+  MapAdapter,
   PlanAdapter,
   RefsAdapter,
   SearchAdapter,
@@ -186,6 +187,12 @@ async function main() {
       defaultLimit: 20,
     });
 
+    const mapAdapter = new MapAdapter({
+      repositoryIndexer: indexer,
+      defaultDepth: 2,
+      defaultTokenBudget: 2000,
+    });
+
     // Create MCP server with coordinator
     const server = new MCPServer({
       serverInfo: {
@@ -205,6 +212,7 @@ async function main() {
         githubAdapter,
         healthAdapter,
         refsAdapter,
+        mapAdapter,
       ],
       coordinator,
     });
