@@ -39,6 +39,14 @@ export interface ResultFormatter {
 }
 
 /**
+ * Detail level for progressive disclosure
+ * - full: snippet + imports + signature
+ * - signature: signature only (no snippet)
+ * - minimal: name + path only
+ */
+export type DetailLevel = 'full' | 'signature' | 'minimal';
+
+/**
  * Formatter options
  */
 export interface FormatterOptions {
@@ -83,7 +91,24 @@ export interface FormatterOptions {
   maxSnippetLines?: number;
 
   /**
-   * Token budget (soft limit)
+   * Token budget (soft limit) - enables progressive disclosure when set
    */
   tokenBudget?: number;
+
+  /**
+   * Enable progressive disclosure based on token budget
+   * When enabled, top results get full detail, lower results get less
+   * (default: true when tokenBudget is set)
+   */
+  progressiveDisclosure?: boolean;
+
+  /**
+   * Number of top results to show with full detail (default: 3)
+   */
+  fullDetailCount?: number;
+
+  /**
+   * Number of results after fullDetailCount to show with signatures (default: 4)
+   */
+  signatureDetailCount?: number;
 }

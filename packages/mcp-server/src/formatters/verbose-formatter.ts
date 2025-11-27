@@ -1,18 +1,24 @@
 /**
  * Verbose Formatter
- * Full-detail formatter that includes signatures, snippets, and metadata
+ * Full-detail formatter with progressive disclosure support
  */
 
 import type { SearchResult } from '@lytics/dev-agent-core';
-import type { FormattedResult, FormatterOptions, ResultFormatter } from './types';
+import type { DetailLevel, FormattedResult, FormatterOptions, ResultFormatter } from './types';
 import { estimateTokensForText } from './utils';
 
 /** Default max snippet lines for verbose mode */
 const DEFAULT_MAX_SNIPPET_LINES = 20;
+/** Default token budget for verbose */
+const DEFAULT_TOKEN_BUDGET = 5000;
+/** Default number of results with full detail */
+const DEFAULT_FULL_DETAIL_COUNT = 3;
+/** Default number of results with signature detail */
+const DEFAULT_SIGNATURE_DETAIL_COUNT = 4;
 
 /**
  * Verbose formatter - includes all available information
- * Returns: path, type, name, signature, imports, snippet, metadata, score
+ * Supports progressive disclosure to fit within token budgets
  */
 export class VerboseFormatter implements ResultFormatter {
   private options: Required<FormatterOptions>;
@@ -23,54 +29,74 @@ export class VerboseFormatter implements ResultFormatter {
       includePaths: options.includePaths ?? true,
       includeLineNumbers: options.includeLineNumbers ?? true,
       includeTypes: options.includeTypes ?? true,
-      includeSignatures: options.includeSignatures ?? true, // Verbose mode includes signatures
-      includeSnippets: options.includeSnippets ?? true, // On by default for verbose
-      includeImports: options.includeImports ?? true, // On by default for verbose
+      includeSignatures: options.includeSignatures ?? true,
+      includeSnippets: options.includeSnippets ?? true,
+      includeImports: options.includeImports ?? true,
       maxSnippetLines: options.maxSnippetLines ?? DEFAULT_MAX_SNIPPET_LINES,
-      tokenBudget: options.tokenBudget ?? 5000,
+      tokenBudget: options.tokenBudget ?? DEFAULT_TOKEN_BUDGET,
+      progressiveDisclosure: options.progressiveDisclosure ?? true,
+      fullDetailCount: options.fullDetailCount ?? DEFAULT_FULL_DETAIL_COUNT,
+      signatureDetailCount: options.signatureDetailCount ?? DEFAULT_SIGNATURE_DETAIL_COUNT,
     };
   }
 
   formatResult(result: SearchResult): string {
+    return this.formatResultWithDetail(result, 'full');
+  }
+
+  /**
+   * Format a result with a specific detail level
+   */
+  formatResultWithDetail(result: SearchResult, level: DetailLevel): string {
     const lines: string[] = [];
 
-    // Header: score + type + name
+    // Always include header
     lines.push(this.formatHeader(result));
 
-    // Path with line range
+    // Path with line range (always include in verbose)
     if (this.options.includePaths && typeof result.metadata.path === 'string') {
       const location = this.formatLocation(result);
       lines.push(`  Location: ${location}`);
     }
 
-    // Signature (if available and enabled)
-    if (this.options.includeSignatures && typeof result.metadata.signature === 'string') {
-      lines.push(`  Signature: ${result.metadata.signature}`);
-    }
+    if (level === 'full') {
+      // Full detail: signature + imports + metadata + snippet
+      if (this.options.includeSignatures && typeof result.metadata.signature === 'string') {
+        lines.push(`  Signature: ${result.metadata.signature}`);
+      }
 
-    // Imports (if enabled)
-    if (this.options.includeImports && Array.isArray(result.metadata.imports)) {
-      const imports = result.metadata.imports as string[];
-      if (imports.length > 0) {
-        lines.push(`  Imports: ${imports.join(', ')}`);
+      if (this.options.includeImports && Array.isArray(result.metadata.imports)) {
+        const imports = result.metadata.imports as string[];
+        if (imports.length > 0) {
+          lines.push(`  Imports: ${imports.join(', ')}`);
+        }
+      }
+
+      const metadata = this.formatMetadata(result);
+      if (metadata) {
+        lines.push(`  Metadata: ${metadata}`);
+      }
+
+      if (this.options.includeSnippets && typeof result.metadata.snippet === 'string') {
+        lines.push('  Code:');
+        const truncatedSnippet = this.truncateSnippet(
+          result.metadata.snippet,
+          this.options.maxSnippetLines
+        );
+        lines.push(this.indentText(truncatedSnippet, 4));
+      }
+    } else if (level === 'signature') {
+      // Signature detail: signature + metadata (no snippet)
+      if (typeof result.metadata.signature === 'string') {
+        lines.push(`  Signature: ${result.metadata.signature}`);
+      }
+
+      const metadata = this.formatMetadata(result);
+      if (metadata) {
+        lines.push(`  Metadata: ${metadata}`);
       }
     }
-
-    // Additional metadata
-    const metadata = this.formatMetadata(result);
-    if (metadata) {
-      lines.push(`  Metadata: ${metadata}`);
-    }
-
-    // Code snippet (if enabled)
-    if (this.options.includeSnippets && typeof result.metadata.snippet === 'string') {
-      lines.push('  Code:');
-      const truncatedSnippet = this.truncateSnippet(
-        result.metadata.snippet,
-        this.options.maxSnippetLines
-      );
-      lines.push(this.indentText(truncatedSnippet, 4));
-    }
+    // 'minimal' level = header + location only
 
     return lines.join('\n');
   }
@@ -145,8 +171,31 @@ export class VerboseFormatter implements ResultFormatter {
       .join('\n');
   }
 
+  /**
+   * Determine detail level based on result position and remaining budget
+   */
+  private getDetailLevel(index: number, remainingBudget: number): DetailLevel {
+    if (!this.options.progressiveDisclosure) {
+      return 'full';
+    }
+
+    // Top N get full detail if budget allows
+    if (index < this.options.fullDetailCount && remainingBudget > 500) {
+      return 'full';
+    }
+
+    // Next M get signatures if budget allows
+    if (
+      index < this.options.fullDetailCount + this.options.signatureDetailCount &&
+      remainingBudget > 150
+    ) {
+      return 'signature';
+    }
+
+    return 'minimal';
+  }
+
   formatResults(results: SearchResult[]): FormattedResult {
-    // Handle empty results
     if (results.length === 0) {
       const content = 'No results found';
       return {
@@ -155,21 +204,43 @@ export class VerboseFormatter implements ResultFormatter {
       };
     }
 
-    // Respect max results
     const limitedResults = results.slice(0, this.options.maxResults);
+    const budget = this.options.tokenBudget;
+    let usedTokens = 0;
+    const formatted: string[] = [];
+    let truncatedCount = 0;
 
-    // Format each result with separator
-    const formatted = limitedResults.map((result, index) => {
-      return `${index + 1}. ${this.formatResult(result)}`;
-    });
+    for (let i = 0; i < limitedResults.length; i++) {
+      const result = limitedResults[i];
+      const remainingBudget = budget - usedTokens;
 
-    // Calculate total tokens (content only, no footer)
+      // Determine detail level
+      const detailLevel = this.getDetailLevel(i, remainingBudget);
+      const formattedResult = `${i + 1}. ${this.formatResultWithDetail(result, detailLevel)}`;
+      const tokens = estimateTokensForText(formattedResult);
+
+      // Check if we have budget (always include at least first result)
+      if (usedTokens + tokens > budget && i > 0) {
+        truncatedCount = limitedResults.length - i;
+        break;
+      }
+
+      formatted.push(formattedResult);
+      usedTokens += tokens;
+    }
+
+    // Add truncation notice if needed
+    if (truncatedCount > 0) {
+      const notice = `\n... ${truncatedCount} more results (token budget reached)`;
+      formatted.push(notice);
+      usedTokens += estimateTokensForText(notice);
+    }
+
     const content = formatted.join('\n\n'); // Double newline for separation
-    const tokens = estimateTokensForText(content);
 
     return {
       content,
-      tokens,
+      tokens: usedTokens,
     };
   }
 
@@ -181,7 +252,6 @@ export class VerboseFormatter implements ResultFormatter {
     }
 
     if (this.options.includeImports && Array.isArray(result.metadata.imports)) {
-      // ~3 tokens per import path
       estimate += (result.metadata.imports as string[]).length * 3;
     }
 
