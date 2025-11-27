@@ -1,6 +1,12 @@
 import type { Connection, Table } from '@lancedb/lancedb';
 import * as lancedb from '@lancedb/lancedb';
-import type { EmbeddingDocument, SearchOptions, SearchResult, VectorStore } from './types';
+import type {
+  EmbeddingDocument,
+  SearchOptions,
+  SearchResult,
+  SearchResultMetadata,
+  VectorStore,
+} from './types';
 
 /**
  * Vector store implementation using LanceDB
@@ -119,7 +125,7 @@ export class LanceDBVectorStore implements VectorStore {
           return {
             id: result.id as string,
             score,
-            metadata: JSON.parse(result.metadata as string) as Record<string, unknown>,
+            metadata: JSON.parse(result.metadata as string) as SearchResultMetadata,
           };
         })
         .filter((result) => result.score >= scoreThreshold);
