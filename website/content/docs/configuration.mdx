@@ -1,0 +1,229 @@
+# Configuration
+
+Dev-agent uses a layered configuration system with sensible defaults.
+
+## Configuration File
+
+Run `dev init` to create a configuration file at `.dev-agent/config.json`:
+
+```json
+{
+  "version": "1.0",
+  "repository": {
+    "path": ".",
+    "excludePatterns": [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.git/**",
+      "**/coverage/**"
+    ],
+    "languages": ["typescript", "javascript", "markdown"]
+  },
+  "mcp": {
+    "adapters": {
+      "search": { "enabled": true },
+      "github": { "enabled": true },
+      "plan": { "enabled": true },
+      "explore": { "enabled": true },
+      "status": { "enabled": false }
+    }
+  }
+}
+```
+
+## Configuration Options
+
+### Repository Settings
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `repository.path` | string | `"."` | Path to repository root |
+| `repository.excludePatterns` | string[] | See below | Glob patterns to exclude |
+| `repository.languages` | string[] | `["typescript", "javascript", "markdown"]` | Languages to index |
+
+**Default Exclude Patterns:**
+- `**/node_modules/**`
+- `**/dist/**`
+- `**/.git/**`
+- `**/coverage/**`
+
+### MCP Adapter Settings
+
+Control which MCP tools are enabled:
+
+| Adapter | Default | Tool | Description |
+|---------|---------|------|-------------|
+| `search` | enabled | `dev_search` | Semantic code search |
+| `github` | enabled | `dev_gh` | GitHub issues/PRs search |
+| `plan` | enabled | `dev_plan` | Context assembly for issues |
+| `explore` | enabled | `dev_explore` | Code exploration |
+| `status` | disabled | `dev_status` | Repository status |
+| `refs` | enabled | `dev_refs` | Relationship queries |
+| `map` | enabled | `dev_map` | Codebase overview |
+
+**Disable an adapter:**
+```json
+{
+  "mcp": {
+    "adapters": {
+      "github": { "enabled": false }
+    }
+  }
+}
+```
+
+## Environment Variables
+
+Configuration values can reference environment variables using `${VAR_NAME}` syntax:
+
+```json
+{
+  "repository": {
+    "path": "${REPO_PATH}"
+  }
+}
+```
+
+**Built-in Environment Variables:**
+
+| Variable | Description | Used By |
+|----------|-------------|---------|
+| `WORKSPACE_FOLDER_PATHS` | Cursor workspace paths | MCP server |
+| `REPOSITORY_PATH` | Explicit repository path | MCP server |
+
+## Storage Locations
+
+Dev-agent stores index data in `~/.dev-agent/indexes/`:
+
+```
+~/.dev-agent/
+└── indexes/
+    └── {hash}/           # Per-repository storage
+        ├── vectors.lance  # Vector embeddings
+        ├── metadata.json  # Repository metadata
+        ├── indexer-state.json
+        └── github-state.json
+```
+
+**Storage path resolution:**
+1. If repository has a git remote → hash of `owner/repo`
+2. Otherwise → hash of absolute path
+
+This means the same repository cloned to different locations shares the same index.
+
+### Check Storage Location
+
+```bash
+dev storage path
+# Output: ~/.dev-agent/indexes/a1b2c3d4/
+
+dev storage size
+# Output: 12.5 MB
+```
+
+## Cursor Integration
+
+Cursor uses a global MCP config at `~/.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "dev-agent": {
+      "command": "dev",
+      "args": ["mcp", "start"]
+    }
+  }
+}
+```
+
+**Automatic workspace detection:**
+- Cursor sets `WORKSPACE_FOLDER_PATHS` automatically
+- Single config works across all projects
+- No per-project configuration needed
+
+Install with:
+```bash
+dev mcp install --cursor
+```
+
+## Claude Code Integration
+
+Claude Code uses the `claude` CLI for MCP configuration:
+
+```bash
+# Install
+dev mcp install
+
+# List servers
+claude mcp list
+
+# Remove
+dev mcp uninstall
+```
+
+## Embedding Model
+
+Dev-agent uses `Xenova/all-MiniLM-L6-v2` for embeddings:
+
+| Property | Value |
+|----------|-------|
+| Model | all-MiniLM-L6-v2 |
+| Dimensions | 384 |
+| Provider | @xenova/transformers |
+| Location | Local (no API calls) |
+
+The model is downloaded on first run (~23MB) and cached locally.
+
+## Advanced: Custom Exclude Patterns
+
+Add project-specific patterns:
+
+```json
+{
+  "repository": {
+    "excludePatterns": [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.git/**",
+      "**/coverage/**",
+      "**/vendor/**",
+      "**/*.generated.ts",
+      "**/legacy/**"
+    ]
+  }
+}
+```
+
+## Troubleshooting
+
+### Config Not Found
+
+```bash
+# Check if config exists
+ls -la .dev-agent/config.json
+
+# Create config
+dev init
+```
+
+### Environment Variable Not Set
+
+If you see `Environment variable X is not set`:
+
+```bash
+# Set the variable
+export REPO_PATH=/path/to/repo
+
+# Or use a literal value in config instead
+```
+
+### Storage Permission Issues
+
+```bash
+# Check permissions
+ls -la ~/.dev-agent/
+
+# Fix permissions
+chmod -R 755 ~/.dev-agent/
+```
+

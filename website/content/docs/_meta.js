@@ -3,6 +3,7 @@ export default {
   install: 'Installation',
   quickstart: 'Quickstart',
   cli: 'CLI Reference',
+  configuration: 'Configuration',
   '---tools': {
     type: 'separator',
     title: 'MCP Tools',
