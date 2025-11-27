@@ -3,6 +3,7 @@
 export * from './api';
 export * from './context';
 export * from './events';
+export * from './git';
 export * from './github';
 export * from './indexer';
 export * from './map';
