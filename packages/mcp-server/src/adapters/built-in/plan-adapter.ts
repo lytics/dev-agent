@@ -6,7 +6,7 @@
  */
 
 import type { RepositoryIndexer } from '@lytics/dev-agent-core';
-import type { ContextAssemblyOptions, ContextPackage } from '@lytics/dev-agent-subagents';
+import type { ContextAssemblyOptions } from '@lytics/dev-agent-subagents';
 import { assembleContext, formatContextPackage } from '@lytics/dev-agent-subagents';
 import { estimateTokensForText, startTimer } from '../../formatters/utils';
 import { ToolAdapter } from '../tool-adapter';
