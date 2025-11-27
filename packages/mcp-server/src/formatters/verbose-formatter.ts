@@ -1,15 +1,18 @@
 /**
  * Verbose Formatter
- * Full-detail formatter that includes signatures and metadata
+ * Full-detail formatter that includes signatures, snippets, and metadata
  */
 
 import type { SearchResult } from '@lytics/dev-agent-core';
 import type { FormattedResult, FormatterOptions, ResultFormatter } from './types';
 import { estimateTokensForText } from './utils';
 
+/** Default max snippet lines for verbose mode */
+const DEFAULT_MAX_SNIPPET_LINES = 20;
+
 /**
  * Verbose formatter - includes all available information
- * Returns: path, type, name, signature, metadata, score
+ * Returns: path, type, name, signature, imports, snippet, metadata, score
  */
 export class VerboseFormatter implements ResultFormatter {
   private options: Required<FormatterOptions>;
@@ -21,6 +24,9 @@ export class VerboseFormatter implements ResultFormatter {
       includeLineNumbers: options.includeLineNumbers ?? true,
       includeTypes: options.includeTypes ?? true,
       includeSignatures: options.includeSignatures ?? true, // Verbose mode includes signatures
+      includeSnippets: options.includeSnippets ?? true, // On by default for verbose
+      includeImports: options.includeImports ?? true, // On by default for verbose
+      maxSnippetLines: options.maxSnippetLines ?? DEFAULT_MAX_SNIPPET_LINES,
       tokenBudget: options.tokenBudget ?? 5000,
     };
   }
@@ -29,6 +35,47 @@ export class VerboseFormatter implements ResultFormatter {
     const lines: string[] = [];
 
     // Header: score + type + name
+    lines.push(this.formatHeader(result));
+
+    // Path with line range
+    if (this.options.includePaths && typeof result.metadata.path === 'string') {
+      const location = this.formatLocation(result);
+      lines.push(`  Location: ${location}`);
+    }
+
+    // Signature (if available and enabled)
+    if (this.options.includeSignatures && typeof result.metadata.signature === 'string') {
+      lines.push(`  Signature: ${result.metadata.signature}`);
+    }
+
+    // Imports (if enabled)
+    if (this.options.includeImports && Array.isArray(result.metadata.imports)) {
+      const imports = result.metadata.imports as string[];
+      if (imports.length > 0) {
+        lines.push(`  Imports: ${imports.join(', ')}`);
+      }
+    }
+
+    // Additional metadata
+    const metadata = this.formatMetadata(result);
+    if (metadata) {
+      lines.push(`  Metadata: ${metadata}`);
+    }
+
+    // Code snippet (if enabled)
+    if (this.options.includeSnippets && typeof result.metadata.snippet === 'string') {
+      lines.push('  Code:');
+      const truncatedSnippet = this.truncateSnippet(
+        result.metadata.snippet,
+        this.options.maxSnippetLines
+      );
+      lines.push(this.indentText(truncatedSnippet, 4));
+    }
+
+    return lines.join('\n');
+  }
+
+  private formatHeader(result: SearchResult): string {
     const header: string[] = [];
     header.push(`[Score: ${(result.score * 100).toFixed(1)}%]`);
 
@@ -40,23 +87,24 @@ export class VerboseFormatter implements ResultFormatter {
       header.push(result.metadata.name);
     }
 
-    lines.push(header.join(' '));
+    return header.join(' ');
+  }
 
-    // Path with line numbers
-    if (this.options.includePaths && typeof result.metadata.path === 'string') {
-      const location =
-        this.options.includeLineNumbers && typeof result.metadata.startLine === 'number'
-          ? `${result.metadata.path}:${result.metadata.startLine}`
-          : result.metadata.path;
-      lines.push(`  Location: ${location}`);
+  private formatLocation(result: SearchResult): string {
+    const path = result.metadata.path as string;
+
+    if (!this.options.includeLineNumbers || typeof result.metadata.startLine !== 'number') {
+      return path;
     }
 
-    // Signature (if available and enabled)
-    if (this.options.includeSignatures && typeof result.metadata.signature === 'string') {
-      lines.push(`  Signature: ${result.metadata.signature}`);
+    if (typeof result.metadata.endLine === 'number') {
+      return `${path}:${result.metadata.startLine}-${result.metadata.endLine}`;
     }
 
-    // Additional metadata
+    return `${path}:${result.metadata.startLine}`;
+  }
+
+  private formatMetadata(result: SearchResult): string | null {
     const metadata: string[] = [];
 
     if (typeof result.metadata.language === 'string') {
@@ -76,11 +124,25 @@ export class VerboseFormatter implements ResultFormatter {
       metadata.push(`lines: ${lineCount}`);
     }
 
-    if (metadata.length > 0) {
-      lines.push(`  Metadata: ${metadata.join(', ')}`);
-    }
+    return metadata.length > 0 ? metadata.join(', ') : null;
+  }
 
-    return lines.join('\n');
+  private truncateSnippet(snippet: string, maxLines: number): string {
+    const lines = snippet.split('\n');
+    if (lines.length <= maxLines) {
+      return snippet;
+    }
+    const truncated = lines.slice(0, maxLines).join('\n');
+    const remaining = lines.length - maxLines;
+    return `${truncated}\n// ... ${remaining} more lines`;
+  }
+
+  private indentText(text: string, spaces: number): string {
+    const indent = ' '.repeat(spaces);
+    return text
+      .split('\n')
+      .map((line) => indent + line)
+      .join('\n');
   }
 
   formatResults(results: SearchResult[]): FormattedResult {
@@ -112,6 +174,17 @@ export class VerboseFormatter implements ResultFormatter {
   }
 
   estimateTokens(result: SearchResult): number {
-    return estimateTokensForText(this.formatResult(result));
+    let estimate = estimateTokensForText(this.formatHeader(result));
+
+    if (this.options.includeSnippets && typeof result.metadata.snippet === 'string') {
+      estimate += estimateTokensForText(result.metadata.snippet);
+    }
+
+    if (this.options.includeImports && Array.isArray(result.metadata.imports)) {
+      // ~3 tokens per import path
+      estimate += (result.metadata.imports as string[]).length * 3;
+    }
+
+    return estimate;
   }
 }

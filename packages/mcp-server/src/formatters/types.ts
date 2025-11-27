@@ -68,6 +68,21 @@ export interface FormatterOptions {
   includeSignatures?: boolean;
 
   /**
+   * Include code snippets in output
+   */
+  includeSnippets?: boolean;
+
+  /**
+   * Include import lists in output
+   */
+  includeImports?: boolean;
+
+  /**
+   * Maximum lines to show in snippets (default: 10 compact, 20 verbose)
+   */
+  maxSnippetLines?: number;
+
+  /**
    * Token budget (soft limit)
    */
   tokenBudget?: number;
