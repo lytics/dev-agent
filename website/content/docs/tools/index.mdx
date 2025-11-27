@@ -1,17 +1,25 @@
 # MCP Tools Overview
 
-dev-agent provides six tools through the Model Context Protocol (MCP). These tools give AI assistants deep understanding of your codebase.
+dev-agent provides eight tools through the Model Context Protocol (MCP). These tools give AI assistants deep understanding of your codebase.
 
 ## Available Tools
 
 | Tool | Purpose |
 |------|---------|
-| [`dev_search`](/docs/tools/dev-search) | Semantic code search |
-| [`dev_plan`](/docs/tools/dev-plan) | Generate implementation plans from GitHub issues |
+| [`dev_search`](/docs/tools/dev-search) | Semantic code search with snippets |
+| [`dev_refs`](/docs/tools/dev-refs) | Query code relationships (callers/callees) |
+| [`dev_map`](/docs/tools/dev-map) | Codebase structure overview |
+| [`dev_plan`](/docs/tools/dev-plan) | Assemble context for GitHub issues |
 | [`dev_explore`](/docs/tools/dev-explore) | Explore code patterns and relationships |
 | [`dev_gh`](/docs/tools/dev-gh) | Search GitHub issues and PRs |
 | [`dev_status`](/docs/tools/dev-status) | Check repository indexing status |
 | [`dev_health`](/docs/tools/dev-health) | Monitor MCP server health |
+
+## New in v0.3.0
+
+- **`dev_refs`** — Query what calls what and what is called by what
+- **`dev_map`** — Get codebase overview with hot paths and smart depth
+- **`dev_plan`** — Refactored to assemble context (no more heuristic task breakdown)
 
 ## How Tools Are Exposed
 
@@ -25,6 +33,8 @@ AI Assistant (Cursor/Claude)
    dev-agent MCP Server
         │
         ├── SearchAdapter      → dev_search
+        ├── RefsAdapter        → dev_refs
+        ├── MapAdapter         → dev_map
         ├── PlanAdapter        → dev_plan
         ├── ExploreAdapter     → dev_explore
         ├── GitHubAdapter      → dev_gh
@@ -61,22 +71,11 @@ The `metadata` field helps AI assistants understand:
 
 Most tools support two output formats:
 
-- **`compact`** (default) — Token-efficient, summaries only
-- **`verbose`** — Full details including signatures and metadata
-
-```
-// compact format
-1. [89%] class: AuthMiddleware (src/auth/middleware.ts:15)
-
-// verbose format
-1. [Score: 89.0%] class: AuthMiddleware
-   Location: src/auth/middleware.ts:15
-   Signature: export class AuthMiddleware implements Middleware {...}
-   Metadata: language: typescript, exported: true, lines: 28
-```
+- **`compact`** (default) — Token-efficient, markdown output
+- **`verbose`** — Full JSON with all details
 
 ## Next Steps
 
 - [dev_search →](/docs/tools/dev-search) — Semantic code search
-- [dev_plan →](/docs/tools/dev-plan) — Implementation planning
-
+- [dev_refs →](/docs/tools/dev-refs) — Relationship queries
+- [dev_map →](/docs/tools/dev-map) — Codebase overview

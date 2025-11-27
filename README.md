@@ -4,423 +4,259 @@
 [![pnpm](https://img.shields.io/badge/pnpm-8.15.4-orange.svg)](https://pnpm.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**Deep code intelligence + specialized AI subagents, exposed via MCP protocol.**
+**Local-first repository context provider for AI tools. Semantic code search, relationship queries, and codebase mapping via MCP.**
 
 ## What is dev-agent?
 
-dev-agent combines two powerful capabilities:
+dev-agent provides **rich, structured context** to AI assistants like Claude and Cursor. Instead of AI tools reading files one at a time, dev-agent gives them:
 
-1. **🧠 Deep Code Intelligence** - TypeScript/JavaScript AST analysis, semantic search, type-aware understanding
-2. **🤖 Specialized Subagents** - Action-capable AI agents for planning, exploring, and automating code workflows
+- 🔍 **Semantic search** with code snippets and relationships
+- 🗺️ **Codebase maps** showing structure and hot paths
+- 🔗 **Relationship queries** (what calls what)
+- 📋 **Issue context** assembled for planning
 
-Unlike generic code search tools or agent platforms, dev-agent specializes in **understanding and acting on codebases**.
+**Philosophy:** Provide data, let LLMs reason. We don't try to be smart with heuristics—we provide comprehensive context so AI assistants can be smart.
 
-### Key Features
+## Quick Start
 
-**Intelligence Layer:**
-- 🌍 **TypeScript & JavaScript analysis** - Deep AST analysis using ts-morph and TypeScript Compiler API
-- 📝 **Markdown parsing** - Documentation extraction with remark
-- 🔍 **Semantic + structural search** - Combine vector embeddings with AST relationships
-- 📊 **Type-aware** - Deep integration with TypeScript types and inference
-- 📦 **Local-first** - Works 100% offline with local embeddings
+```bash
+# Install globally
+npm install -g dev-agent
 
-**Subagent Layer:**
-- 📋 **Planner** - Breaks down GitHub issues into actionable tasks using code context
-- 🔎 **Explorer** - Discovers patterns and relationships across your codebase
-- 🔧 **PR Manager** - Automates PR creation with AI-generated, context-aware descriptions
-- 🎯 **Coordinator** - Orchestrates multi-agent workflows with message passing
+# Index your repository
+cd /path/to/your/repo
+dev index .
 
-**Infrastructure:**
-- 📡 **Event Bus** - Async pub/sub communication between components
-- 📈 **Observability** - Request tracking, structured logging, metrics (p50/p95/p99)
-- 💾 **Pluggable Storage** - StorageAdapter pattern for session and persistent state
-- 🔄 **Request Correlation** - Track requests across the system with request IDs
+# Install MCP integration
+dev mcp install --cursor  # For Cursor IDE
+dev mcp install           # For Claude Code
 
-**Integration:**
-- 🔌 **MCP-native** - Full protocol support with tools, prompts, and resources
-- 🎯 **8 Guided Prompts** - Workflow templates (analyze-issue, find-pattern, repo-overview, etc.)
-- 🪙 **Token Cost Visibility** - Real-time cost tracking with accurate estimation (<1% error)
-- 🐙 **GitHub-integrated** - Native issue/PR search with offline caching via GitHub CLI
+# That's it! AI tools now have access to dev-agent capabilities.
+```
+
+## MCP Tools
+
+When integrated with Cursor or Claude Code, dev-agent provides 8 powerful tools:
+
+### `dev_search` - Semantic Code Search
+Natural language search with rich results including code snippets, imports, and relationships.
+
+```
+Find authentication middleware that handles JWT tokens
+```
+
+**Features:**
+- Code snippets included (not just file paths)
+- Import statements for context
+- Caller/callee hints
+- Progressive disclosure based on token budget
+
+### `dev_refs` - Relationship Queries ✨ New in v0.3
+Query what calls what and what is called by what.
+
+```
+Find all callers of the authenticate function
+Find what functions validateToken calls
+```
+
+**Features:**
+- Bidirectional queries (callers/callees)
+- File paths and line numbers
+- Relevance scoring
+
+### `dev_map` - Codebase Overview ✨ New in v0.3
+Get a high-level view of repository structure.
+
+```
+Show me the codebase structure with depth 3
+Focus on the packages/core directory
+```
+
+**Features:**
+- Directory tree with component counts
+- **Hot Paths:** Most referenced files
+- **Smart Depth:** Adaptive expansion based on density
+- **Signatures:** Function/class signatures in exports
+
+**Example output:**
+```markdown
+# Codebase Map
+
+## Hot Paths (most referenced)
+1. `packages/core/src/indexer/index.ts` (RepositoryIndexer) - 47 refs
+2. `packages/core/src/vector/store.ts` (LanceDBVectorStore) - 32 refs
+
+## Directory Structure
+
+└── packages/ (195 components)
+    ├── core/ (45 components)
+    │   └── exports: function search(query): Promise<Result[]>, class RepositoryIndexer
+    ├── mcp-server/ (28 components)
+    │   └── exports: class MCPServer, function createAdapter(config): Adapter
+```
+
+### `dev_plan` - Context Assembly ✨ Refactored in v0.3
+Assemble rich context for implementing GitHub issues.
+
+```
+Assemble context for issue #42
+```
+
+**Returns:**
+- Full issue with comments
+- Relevant code snippets from semantic search
+- Detected codebase patterns (test naming, locations)
+- Metadata (tokens, timing)
+
+**Note:** This tool no longer generates task breakdowns. It provides comprehensive context so the AI assistant can create better plans.
+
+### `dev_explore` - Code Exploration
+Discover patterns, find similar code, analyze relationships.
+
+```
+Find code similar to src/auth/middleware.ts
+Search for error handling patterns
+```
+
+### `dev_status` - Repository Status
+View indexing status, component health, and repository information.
+
+### `dev_gh` - GitHub Search
+Search issues and PRs with semantic understanding.
+
+```
+Find authentication-related bugs
+Search for performance issues in closed PRs
+```
+
+### `dev_health` - Health Monitoring
+Check MCP server and component health.
+
+## Key Features
+
+### Local-First
+- 📦 Works 100% offline
+- 🔐 Your code never leaves your machine
+- ⚡ Fast local embeddings with all-MiniLM-L6-v2
+
+### Production Ready
+- 🛡️ Rate limiting (100 req/min burst)
+- 🔄 Retry logic with exponential backoff
+- 💚 Health monitoring
+- 🧹 Memory-safe (circular buffers)
+- ✅ 1300+ tests
+
+### Token Efficient
+- 🪙 Progressive disclosure based on budget
+- 📊 Token estimation in results
+- 🎯 Smart depth for codebase maps
+
+## Installation
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) v22 LTS or higher
+- [pnpm](https://pnpm.io/) v8.15.4 or higher
+- [GitHub CLI](https://cli.github.com/) (for GitHub features)
+
+### Global Install (Recommended)
+
+```bash
+npm install -g dev-agent
+```
+
+### From Source
+
+```bash
+git clone https://github.com/lytics/dev-agent.git
+cd dev-agent
+pnpm install
+pnpm build
+cd packages/dev-agent
+npm link
+```
+
+## CLI Commands
+
+```bash
+# Index repository
+dev index .
+
+# Semantic search
+dev search "how do agents communicate"
+dev search "error handling" --threshold 0.3
+
+# GitHub integration
+dev gh index                          # Index issues and PRs
+dev gh search "authentication bug"    # Semantic search
+
+# View statistics
+dev stats
+
+# MCP management
+dev mcp install --cursor              # Install for Cursor
+dev mcp install                       # Install for Claude Code
+dev mcp list                          # List configured servers
+```
 
 ## Project Structure
 
 ```
 dev-agent/
 ├── packages/
-│   ├── core/                 # Core context provider
-│   │   ├── src/
-│   │   │   ├── scanner/      # Repository scanning
-│   │   │   ├── vector/       # Vector storage (LanceDB)
-│   │   │   ├── github/       # GitHub integration
-│   │   │   ├── context/      # Context provider
-│   │   │   ├── events/       # Event bus (pub/sub)
-│   │   │   ├── observability/# Logging, metrics, request tracking
-│   │   │   ├── utils/        # Retry logic, helpers
-│   │   │   └── api/          # HTTP API server
-│   │
-│   ├── cli/                  # Command-line interface
-│   │   ├── src/
-│   │   │   ├── commands/     # CLI commands
-│   │   │   ├── ui/           # Terminal UI
-│   │   │   └── index.ts      # Main CLI entry
-│   │
-│   ├── subagents/            # Subagent system
-│   │   ├── src/
-│   │   │   ├── coordinator/  # Coordinator + context + storage + circular buffers
-│   │   │   ├── planner/      # Planner subagent
-│   │   │   ├── explorer/     # Explorer subagent
-│   │   │   ├── github/       # GitHub indexer
-│   │   │   └── pr/           # PR subagent
-│   │
-│   ├── mcp-server/           # MCP protocol server
-│   │   ├── src/
-│   │   │   ├── adapters/     # Tool adapters (search, status, plan, explore, github, health)
-│   │   │   ├── server/       # MCP server, prompts, protocol, rate limiting
-│   │   │   └── formatters/   # Output formatting with token estimation
-│   │
-│   └── integrations/         # Tool integrations
-│       ├── claude/           # Claude Code integration
-│       └── vscode/           # VS Code extension
-│
-├── examples/                 # Example projects and usage
-├── docs/                     # Documentation
-└── PLAN.md                   # Implementation plan
+│   ├── core/           # Scanner, vector storage, indexer
+│   ├── cli/            # Command-line interface
+│   ├── subagents/      # Planner, explorer, PR agents
+│   ├── mcp-server/     # MCP protocol server + adapters
+│   └── integrations/   # Claude Code, VS Code
+├── docs/               # Documentation
+└── website/            # Documentation website
 ```
-
-## Getting Started
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) (v22 LTS or higher)
-- [PNPM](https://pnpm.io/) (v8 or higher)
 
 ## Technology Stack
 
-**Core:**
-- TypeScript (strict mode)
-- Node.js >= 22 LTS
-- pnpm 8.15.4 (package management)
-- Turborepo (monorepo build orchestration)
+- **TypeScript** (strict mode)
+- **ts-morph** / TypeScript Compiler API (AST analysis)
+- **LanceDB** (embedded vector storage)
+- **@xenova/transformers** (local embeddings)
+- **MCP** (Model Context Protocol)
+- **Turborepo** (monorepo builds)
+- **Vitest** (1300+ tests)
 
-**Intelligence Layer:**
-- ts-morph (TypeScript AST analysis)
-- TypeScript Compiler API (type inference and relationships)
-- remark (Markdown documentation parsing)
-- @xenova/transformers (local embeddings with all-MiniLM-L6-v2)
-- LanceDB (embedded vector storage)
-
-**Subagent Layer:**
-- Message-based agent coordination (inspired by claude-flow patterns)
-- GitHub CLI (native GitHub integration)
-
-**Production Features:**
-- Token bucket rate limiting (100 req/min burst)
-- Exponential backoff retry logic with jitter
-- Circular buffers for memory leak prevention
-- Component health monitoring
-- Event listener cleanup
-
-**Tooling:**
-- Biome (linting & formatting)
-- Vitest (testing - 1100+ tests)
-- GitHub Actions (CI/CD)
-
-## Philosophy
-
-**Built for personal productivity first.** Not chasing GitHub stars or trying to be everything to everyone.
-
-### Why CLI-First?
-- ⚡ **Fast**: Instant feedback, no waiting for UIs to load
-- 🎨 **Beautiful**: Terminal output can be elegant (see examples below)
-- 🔧 **Scriptable**: JSON mode for automation and CI/CD
-- 🌍 **Universal**: Works anywhere, integrations come later
-
-### Why This Exists?
-Tired of:
-- ❌ Grepping through codebases to understand patterns
-- ❌ Breaking down GitHub issues manually
-- ❌ Writing PR descriptions from scratch
-- ❌ Tools that don't understand multi-language repos
-
-Want:
-- ✅ Semantic search that actually understands code
-- ✅ AI agents that can plan and explore codebases
-- ✅ Something that works locally (no API keys required)
-- ✅ A tool I'll actually use daily
-
-### What Makes It Different?
-
-**vs Code Search Tools:** Adds action-capable subagents (planner, explorer)  
-**vs Agent Platforms:** Specializes in deep code understanding  
-**vs IDE Extensions:** CLI-first, works anywhere, add integrations later
-
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed design decisions.
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) (v22 LTS or higher)
-- [PNPM](https://pnpm.io/) (v8.15.4 or higher)
-- [GitHub CLI](https://cli.github.com/) (for GitHub integration features)
-
-### Installation
-
-**Option 1: Global Install (Recommended for Users)**
+## Development
 
 ```bash
-# Install globally via npm
-npm install -g dev-agent
-
-# Verify installation
-dev --version
-
-# Index your repository
-cd /path/to/your/repository
-dev index .
-
-# Install MCP integration
-dev mcp install --cursor  # For Cursor IDE
-dev mcp install           # For Claude Code
-```
-
-**Option 2: From Source (For Development)**
-
-```bash
-# Clone the repository
-git clone https://github.com/lytics/dev-agent.git
-cd dev-agent
-
 # Install dependencies
 pnpm install
 
 # Build all packages
 pnpm build
 
-# Link CLI globally
-cd packages/cli
-npm link
-
-# Now you can use 'dev' anywhere
-cd ~/your-project
-dev index .
-```
-
-**Basic Commands:**
-
-```bash
-# Index your repository
-dev index .
-
-# Semantic search (natural language queries work!)
-dev search "how do agents communicate"
-dev search "vector embeddings"
-dev search "error handling" --threshold 0.3
-
-# Explore code patterns
-dev explore pattern "test coverage utilities" --limit 5
-dev explore similar path/to/file.ts
-
-# GitHub integration
-dev gh index                          # Index issues and PRs
-dev gh search "authentication bug"    # Search with semantic understanding
-
-# View statistics (now includes GitHub!)
-dev stats
-```
-
-**Real Example Output:**
-
-```bash
-$ dev search "vector embeddings" --threshold 0.3 --limit 3
-
-1. EmbeddingProvider (58.5% match)
-   File: packages/core/src/vector/types.ts:36-54
-   Signature: interface EmbeddingProvider
-   Doc: Generates vector embeddings from text
-
-2. EmbeddingDocument (51.0% match)
-   File: packages/core/src/vector/types.ts:8-12
-   Signature: interface EmbeddingDocument
-
-3. VectorStore (47.9% match)
-   File: packages/core/src/vector/types.ts:60-97
-   Signature: interface VectorStore
-   Doc: Stores and retrieves vector embeddings
-
-✔ Found 3 result(s)
-```
-
-**MCP Integration (via Cursor/Claude):**
-
-```
-$ dev_search with query "token estimation"
-1. [71%] function: estimateTokensForText (packages/mcp-server/src/formatters/utils.ts:15)
-2. [31%] method: VerboseFormatter.estimateTokens (...)
-3. [31%] function: estimateTokensForJSON (...)
-
-🪙 ~109 tokens
-```
-
-Notice the 🪙 token footer - helps you track AI costs in real-time!
-
-## MCP Tools
-
-When integrated with Cursor or Claude Code, dev-agent provides 6 powerful tools:
-
-### 1. `dev_search` - Semantic Code Search
-Natural language search across your indexed repository.
-```
-Find authentication middleware that handles JWT tokens
-```
-
-### 2. `dev_status` - Repository Status
-View indexing status, component health, and repository information.
-```
-Show repository status
-```
-
-### 3. `dev_explore` - Code Exploration
-Discover patterns, find similar code, analyze relationships.
-```
-Find code similar to src/auth/middleware.ts
-```
-
-### 4. `dev_plan` - Implementation Planning
-Generate actionable plans from GitHub issues with code context.
-```
-Create a plan for issue #42
-```
-
-### 5. `dev_gh` - GitHub Search
-Search issues and PRs with semantic understanding. Auto-reloads when you run `dev gh index`.
-```
-Find authentication-related bugs
-```
-
-### 6. `dev_health` - Health Monitoring
-Check MCP server and component health (vector storage, repository, GitHub index).
-```
-Check server health with verbose details
-```
-
-**Production Features:**
-- 🛡️ **Rate Limiting:** 100 requests/minute burst per tool (token bucket algorithm)
-- 🔄 **Retry Logic:** Automatic retry with exponential backoff for transient failures
-- 💚 **Health Checks:** Proactive monitoring of all components
-- 🧹 **Memory Safe:** Circular buffers prevent unbounded growth
-- 🔌 **Graceful Shutdown:** Proper cleanup, no zombie processes
-
-**Tips for Better Results:**
-- **Use natural language**: "how do agents communicate" works better than "agent message"
-- **Adjust thresholds**: Default is 0.7 (precise), use 0.25-0.4 for exploration
-- **Exact matches score 70-90%**: Semantic matches score 25-60%
-
-### Current Status
-
-**✅ Production Ready:**
-- Core intelligence layer (scanner, vectors, indexer) - Complete
-- MCP server with 6 adapters (search, status, plan, explore, github, health) - Production ready
-- Prompts system with 8 guided workflows - Shipped
-- Token cost visibility and accurate estimation - Validated (<1% error)
-- **1100+ tests passing** across all packages
-- CLI and MCP integrations - Fully functional (Cursor + Claude Code)
-- Production hardening complete (rate limiting, retry, health, memory safety)
-
-**🚀 Available Now:**
-- Semantic code search with type-aware understanding
-- GitHub issue/PR indexing and search (auto-reload, works offline)
-- Implementation planning from GitHub issues
-- Code pattern exploration and relationship mapping
-- Repository and component health monitoring
-- Cursor IDE integration with dynamic workspace detection
-- Claude Code integration with ~/.claude.json support
-
-**🔧 Infrastructure:**
-- **Event Bus** - Async pub/sub with typed events + cleanup
-- **Observability** - Request tracking, structured logging, metrics
-- **StorageAdapter** - Pluggable persistence for session/persistent state
-- **SubagentCoordinator** - Integrated with MCP server + circular buffers
-- **Rate Limiting** - Token bucket algorithm (100 req/min burst)
-- **Retry Logic** - Exponential backoff with jitter
-- **Health Monitoring** - Component health checks (`dev_health` tool)
-
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for technical decisions and [packages/mcp-server/README.md](./packages/mcp-server/README.md) for MCP integration details.
-
-### Development
-
-#### Running Tests
-
-```bash
-# Run all tests
+# Run tests
 pnpm test
 
-# Run tests in watch mode
-pnpm -F "@monorepo/core" test:watch
-```
-
-#### Linting and Formatting
-
-```bash
-# Lint all packages
+# Lint and format
 pnpm lint
-
-# Format all packages
 pnpm format
+
+# Type check
+pnpm typecheck
 ```
 
-#### Building
+## Version History
 
-```bash
-# Build all packages
-pnpm build
-
-# Build a specific package
-pnpm -F "@monorepo/core" build
-```
-
-## Implementation Plan
-
-See [PLAN.md](./PLAN.md) for the detailed implementation plan.
+- **v0.3.0** - Context Quality release
+  - New `dev_refs` tool for relationship queries
+  - Enhanced `dev_map` with hot paths, smart depth, signatures
+  - Refactored `dev_plan` to context assembly
+- **v0.2.0** - Richer search results with snippets and imports
+- **v0.1.0** - Initial release
 
 ## Contributing
 
-Contributions are welcome! Please follow the conventional commit format and include tests for any new features.
+Contributions welcome! Please follow conventional commit format and include tests.
 
-## Working with this Monorepo
-
-### Adding a New Package
-
-1. Create a new folder in the `packages` directory
-2. Add a `package.json` with appropriate dependencies
-3. Add a `tsconfig.json` that extends from the root
-4. Update root `tsconfig.json` with path mappings for the new package
-
-### Package Interdependencies
-
-Packages can depend on each other using the workspace protocol:
-
-```json
-"dependencies": {
-  "@monorepo/core": "workspace:*"
-}
-```
-
-## Versioning
-
-This template follows [Semantic Versioning](https://semver.org/) at the repository level:
-
-- **Git tags**: `v1.0.0`, `v1.1.0`, `v2.0.0` (for template releases)
-- **Package versions**: Remain at `0.1.0` by default (customize after cloning)
-
-**Version bumps:**
-- **MAJOR**: Breaking changes to template structure or tooling
-- **MINOR**: New features, examples, or improvements
-- **PATCH**: Bug fixes, documentation updates
-
-See [AGENTS.md](AGENTS.md) for detailed versioning strategy.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
