@@ -1,12 +1,17 @@
 /**
  * Task Breakdown Utilities
  * Pure functions for breaking issues into actionable tasks
+ *
+ * @deprecated These utilities use heuristics that duplicate LLM capabilities.
+ * Use assembleContext() to provide raw context and let the LLM do reasoning.
  */
 
 import type { BreakdownOptions, GitHubIssue, PlanTask } from '../types';
 
 /**
  * Break down a GitHub issue into tasks
+ *
+ * @deprecated Use assembleContext() instead - let LLMs do task breakdown
  */
 export function breakdownIssue(
   issue: GitHubIssue,

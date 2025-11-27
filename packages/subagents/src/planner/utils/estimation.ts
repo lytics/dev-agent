@@ -1,12 +1,17 @@
 /**
  * Effort Estimation Utilities
  * Pure functions for estimating task effort
+ *
+ * @deprecated These utilities use heuristics that duplicate LLM capabilities.
+ * Use assembleContext() to provide raw context and let the LLM estimate effort.
  */
 
 import type { PlanTask } from '../types';
 
 /**
  * Estimate hours for a single task based on description
+ *
+ * @deprecated Use assembleContext() instead - let LLMs estimate effort
  */
 export function estimateTaskHours(description: string): number {
   // Simple heuristic-based estimation
