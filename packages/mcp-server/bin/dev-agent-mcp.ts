@@ -6,10 +6,13 @@
 
 import {
   ensureStorageDirectory,
+  GitIndexer,
   getStorageFilePaths,
   getStoragePath,
+  LocalGitExtractor,
   RepositoryIndexer,
   saveMetadata,
+  VectorStorage,
 } from '@lytics/dev-agent-core';
 import {
   ExplorerAgent,
@@ -21,6 +24,7 @@ import {
   ExploreAdapter,
   GitHubAdapter,
   HealthAdapter,
+  HistoryAdapter,
   MapAdapter,
   PlanAdapter,
   RefsAdapter,
@@ -193,6 +197,26 @@ async function main() {
       defaultTokenBudget: 2000,
     });
 
+    // Create git extractor and indexer for history adapter
+    // Note: GitIndexer uses the same vector storage for commit embeddings
+    const gitExtractor = new LocalGitExtractor(repositoryPath);
+    const gitVectorStorage = new VectorStorage({
+      storePath: `${filePaths.vectors}-git`,
+    });
+    await gitVectorStorage.initialize();
+
+    const gitIndexer = new GitIndexer({
+      extractor: gitExtractor,
+      vectorStorage: gitVectorStorage,
+    });
+
+    const historyAdapter = new HistoryAdapter({
+      gitIndexer,
+      gitExtractor,
+      defaultLimit: 10,
+      defaultTokenBudget: 2000,
+    });
+
     // Create MCP server with coordinator
     const server = new MCPServer({
       serverInfo: {
@@ -213,6 +237,7 @@ async function main() {
         healthAdapter,
         refsAdapter,
         mapAdapter,
+        historyAdapter,
       ],
       coordinator,
     });
@@ -221,6 +246,7 @@ async function main() {
     const shutdown = async () => {
       await server.stop();
       await indexer.close();
+      await gitVectorStorage.close();
       // Close GitHub adapter if initialized
       if (githubAdapter.githubIndexer) {
         await githubAdapter.githubIndexer.close();
