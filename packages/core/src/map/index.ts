@@ -161,6 +161,7 @@ function extractExports(docs: SearchResult[], maxExports: number): ExportInfo[] 
         name: doc.metadata.name as string,
         type: (doc.metadata.type as string) || 'unknown',
         file: (doc.metadata.path as string) || (doc.metadata.file as string) || '',
+        signature: doc.metadata.signature as string | undefined,
       });
 
       if (exports.length >= maxExports) break;
@@ -266,8 +267,16 @@ function formatNode(
   // Add exports if present
   if (opts.includeExports && node.exports && node.exports.length > 0) {
     const exportPrefix = prefix + (isLast ? '    ' : '│   ');
-    const exportNames = node.exports.map((e) => e.name).join(', ');
-    lines.push(`${exportPrefix}└── exports: ${exportNames}`);
+    const exportItems = node.exports.map((e) => {
+      // Use signature if available, otherwise just name
+      if (e.signature) {
+        // Truncate long signatures
+        const sig = e.signature.length > 60 ? `${e.signature.slice(0, 57)}...` : e.signature;
+        return sig;
+      }
+      return e.name;
+    });
+    lines.push(`${exportPrefix}└── exports: ${exportItems.join(', ')}`);
   }
 
   // Format children
