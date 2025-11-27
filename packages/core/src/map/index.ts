@@ -79,10 +79,12 @@ function buildDirectoryTree(docs: SearchResult[], opts: Required<MapOptions>): M
     }
 
     const dir = path.dirname(filePath);
-    if (!byDir.has(dir)) {
-      byDir.set(dir, []);
+    const existing = byDir.get(dir);
+    if (existing) {
+      existing.push(doc);
+    } else {
+      byDir.set(dir, [doc]);
     }
-    byDir.get(dir)!.push(doc);
   }
 
   // Build tree structure

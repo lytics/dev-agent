@@ -76,122 +76,87 @@ Dev-agent provides semantic code search, codebase intelligence, and GitHub integ
 
 ---
 
-## Current: Context Quality (v0.2)
+## Completed: Context Quality (v0.3.0) ✅
 
-The next phase focuses on making dev-agent's context *actually useful* for LLM reasoning.
+Released in v0.3.0 - dev-agent now provides *actually useful* context for LLM reasoning.
 
 ### Principle: Structured Data Over Summaries
 
 Don't generate prose—provide structured data and let the LLM synthesize.
 
-### Priority 1: Richer Search Results
+### Richer Search Results ✅
 
-**Problem:** Current search returns pointers, not context. LLMs need another round-trip to read files.
+| Feature | Status |
+|---------|--------|
+| Code snippets in search results | ✅ Done |
+| Import/export context | ✅ Done |
+| Callers/callees hints | ✅ Done |
+| Token budget management | ✅ Done |
+| Progressive disclosure | ✅ Done |
 
-**Solution:** Include code snippets and relationship hints in search results.
+### Relationship Queries (`dev_refs`) ✅
 
-| Task | Priority | Complexity |
-|------|----------|------------|
-| Add code snippets to search results | 🔴 High | Low |
-| Include import/export context | 🔴 High | Medium |
-| Show callers/callees hints | 🟡 Medium | Medium |
-| Token budget management | 🟡 Medium | Low |
+| Feature | Status |
+|---------|--------|
+| Callee extraction during indexing | ✅ Done |
+| `dev_refs` MCP adapter | ✅ Done |
+| Bidirectional queries (callers/callees) | ✅ Done |
+| Token budget support | ✅ Done |
 
-**Before:**
-```
-[85%] function: handleAuth (src/auth/handler.ts:45)
-```
+### Codebase Map (`dev_map`) ✅
 
-**After:**
-```
-[85%] function: handleAuth (src/auth/handler.ts:45-67)
-  Snippet: export async function handleAuth(req: Request)...
-  Imports: ./service, ../utils/jwt
-  Called by: src/routes/api.ts:23
-```
+| Feature | Status |
+|---------|--------|
+| Directory tree with component counts | ✅ Done |
+| `dev_map` MCP adapter | ✅ Done |
+| Configurable depth (1-5) | ✅ Done |
+| Focus on specific directories | ✅ Done |
+| Export signatures | ✅ Done |
+| Hot paths (most referenced files) | ✅ Done |
+| Smart depth (adaptive expansion) | ✅ Done |
 
-### Priority 2: Relationship Queries (`dev_refs`)
+### Refactored Planner → Context Assembler ✅
 
-**Problem:** "What calls this function?" is unanswerable without reading the whole codebase.
-
-**Solution:** New MCP tool for relationship queries.
-
-| Task | Priority | Complexity |
-|------|----------|------------|
-| Build call graph during indexing | 🔴 High | High |
-| `dev_refs` adapter | 🔴 High | Medium |
-| Bidirectional queries (callers/callees) | 🟡 Medium | Medium |
-| Cross-file import tracking | 🟡 Medium | Medium |
-
-**Example:**
-```typescript
-// Input
-{ symbol: "handleAuth", direction: "both" }
-
-// Output
-{
-  "callers": [
-    { "file": "src/routes/api.ts", "line": 23, "symbol": "authMiddleware" }
-  ],
-  "callees": [
-    { "file": "src/auth/service.ts", "line": 12, "symbol": "validateToken" }
-  ]
-}
-```
-
-### Priority 3: Codebase Map (`dev_map`)
-
-**Problem:** LLMs don't know the shape of the codebase without reading everything.
-
-**Solution:** Structured skeleton view (inspired by Aider's repo-map).
-
-| Task | Priority | Complexity |
-|------|----------|------------|
-| Generate codebase skeleton | 🟡 Medium | Medium |
-| `dev_map` adapter | 🟡 Medium | Low |
-| Configurable depth | 🟢 Low | Low |
-| Focus on specific directories | 🟢 Low | Low |
-
-**Example:**
-```
-src/auth/
-  handler.ts
-    ├─ handleAuth(req: Request): Promise<Response>
-    ├─ validateSession(token: string): boolean
-  service.ts
-    ├─ class AuthService
-    │   ├─ login(credentials): Promise<User>
-    │   └─ logout(userId): void
-```
-
-### Priority 4: Refactor Planner → Context Assembler
-
-**Problem:** Planner generates heuristic tasks that LLMs could do better with raw data.
-
-**Solution:** Return structured context, not generated plans.
-
-| Task | Priority | Complexity |
-|------|----------|------------|
-| Remove heuristic task breakdown | 🟡 Medium | Low |
-| Return raw issue + relevant code | 🟡 Medium | Low |
-| Include codebase patterns | 🟢 Low | Medium |
-| Add related PR/issue history | 🟢 Low | Medium |
-
-**Before:** Generic tasks like "Design solution", "Implement", "Test"
-
-**After:** Raw materials for LLM to plan with:
-```json
-{
-  "issue": { "title": "...", "body": "...", "labels": [...] },
-  "relevantCode": [{ "file": "...", "snippet": "...", "similarity": 0.85 }],
-  "patterns": { "middleware": "Express-style", "testing": "Vitest + __tests__/" },
-  "history": [{ "pr": 38, "title": "Similar feature", "files": [...] }]
-}
-```
+| Feature | Status |
+|---------|--------|
+| Removed heuristic task breakdown | ✅ Done |
+| Returns `ContextPackage` with raw issue + code | ✅ Done |
+| Includes codebase patterns | ✅ Done |
+| Related PR/issue history | ✅ Done |
 
 ---
 
-## Future: Extended Intelligence (v0.3+)
+## Current: Polish & Stabilize (v0.3.x)
+
+Focus on quality, documentation, and developer experience before adding new features.
+
+### Documentation
+
+| Task | Status | Priority |
+|------|--------|----------|
+| CLI reference docs | 🔲 Todo | 🟡 Medium |
+| Configuration guide | 🔲 Todo | 🟡 Medium |
+| Troubleshooting guide | 🔲 Todo | 🟡 Medium |
+| Examples for new tools | 🔲 Todo | 🟢 Low |
+
+### Code Quality
+
+| Task | Status | Priority |
+|------|--------|----------|
+| Fix lint warnings | ✅ Done | 🔴 High |
+| Context assembler tests | 🔲 Todo | 🟡 Medium |
+| Integration tests for new tools | 🔲 Todo | 🟢 Low |
+
+### Issue Cleanup
+
+| Task | Status | Priority |
+|------|--------|----------|
+| Close completed epics | 🔲 Todo | 🟡 Medium |
+| Update stale issues | 🔲 Todo | 🟢 Low |
+
+---
+
+## Future: Extended Intelligence (v0.4+)
 
 ### Git History Context
 
@@ -200,7 +165,7 @@ src/auth/
 | Recent commits affecting file | 🟡 Medium |
 | Git blame integration | 🟡 Medium |
 | Related PRs for file/function | 🟡 Medium |
-| Change frequency analysis | 🟢 Low |
+| Change frequency analysis | ✅ Done (hot paths) |
 
 ### Multi-Language Support
 
@@ -252,7 +217,7 @@ These were in the original plan but have been deprioritized or reconsidered:
 - **Package Manager:** pnpm 8.15.4
 - **Build:** Turborepo
 - **Linting:** Biome
-- **Testing:** Vitest (1100+ tests)
+- **Testing:** Vitest (1350+ tests)
 - **Vector Storage:** LanceDB (embedded, no server)
 - **Embeddings:** @xenova/transformers (all-MiniLM-L6-v2)
 - **AI Integration:** MCP (Model Context Protocol)
