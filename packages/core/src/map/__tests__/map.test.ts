@@ -69,6 +69,7 @@ describe('Codebase Map', () => {
         path: 'packages/cli/src/cli.ts',
         type: 'function',
         name: 'main',
+        signature: 'function main(args: string[]): Promise<void>',
         startLine: 5,
         endLine: 50,
         language: 'typescript',
@@ -167,6 +168,30 @@ describe('Codebase Map', () => {
       expect(nodeWithExports?.exports?.[0].name).toBeDefined();
     });
 
+    it('should include signatures in exports when available', async () => {
+      const indexer = createMockIndexer();
+      const map = await generateCodebaseMap(indexer, { depth: 5, includeExports: true });
+
+      // Find any node with an export that has a signature
+      const findExportWithSignature = (
+        node: typeof map.root
+      ): { name: string; signature?: string } | null => {
+        if (node.exports) {
+          const withSig = node.exports.find((e) => e.signature);
+          if (withSig) return withSig;
+        }
+        for (const child of node.children) {
+          const found = findExportWithSignature(child);
+          if (found) return found;
+        }
+        return null;
+      };
+
+      const exportWithSig = findExportWithSignature(map.root);
+      expect(exportWithSig).not.toBeNull();
+      expect(exportWithSig?.signature).toBe('function main(args: string[]): Promise<void>');
+    });
+
     it('should not include exports when includeExports is false', async () => {
       const indexer = createMockIndexer();
       const map = await generateCodebaseMap(indexer, { depth: 5, includeExports: false });
@@ -257,6 +282,41 @@ describe('Codebase Map', () => {
       const output = formatCodebaseMap(map, { includeExports: true });
 
       expect(output).toContain('exports:');
+    });
+
+    it('should show signatures in exports when available', async () => {
+      const indexer = createMockIndexer();
+      const map = await generateCodebaseMap(indexer, { depth: 5, includeExports: true });
+      const output = formatCodebaseMap(map, { includeExports: true });
+
+      // The main function has a signature, should appear in output
+      expect(output).toContain('function main(args: string[]): Promise<void>');
+    });
+
+    it('should truncate long signatures', async () => {
+      const longSigResults: SearchResult[] = [
+        {
+          id: 'src/index.ts:longFunction:1',
+          score: 0.9,
+          metadata: {
+            path: 'src/index.ts',
+            type: 'function',
+            name: 'longFunction',
+            signature:
+              'function longFunction(param1: string, param2: number, param3: boolean, param4: object): Promise<ComplexReturnType>',
+            exported: true,
+          },
+        },
+      ];
+
+      const indexer = createMockIndexer(longSigResults);
+      const map = await generateCodebaseMap(indexer, { depth: 5, includeExports: true });
+      const output = formatCodebaseMap(map, { includeExports: true });
+
+      // Should be truncated with ...
+      expect(output).toContain('...');
+      // Should not contain the full signature
+      expect(output).not.toContain('ComplexReturnType');
     });
 
     it('should show component counts', async () => {

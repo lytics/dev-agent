@@ -31,6 +31,8 @@ export interface ExportInfo {
   type: string;
   /** File where it's defined */
   file: string;
+  /** Function/method signature (if available) */
+  signature?: string;
 }
 
 /**
