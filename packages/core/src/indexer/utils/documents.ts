@@ -41,6 +41,7 @@ export function prepareDocumentsForEmbedding(documents: Document[]): EmbeddingDo
       docstring: doc.metadata.docstring,
       snippet: doc.metadata.snippet,
       imports: doc.metadata.imports,
+      callees: doc.metadata.callees,
     },
   }));
 }
@@ -76,6 +77,7 @@ export function prepareDocumentForEmbedding(doc: Document): EmbeddingDocument {
       docstring: doc.metadata.docstring,
       snippet: doc.metadata.snippet,
       imports: doc.metadata.imports,
+      callees: doc.metadata.callees,
     },
   };
 }

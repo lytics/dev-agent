@@ -9,6 +9,30 @@ export type DocumentType =
   | 'method'
   | 'documentation';
 
+/**
+ * Information about a function/method that calls this component
+ */
+export interface CallerInfo {
+  /** Name of the calling function/method */
+  name: string;
+  /** File path where the call originates */
+  file: string;
+  /** Line number of the call site */
+  line: number;
+}
+
+/**
+ * Information about a function/method called by this component
+ */
+export interface CalleeInfo {
+  /** Name of the called function/method */
+  name: string;
+  /** File path of the called function (if resolved) */
+  file?: string;
+  /** Line number of the call within this component */
+  line: number;
+}
+
 export interface Document {
   id: string; // Unique identifier: file:name:line
   text: string; // Text to embed (for vector search)
@@ -28,6 +52,10 @@ export interface DocumentMetadata {
   docstring?: string; // Documentation comment
   snippet?: string; // Actual code content (truncated if large)
   imports?: string[]; // File-level imports (module specifiers)
+
+  // Relationship data (call graph)
+  callees?: CalleeInfo[]; // Functions/methods this component calls
+  // Note: callers are computed at query time via reverse lookup
 
   // Extensible for future use
   custom?: Record<string, unknown>;

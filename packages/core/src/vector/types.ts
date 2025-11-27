@@ -2,7 +2,7 @@
  * Vector storage and embedding types
  */
 
-import type { DocumentType } from '../scanner/types';
+import type { CalleeInfo, DocumentType } from '../scanner/types';
 
 /**
  * Document to be embedded and stored
@@ -33,6 +33,7 @@ export interface SearchResultMetadata {
   docstring?: string; // Documentation comment
   snippet?: string; // Actual code content (truncated if large)
   imports?: string[]; // File-level imports (module specifiers)
+  callees?: CalleeInfo[]; // Functions/methods this component calls
   // Allow additional custom fields for extensibility (e.g., GitHub indexer uses 'document')
   [key: string]: unknown;
 }
