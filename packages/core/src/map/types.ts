@@ -4,6 +4,18 @@
  */
 
 /**
+ * Change frequency data for a node
+ */
+export interface ChangeFrequency {
+  /** Number of commits in the last 30 days */
+  last30Days: number;
+  /** Number of commits in the last 90 days */
+  last90Days: number;
+  /** Date of the most recent commit */
+  lastCommit?: string;
+}
+
+/**
  * A node in the codebase map tree
  */
 export interface MapNode {
@@ -19,6 +31,8 @@ export interface MapNode {
   exports?: ExportInfo[];
   /** Whether this is a leaf node (file, not directory) */
   isFile?: boolean;
+  /** Change frequency data (if includeChangeFrequency is true) */
+  changeFrequency?: ChangeFrequency;
 }
 
 /**
@@ -57,6 +71,8 @@ export interface MapOptions {
   smartDepthThreshold?: number;
   /** Token budget for output (default: 2000) */
   tokenBudget?: number;
+  /** Include change frequency data (default: false) */
+  includeChangeFrequency?: boolean;
 }
 
 /**

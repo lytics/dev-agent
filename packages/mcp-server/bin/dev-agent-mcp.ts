@@ -193,6 +193,7 @@ async function main() {
 
     const mapAdapter = new MapAdapter({
       repositoryIndexer: indexer,
+      repositoryPath,
       defaultDepth: 2,
       defaultTokenBudget: 2000,
     });
