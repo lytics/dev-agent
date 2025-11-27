@@ -27,6 +27,9 @@ export class TypeScriptScanner implements Scanner {
 
   private project: Project | null = null;
 
+  /** Default maximum lines for code snippets */
+  private static readonly DEFAULT_MAX_SNIPPET_LINES = 50;
+
   canHandle(filePath: string): boolean {
     const ext = path.extname(filePath).toLowerCase();
     return (
@@ -111,9 +114,11 @@ export class TypeScriptScanner implements Scanner {
 
     const startLine = fn.getStartLineNumber();
     const endLine = fn.getEndLineNumber();
-    const signature = fn.getText().split('{')[0].trim();
+    const fullText = fn.getText();
+    const signature = fullText.split('{')[0].trim();
     const docComment = this.getDocComment(fn);
     const isExported = fn.isExported();
+    const snippet = this.truncateSnippet(fullText);
 
     // Build text for embedding
     const text = this.buildEmbeddingText({
@@ -137,6 +142,7 @@ export class TypeScriptScanner implements Scanner {
         signature,
         exported: isExported,
         docstring: docComment,
+        snippet,
       },
     };
   }
@@ -147,8 +153,10 @@ export class TypeScriptScanner implements Scanner {
 
     const startLine = cls.getStartLineNumber();
     const endLine = cls.getEndLineNumber();
+    const fullText = cls.getText();
     const docComment = this.getDocComment(cls);
     const isExported = cls.isExported();
+    const snippet = this.truncateSnippet(fullText);
 
     // Get class signature (class name + extends + implements)
     const extendsClause = cls.getExtends()?.getText() || '';
@@ -179,6 +187,7 @@ export class TypeScriptScanner implements Scanner {
         signature,
         exported: isExported,
         docstring: docComment,
+        snippet,
       },
     };
   }
@@ -193,9 +202,11 @@ export class TypeScriptScanner implements Scanner {
 
     const startLine = method.getStartLineNumber();
     const endLine = method.getEndLineNumber();
-    const signature = method.getText().split('{')[0].trim();
+    const fullText = method.getText();
+    const signature = fullText.split('{')[0].trim();
     const docComment = this.getDocComment(method);
     const isPublic = !method.hasModifier(SyntaxKind.PrivateKeyword);
+    const snippet = this.truncateSnippet(fullText);
 
     const text = this.buildEmbeddingText({
       type: 'method',
@@ -218,6 +229,7 @@ export class TypeScriptScanner implements Scanner {
         signature,
         exported: isPublic,
         docstring: docComment,
+        snippet,
       },
     };
   }
@@ -226,8 +238,10 @@ export class TypeScriptScanner implements Scanner {
     const name = iface.getName();
     const startLine = iface.getStartLineNumber();
     const endLine = iface.getEndLineNumber();
+    const fullText = iface.getText();
     const docComment = this.getDocComment(iface);
     const isExported = iface.isExported();
+    const snippet = this.truncateSnippet(fullText);
 
     // Get interface signature
     const extendsClause = iface
@@ -257,6 +271,7 @@ export class TypeScriptScanner implements Scanner {
         signature,
         exported: isExported,
         docstring: docComment,
+        snippet,
       },
     };
   }
@@ -265,9 +280,12 @@ export class TypeScriptScanner implements Scanner {
     const name = typeAlias.getName();
     const startLine = typeAlias.getStartLineNumber();
     const endLine = typeAlias.getEndLineNumber();
+    const fullText = typeAlias.getText();
     const docComment = this.getDocComment(typeAlias);
     const isExported = typeAlias.isExported();
-    const signature = typeAlias.getText();
+    // For type aliases, the full text IS the signature (no body)
+    const signature = fullText;
+    const snippet = this.truncateSnippet(fullText);
 
     const text = this.buildEmbeddingText({
       type: 'type',
@@ -290,6 +308,7 @@ export class TypeScriptScanner implements Scanner {
         signature,
         exported: isExported,
         docstring: docComment,
+        snippet,
       },
     };
   }
@@ -319,5 +338,24 @@ export class TypeScriptScanner implements Scanner {
     }
 
     return parts.join('\n');
+  }
+
+  /**
+   * Truncate code snippet to a maximum number of lines
+   * Preserves complete lines and adds a truncation indicator if needed
+   */
+  private truncateSnippet(
+    text: string,
+    maxLines: number = TypeScriptScanner.DEFAULT_MAX_SNIPPET_LINES
+  ): string {
+    const lines = text.split('\n');
+
+    if (lines.length <= maxLines) {
+      return text;
+    }
+
+    const truncated = lines.slice(0, maxLines).join('\n');
+    const remaining = lines.length - maxLines;
+    return `${truncated}\n// ... ${remaining} more lines`;
   }
 }

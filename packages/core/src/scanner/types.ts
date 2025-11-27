@@ -26,6 +26,7 @@ export interface DocumentMetadata {
   signature?: string; // Full signature
   exported: boolean; // Is it a public API?
   docstring?: string; // Documentation comment
+  snippet?: string; // Actual code content (truncated if large)
 
   // Extensible for future use
   custom?: Record<string, unknown>;

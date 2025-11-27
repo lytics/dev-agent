@@ -356,4 +356,118 @@ describe('Scanner', () => {
     expect(result.documents).toEqual([]);
     expect(result.stats.filesScanned).toBe(1);
   });
+
+  describe('Code Snippets', () => {
+    it('should extract code snippets for classes', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/typescript.ts'],
+        exclude: ['**/*.test.ts'],
+      });
+
+      // Find TypeScriptScanner class
+      const tsScanner = result.documents.find((d) => d.metadata.name === 'TypeScriptScanner');
+      expect(tsScanner).toBeDefined();
+      expect(tsScanner?.metadata.snippet).toBeDefined();
+      expect(tsScanner?.metadata.snippet).toContain('class TypeScriptScanner');
+      expect(tsScanner?.metadata.snippet).toContain('implements Scanner');
+    });
+
+    it('should extract code snippets for functions', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/index.ts'],
+      });
+
+      // Find createDefaultRegistry function
+      const fn = result.documents.find((d) => d.metadata.name === 'createDefaultRegistry');
+      expect(fn).toBeDefined();
+      expect(fn?.metadata.snippet).toBeDefined();
+      expect(fn?.metadata.snippet).toContain('function createDefaultRegistry');
+    });
+
+    it('should extract code snippets for interfaces', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/types.ts'],
+      });
+
+      // Find Scanner interface
+      const scannerInterface = result.documents.find((d) => d.metadata.name === 'Scanner');
+      expect(scannerInterface).toBeDefined();
+      expect(scannerInterface?.metadata.snippet).toBeDefined();
+      expect(scannerInterface?.metadata.snippet).toContain('interface Scanner');
+      expect(scannerInterface?.metadata.snippet).toContain('scan(');
+    });
+
+    it('should extract code snippets for type aliases', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/types.ts'],
+      });
+
+      // Find DocumentType type alias
+      const docType = result.documents.find((d) => d.metadata.name === 'DocumentType');
+      expect(docType).toBeDefined();
+      expect(docType?.metadata.snippet).toBeDefined();
+      expect(docType?.metadata.snippet).toContain('DocumentType');
+    });
+
+    it('should extract code snippets for methods', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/typescript.ts'],
+        exclude: ['**/*.test.ts'],
+      });
+
+      // Find a method from TypeScriptScanner
+      const method = result.documents.find(
+        (d) => d.type === 'method' && d.metadata.name === 'TypeScriptScanner.canHandle'
+      );
+      expect(method).toBeDefined();
+      expect(method?.metadata.snippet).toBeDefined();
+      expect(method?.metadata.snippet).toContain('canHandle');
+    });
+
+    it('should truncate long snippets', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/typescript.ts'],
+        exclude: ['**/*.test.ts'],
+      });
+
+      // TypeScriptScanner class is large, should be truncated
+      const tsScanner = result.documents.find((d) => d.metadata.name === 'TypeScriptScanner');
+      expect(tsScanner).toBeDefined();
+
+      // If the class is >50 lines, it should be truncated
+      const lineCount = tsScanner?.metadata.snippet?.split('\n').length || 0;
+      // Either it's <=51 lines (50 + truncation message) or it contains the truncation indicator
+      const isTruncated = tsScanner?.metadata.snippet?.includes('// ...');
+      const isWithinLimit = lineCount <= 51;
+      expect(isTruncated || isWithinLimit).toBe(true);
+    });
+
+    it('should preserve snippet formatting and indentation', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/typescript.ts'],
+        exclude: ['**/*.test.ts'],
+      });
+
+      const method = result.documents.find(
+        (d) => d.type === 'method' && d.metadata.name === 'TypeScriptScanner.canHandle'
+      );
+      expect(method).toBeDefined();
+
+      // Should preserve indentation (method body should be indented)
+      const snippet = method?.metadata.snippet || '';
+      const lines = snippet.split('\n');
+      // Find a line inside the method body (not the signature)
+      const bodyLine = lines.find((line) => line.includes('return'));
+      expect(bodyLine).toBeDefined();
+      // Body should be indented (starts with spaces)
+      expect(bodyLine?.startsWith('    ')).toBe(true);
+    });
+  });
 });
