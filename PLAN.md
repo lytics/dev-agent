@@ -145,7 +145,7 @@ Focus on quality, documentation, and developer experience before adding new feat
 |------|--------|----------|
 | Fix lint warnings | ✅ Done | 🔴 High |
 | Context assembler tests | ✅ Done | 🟡 Medium |
-| Integration tests for new tools | 🔲 Todo | 🟢 Low |
+| Integration tests for new tools | ✅ Done | 🟢 Low |
 
 ### Issue Cleanup
 
@@ -217,7 +217,7 @@ These were in the original plan but have been deprioritized or reconsidered:
 - **Package Manager:** pnpm 8.15.4
 - **Build:** Turborepo
 - **Linting:** Biome
-- **Testing:** Vitest (1350+ tests)
+- **Testing:** Vitest (1379+ tests)
 - **Vector Storage:** LanceDB (embedded, no server)
 - **Embeddings:** @xenova/transformers (all-MiniLM-L6-v2)
 - **AI Integration:** MCP (Model Context Protocol)
