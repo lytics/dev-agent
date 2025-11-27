@@ -126,46 +126,78 @@ Don't generate prose—provide structured data and let the LLM synthesize.
 
 ---
 
-## Current: Polish & Stabilize (v0.3.x)
+## Completed: Polish & Stabilize (v0.3.x) ✅
 
-Focus on quality, documentation, and developer experience before adding new features.
+Focus on quality, documentation, and developer experience.
 
-### Documentation
+### Documentation ✅
 
-| Task | Status | Priority |
-|------|--------|----------|
-| CLI reference docs | ✅ Done | 🟡 Medium |
-| Configuration guide | ✅ Done | 🟡 Medium |
-| Troubleshooting guide | ✅ Done | 🟡 Medium |
-| Examples for new tools | ✅ Done | 🟢 Low |
+| Task | Status |
+|------|--------|
+| CLI reference docs | ✅ Done |
+| Configuration guide | ✅ Done |
+| Troubleshooting guide | ✅ Done |
+| Examples for new tools | ✅ Done |
 
-### Code Quality
+### Code Quality ✅
 
-| Task | Status | Priority |
-|------|--------|----------|
-| Fix lint warnings | ✅ Done | 🔴 High |
-| Context assembler tests | ✅ Done | 🟡 Medium |
-| Integration tests for new tools | ✅ Done | 🟢 Low |
-
-### Issue Cleanup
-
-| Task | Status | Priority |
-|------|--------|----------|
-| Close completed epics | ✅ Done | 🟡 Medium |
-| Update stale issues | ✅ Done | 🟢 Low |
+| Task | Status |
+|------|--------|
+| Fix lint warnings | ✅ Done |
+| Context assembler tests | ✅ Done |
+| Integration tests | ✅ Done |
 
 ---
 
-## Future: Extended Intelligence (v0.4+)
+## Current: Intelligent Git History (v0.4.0)
 
-### Git History Context
+> "Who changed what and why" - completing the context picture.
+
+**Epic:** #90
+
+### Philosophy
+
+Git history is valuable context that LLMs can't easily access. We add intelligence:
+- **Semantic search** over commit messages (can't do with `git log --grep`)
+- **Change frequency** insights (which code is "hot"?)
+- **Auto-inclusion** in planning context
+
+### Tasks
+
+| Task | Issue | Status |
+|------|-------|--------|
+| Git types and extractor infrastructure | #91 | 🔲 Todo |
+| Commit indexing in core | #92 | 🔲 Todo |
+| `dev_history` MCP adapter | #93 | 🔲 Todo |
+| Change frequency in `dev_map` | #94 | 🔲 Todo |
+| History integration in `dev_plan` | #95 | 🔲 Todo |
+
+### Architecture
+
+- `GitExtractor` interface (pluggable for future GitHub API)
+- `GitCommit` type with PR/issue refs (for future linking)
+- Blame methods stubbed (for future `dev_blame`)
+- Cross-repo `repository` field in types
+
+### Out of Scope (v0.5+)
+
+- `dev_blame` (line-level attribution)
+- PR/issue linking from commits
+- Contributor expertise mapping
+- Cross-repo history
+
+---
+
+## Future: Extended Intelligence (v0.5+)
+
+### Git History Enhancements
 
 | Feature | Priority |
 |---------|----------|
-| Recent commits affecting file | 🟡 Medium |
-| Git blame integration | 🟡 Medium |
-| Related PRs for file/function | 🟡 Medium |
-| Change frequency analysis | ✅ Done (hot paths) |
+| `dev_blame` - line attribution | 🟡 Medium |
+| PR/issue linking from commits | 🟡 Medium |
+| Contributor expertise mapping | 🟢 Low |
+| Cross-repo history | 🟢 Low |
 
 ### Multi-Language Support
 
