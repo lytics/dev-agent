@@ -1,20 +1,375 @@
 # Dev-Agent Examples
 
-This directory contains example projects and usage patterns for the Dev-Agent system.
+Real-world usage patterns for dev-agent MCP tools.
 
-## Basic Usage
+## Quick Start
 
-The examples demonstrate how to:
+```bash
+# Install dev-agent
+npm install -g dev-agent
 
-1. Initialize the repository context provider
-2. Generate vector embeddings for your codebase
-3. Query for relevant context
-4. Integrate with AI tools like Claude Code
+# Index your repository
+cd /path/to/your/project
+dev index .
 
-## Examples
+# Install MCP for Cursor
+dev mcp install --cursor
 
-- **simple-context**: A basic example of initializing and using the context provider
-- **claude-integration**: Example of using Dev-Agent with Claude Code
-- **subagent-demo**: Demonstration of subagent capabilities for planning and exploration
+# Restart Cursor - tools are now available!
+```
 
-To run an example, navigate to its directory and follow the instructions in its README.md file.
+---
+
+## Tool Examples
+
+### `dev_search` - Semantic Code Search
+
+Find code by meaning, not exact text:
+
+```
+# Find authentication logic
+dev_search: "user authentication and login flow"
+
+# Find error handling patterns
+dev_search: "how errors are caught and handled"
+
+# Find API endpoints
+dev_search: "REST API route handlers"
+```
+
+**With options:**
+```
+dev_search:
+  query: "database connection pooling"
+  limit: 5
+  scoreThreshold: 0.4
+  tokenBudget: 2000
+```
+
+**Output includes:**
+- Code snippets (up to 50 lines)
+- Import statements
+- File locations
+- Relevance scores
+
+---
+
+### `dev_refs` - Relationship Queries
+
+Understand code dependencies:
+
+```
+# What calls this function?
+dev_refs:
+  name: "validateUser"
+  direction: "callers"
+
+# What does this function call?
+dev_refs:
+  name: "processPayment"
+  direction: "callees"
+
+# Both directions
+dev_refs:
+  name: "AuthService"
+  direction: "both"
+```
+
+**Use cases:**
+- Impact analysis before refactoring
+- Understanding code flow
+- Finding entry points
+
+---
+
+### `dev_map` - Codebase Overview
+
+Get a high-level view of the codebase:
+
+```
+# Basic map (depth 2)
+dev_map
+
+# Deeper exploration
+dev_map:
+  depth: 4
+
+# Focus on specific directory
+dev_map:
+  focus: "src/api"
+  depth: 3
+
+# Include hot paths (most referenced files)
+dev_map:
+  includeHotPaths: true
+  smartDepth: true
+```
+
+**Output shows:**
+- Directory structure
+- Component counts per directory
+- Exported symbols with signatures
+- Hot paths (frequently referenced files)
+
+---
+
+### `dev_plan` - Context Assembly
+
+Get rich context for implementing a GitHub issue:
+
+```
+# Basic context
+dev_plan:
+  issue: 42
+
+# Full context package
+dev_plan:
+  issue: 42
+  includeCode: true
+  includeHistory: true
+  includePatterns: true
+```
+
+**Returns:**
+- Issue details (title, body, labels, comments)
+- Relevant code snippets from semantic search
+- Codebase patterns (test conventions, etc.)
+- Related issues/PRs
+
+---
+
+### `dev_gh` - GitHub Search
+
+Search issues and PRs semantically:
+
+```
+# Search issues
+dev_gh:
+  action: "search"
+  query: "authentication bugs"
+
+# Get specific issue
+dev_gh:
+  action: "get"
+  number: 42
+```
+
+**First, index GitHub:**
+```bash
+dev gh index
+```
+
+---
+
+### `dev_explore` - Code Exploration
+
+Find patterns and similar code:
+
+```
+# Find patterns
+dev_explore:
+  action: "pattern"
+  query: "error handling middleware"
+
+# Find similar code
+dev_explore:
+  action: "similar"
+  path: "src/utils/retry.ts"
+```
+
+---
+
+### `dev_status` - Repository Status
+
+Check indexing status:
+
+```
+dev_status
+
+# Specific section
+dev_status:
+  section: "indexes"
+```
+
+---
+
+### `dev_health` - Health Check
+
+Diagnose issues:
+
+```
+dev_health
+
+# Verbose output
+dev_health:
+  verbose: true
+```
+
+---
+
+## Workflow Examples
+
+### Starting a New Feature
+
+1. **Understand the codebase:**
+   ```
+   dev_map: { depth: 3, includeHotPaths: true }
+   ```
+
+2. **Find related code:**
+   ```
+   dev_search: "similar feature implementation"
+   ```
+
+3. **Check what calls the area you'll modify:**
+   ```
+   dev_refs: { name: "TargetModule", direction: "callers" }
+   ```
+
+### Bug Investigation
+
+1. **Search for the bug area:**
+   ```
+   dev_search: "error message from bug report"
+   ```
+
+2. **Trace the code path:**
+   ```
+   dev_refs: { name: "suspectFunction", direction: "callees" }
+   ```
+
+3. **Find similar issues:**
+   ```
+   dev_gh: { action: "search", query: "similar error" }
+   ```
+
+### Implementing a GitHub Issue
+
+1. **Get full context:**
+   ```
+   dev_plan: { issue: 123 }
+   ```
+
+2. **Explore relevant patterns:**
+   ```
+   dev_explore: { action: "pattern", query: "feature type from issue" }
+   ```
+
+### Code Review Prep
+
+1. **Understand the change area:**
+   ```
+   dev_map: { focus: "path/to/changed/dir" }
+   ```
+
+2. **Check impact:**
+   ```
+   dev_refs: { name: "changedFunction", direction: "callers" }
+   ```
+
+---
+
+## Tips
+
+### Search Quality
+
+- **Use natural language** - "how users are authenticated" not "authUser function"
+- **Describe behavior** - "retry logic with exponential backoff"
+- **Lower threshold for exploration** - `scoreThreshold: 0.3`
+
+### Token Management
+
+- Use `tokenBudget` to control output size
+- `compact` format for quick lookups
+- `verbose` format for deep dives
+
+### Keeping Index Fresh
+
+```bash
+# After major changes
+dev index .
+
+# After new issues/PRs
+dev gh index
+
+# Check health
+dev_health
+```
+
+---
+
+## CLI Examples
+
+```bash
+# Search from command line
+dev search "authentication" --limit 5 --threshold 0.4
+
+# Check stats
+dev stats
+
+# Explore patterns
+dev explore pattern "error handling"
+
+# Find similar code
+dev explore similar src/utils/retry.ts
+```
+
+---
+
+## Integration Patterns
+
+### With Cursor
+
+Cursor automatically detects workspace changes. Just:
+1. `dev mcp install --cursor`
+2. Restart Cursor
+3. Use tools in chat
+
+### With Claude Code
+
+```bash
+dev mcp install
+# Tools available immediately
+```
+
+### In Scripts
+
+```bash
+# JSON output for scripting
+dev search "coordinator" --json | jq '.[].metadata.path'
+
+# Check if indexed
+dev stats --json | jq '.filesIndexed'
+```
+
+---
+
+## Troubleshooting
+
+### "No results found"
+
+```bash
+# Check if indexed
+dev stats
+
+# Re-index
+dev index .
+```
+
+### "Repository not indexed"
+
+```bash
+dev index .
+dev mcp install --cursor
+# Restart Cursor
+```
+
+### Slow responses
+
+- Reduce `limit`
+- Use `compact` format
+- Check `dev_health`
+
+---
+
+**More help:** See [Troubleshooting Guide](../TROUBLESHOOTING.md)

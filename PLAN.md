@@ -137,7 +137,7 @@ Focus on quality, documentation, and developer experience before adding new feat
 | CLI reference docs | ✅ Done | 🟡 Medium |
 | Configuration guide | ✅ Done | 🟡 Medium |
 | Troubleshooting guide | ✅ Done | 🟡 Medium |
-| Examples for new tools | 🔲 Todo | 🟢 Low |
+| Examples for new tools | ✅ Done | 🟢 Low |
 
 ### Code Quality
 
@@ -151,8 +151,8 @@ Focus on quality, documentation, and developer experience before adding new feat
 
 | Task | Status | Priority |
 |------|--------|----------|
-| Close completed epics | 🔲 Todo | 🟡 Medium |
-| Update stale issues | 🔲 Todo | 🟢 Low |
+| Close completed epics | ✅ Done | 🟡 Medium |
+| Update stale issues | ✅ Done | 🟢 Low |
 
 ---
 
