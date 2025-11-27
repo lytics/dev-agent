@@ -173,14 +173,20 @@ describe('Formatters', () => {
       expect(result.content).not.toContain('3.');
     });
 
-    it('should estimate more tokens than compact', () => {
+    it('should estimate more tokens than compact when snippets disabled', () => {
+      // When snippets are disabled, verbose still has more metadata
       const compactFormatter = new CompactFormatter();
-      const verboseFormatter = new VerboseFormatter();
+      const verboseFormatter = new VerboseFormatter({
+        includeSnippets: false,
+        includeImports: false,
+      });
 
-      const compactTokens = compactFormatter.estimateTokens(mockResults[0]);
-      const verboseTokens = verboseFormatter.estimateTokens(mockResults[0]);
+      // Use formatResult which includes all the metadata lines
+      const compactOutput = compactFormatter.formatResult(mockResults[0]);
+      const verboseOutput = verboseFormatter.formatResult(mockResults[0]);
 
-      expect(verboseTokens).toBeGreaterThan(compactTokens);
+      // Verbose output should be longer (has Location, Signature, Metadata lines)
+      expect(verboseOutput.length).toBeGreaterThan(compactOutput.length);
     });
 
     it('should handle missing metadata gracefully', () => {
@@ -248,6 +254,217 @@ describe('Formatters', () => {
 
       expect(typeof result.tokens).toBe('number');
       expect(result.tokens).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Snippet and Import Formatting', () => {
+    const resultWithSnippet: SearchResult = {
+      id: 'src/auth/handler.ts:handleAuth:45',
+      score: 0.85,
+      metadata: {
+        path: 'src/auth/handler.ts',
+        type: 'function',
+        language: 'typescript',
+        name: 'handleAuth',
+        startLine: 45,
+        endLine: 67,
+        exported: true,
+        snippet:
+          'export async function handleAuth(req: Request): Promise<Response> {\n  const token = extractToken(req);\n  return validateToken(token);\n}',
+        imports: ['./service', '../utils/jwt', 'express'],
+      },
+    };
+
+    const resultWithManyImports: SearchResult = {
+      id: 'src/index.ts:main:1',
+      score: 0.75,
+      metadata: {
+        path: 'src/index.ts',
+        type: 'function',
+        name: 'main',
+        startLine: 1,
+        endLine: 10,
+        imports: ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
+      },
+    };
+
+    describe('CompactFormatter with snippets', () => {
+      it('should not include snippet by default', () => {
+        const formatter = new CompactFormatter();
+        const formatted = formatter.formatResult(resultWithSnippet);
+
+        expect(formatted).not.toContain('export async function');
+        expect(formatted).not.toContain('Imports:');
+      });
+
+      it('should include snippet when enabled', () => {
+        const formatter = new CompactFormatter({ includeSnippets: true });
+        const formatted = formatter.formatResult(resultWithSnippet);
+
+        expect(formatted).toContain('export async function handleAuth');
+        expect(formatted).toContain('extractToken');
+      });
+
+      it('should include imports when enabled', () => {
+        const formatter = new CompactFormatter({ includeImports: true });
+        const formatted = formatter.formatResult(resultWithSnippet);
+
+        expect(formatted).toContain('Imports:');
+        expect(formatted).toContain('./service');
+        expect(formatted).toContain('express');
+      });
+
+      it('should truncate long import lists', () => {
+        const formatter = new CompactFormatter({ includeImports: true });
+        const formatted = formatter.formatResult(resultWithManyImports);
+
+        expect(formatted).toContain('Imports:');
+        expect(formatted).toContain('a, b, c, d, e');
+        expect(formatted).toContain('...');
+        expect(formatted).not.toContain('f, g');
+      });
+
+      it('should truncate long snippets', () => {
+        const longSnippet = Array(20).fill('const x = 1;').join('\n');
+        const result: SearchResult = {
+          id: 'test',
+          score: 0.8,
+          metadata: {
+            path: 'test.ts',
+            type: 'function',
+            name: 'test',
+            snippet: longSnippet,
+          },
+        };
+
+        const formatter = new CompactFormatter({ includeSnippets: true, maxSnippetLines: 5 });
+        const formatted = formatter.formatResult(result);
+
+        expect(formatted).toContain('// ... 15 more lines');
+      });
+
+      it('should increase token estimate with snippets', () => {
+        const formatterWithout = new CompactFormatter();
+        const formatterWith = new CompactFormatter({ includeSnippets: true, includeImports: true });
+
+        const tokensWithout = formatterWithout.estimateTokens(resultWithSnippet);
+        const tokensWith = formatterWith.estimateTokens(resultWithSnippet);
+
+        expect(tokensWith).toBeGreaterThan(tokensWithout);
+      });
+    });
+
+    describe('VerboseFormatter with snippets', () => {
+      it('should include snippet by default', () => {
+        const formatter = new VerboseFormatter();
+        const formatted = formatter.formatResult(resultWithSnippet);
+
+        expect(formatted).toContain('Code:');
+        expect(formatted).toContain('export async function handleAuth');
+      });
+
+      it('should include imports by default', () => {
+        const formatter = new VerboseFormatter();
+        const formatted = formatter.formatResult(resultWithSnippet);
+
+        expect(formatted).toContain('Imports: ./service, ../utils/jwt, express');
+      });
+
+      it('should show location with line range', () => {
+        const formatter = new VerboseFormatter();
+        const formatted = formatter.formatResult(resultWithSnippet);
+
+        expect(formatted).toContain('Location: src/auth/handler.ts:45-67');
+      });
+
+      it('should not truncate imports in verbose mode', () => {
+        const formatter = new VerboseFormatter();
+        const formatted = formatter.formatResult(resultWithManyImports);
+
+        expect(formatted).toContain('Imports: a, b, c, d, e, f, g');
+        expect(formatted).not.toContain('...');
+      });
+
+      it('should respect maxSnippetLines option', () => {
+        const longSnippet = Array(30).fill('const x = 1;').join('\n');
+        const result: SearchResult = {
+          id: 'test',
+          score: 0.8,
+          metadata: {
+            path: 'test.ts',
+            type: 'function',
+            name: 'test',
+            snippet: longSnippet,
+          },
+        };
+
+        const formatter = new VerboseFormatter({ maxSnippetLines: 10 });
+        const formatted = formatter.formatResult(result);
+
+        expect(formatted).toContain('// ... 20 more lines');
+      });
+
+      it('should be able to disable snippets', () => {
+        const formatter = new VerboseFormatter({ includeSnippets: false });
+        const formatted = formatter.formatResult(resultWithSnippet);
+
+        expect(formatted).not.toContain('Code:');
+        expect(formatted).not.toContain('export async function');
+      });
+
+      it('should be able to disable imports', () => {
+        const formatter = new VerboseFormatter({ includeImports: false });
+        const formatted = formatter.formatResult(resultWithSnippet);
+
+        expect(formatted).not.toContain('Imports:');
+      });
+
+      it('should increase token estimate with snippets', () => {
+        const formatterWithout = new VerboseFormatter({
+          includeSnippets: false,
+          includeImports: false,
+        });
+        const formatterWith = new VerboseFormatter();
+
+        const tokensWithout = formatterWithout.estimateTokens(resultWithSnippet);
+        const tokensWith = formatterWith.estimateTokens(resultWithSnippet);
+
+        expect(tokensWith).toBeGreaterThan(tokensWithout);
+      });
+    });
+
+    describe('Empty snippets and imports', () => {
+      it('should handle missing snippet gracefully', () => {
+        const formatter = new VerboseFormatter();
+        const formatted = formatter.formatResult(mockResults[0]);
+
+        expect(formatted).not.toContain('Code:');
+      });
+
+      it('should handle missing imports gracefully', () => {
+        const formatter = new VerboseFormatter();
+        const formatted = formatter.formatResult(mockResults[0]);
+
+        expect(formatted).not.toContain('Imports:');
+      });
+
+      it('should handle empty imports array', () => {
+        const result: SearchResult = {
+          id: 'test',
+          score: 0.8,
+          metadata: {
+            path: 'test.ts',
+            type: 'function',
+            name: 'test',
+            imports: [],
+          },
+        };
+
+        const formatter = new VerboseFormatter();
+        const formatted = formatter.formatResult(result);
+
+        expect(formatted).not.toContain('Imports:');
+      });
     });
   });
 });
