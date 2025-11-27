@@ -5,6 +5,7 @@ export * from './context';
 export * from './events';
 export * from './github';
 export * from './indexer';
+export * from './map';
 export * from './observability';
 export * from './scanner';
 export * from './storage';
