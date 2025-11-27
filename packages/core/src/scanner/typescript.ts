@@ -1,5 +1,6 @@
 import * as path from 'node:path';
 import {
+  type CallExpression,
   type ClassDeclaration,
   type FunctionDeclaration,
   type InterfaceDeclaration,
@@ -10,7 +11,7 @@ import {
   SyntaxKind,
   type TypeAliasDeclaration,
 } from 'ts-morph';
-import type { Document, Scanner, ScannerCapabilities } from './types';
+import type { CalleeInfo, Document, Scanner, ScannerCapabilities } from './types';
 
 /**
  * Enhanced TypeScript scanner using ts-morph
@@ -80,7 +81,7 @@ export class TypeScriptScanner implements Scanner {
 
     // Extract functions
     for (const fn of sourceFile.getFunctions()) {
-      const doc = this.extractFunction(fn, relativeFile, imports);
+      const doc = this.extractFunction(fn, relativeFile, imports, sourceFile);
       if (doc) documents.push(doc);
     }
 
@@ -95,7 +96,8 @@ export class TypeScriptScanner implements Scanner {
           method,
           cls.getName() || 'Anonymous',
           relativeFile,
-          imports
+          imports,
+          sourceFile
         );
         if (methodDoc) documents.push(methodDoc);
       }
@@ -143,7 +145,8 @@ export class TypeScriptScanner implements Scanner {
   private extractFunction(
     fn: FunctionDeclaration,
     file: string,
-    imports: string[]
+    imports: string[],
+    sourceFile: SourceFile
   ): Document | null {
     const name = fn.getName();
     if (!name) return null; // Skip anonymous functions
@@ -155,6 +158,7 @@ export class TypeScriptScanner implements Scanner {
     const docComment = this.getDocComment(fn);
     const isExported = fn.isExported();
     const snippet = this.truncateSnippet(fullText);
+    const callees = this.extractCallees(fn, sourceFile);
 
     // Build text for embedding
     const text = this.buildEmbeddingText({
@@ -180,6 +184,7 @@ export class TypeScriptScanner implements Scanner {
         docstring: docComment,
         snippet,
         imports,
+        callees: callees.length > 0 ? callees : undefined,
       },
     };
   }
@@ -234,7 +239,8 @@ export class TypeScriptScanner implements Scanner {
     method: MethodDeclaration,
     className: string,
     file: string,
-    imports: string[]
+    imports: string[],
+    sourceFile: SourceFile
   ): Document | null {
     const name = method.getName();
     if (!name) return null;
@@ -246,6 +252,7 @@ export class TypeScriptScanner implements Scanner {
     const docComment = this.getDocComment(method);
     const isPublic = !method.hasModifier(SyntaxKind.PrivateKeyword);
     const snippet = this.truncateSnippet(fullText);
+    const callees = this.extractCallees(method, sourceFile);
 
     const text = this.buildEmbeddingText({
       type: 'method',
@@ -270,6 +277,7 @@ export class TypeScriptScanner implements Scanner {
         docstring: docComment,
         snippet,
         imports,
+        callees: callees.length > 0 ? callees : undefined,
       },
     };
   }
@@ -407,5 +415,98 @@ export class TypeScriptScanner implements Scanner {
     const truncated = lines.slice(0, maxLines).join('\n');
     const remaining = lines.length - maxLines;
     return `${truncated}\n// ... ${remaining} more lines`;
+  }
+
+  /**
+   * Extract callees (functions/methods called) from a node
+   * Handles: function calls, method calls, constructor calls
+   */
+  private extractCallees(node: Node, sourceFile: SourceFile): CalleeInfo[] {
+    const callees: CalleeInfo[] = [];
+    const seenCalls = new Set<string>(); // Deduplicate by name+line
+
+    // Get all call expressions within this node
+    const callExpressions = node.getDescendantsOfKind(SyntaxKind.CallExpression);
+
+    for (const callExpr of callExpressions) {
+      const calleeInfo = this.extractCalleeFromExpression(callExpr, sourceFile);
+      if (calleeInfo) {
+        const key = `${calleeInfo.name}:${calleeInfo.line}`;
+        if (!seenCalls.has(key)) {
+          seenCalls.add(key);
+          callees.push(calleeInfo);
+        }
+      }
+    }
+
+    // Also handle new expressions (constructor calls)
+    const newExpressions = node.getDescendantsOfKind(SyntaxKind.NewExpression);
+    for (const newExpr of newExpressions) {
+      const expression = newExpr.getExpression();
+      const name = expression.getText();
+      const line = newExpr.getStartLineNumber();
+      const key = `new ${name}:${line}`;
+
+      if (!seenCalls.has(key)) {
+        seenCalls.add(key);
+        callees.push({
+          name: `new ${name}`,
+          line,
+          file: undefined, // Could resolve via type checker if needed
+        });
+      }
+    }
+
+    return callees;
+  }
+
+  /**
+   * Extract callee info from a call expression
+   */
+  private extractCalleeFromExpression(
+    callExpr: CallExpression,
+    _sourceFile: SourceFile
+  ): CalleeInfo | null {
+    const expression = callExpr.getExpression();
+    const line = callExpr.getStartLineNumber();
+
+    // Handle different call patterns:
+    // 1. Simple call: foo()
+    // 2. Method call: obj.method()
+    // 3. Chained call: a.b.c()
+    // 4. Computed property: obj[key]()
+
+    const expressionText = expression.getText();
+
+    // Skip very complex expressions (e.g., IIFEs, callbacks)
+    if (expressionText.includes('(') || expressionText.includes('=>')) {
+      return null;
+    }
+
+    // Try to resolve the definition file
+    let file: string | undefined;
+    try {
+      // Get the symbol and find its declaration
+      const symbol = expression.getSymbol();
+      if (symbol) {
+        const declarations = symbol.getDeclarations();
+        if (declarations.length > 0) {
+          const declSourceFile = declarations[0].getSourceFile();
+          const filePath = declSourceFile.getFilePath();
+          // Only include if it's within the project (not node_modules)
+          if (!filePath.includes('node_modules')) {
+            file = filePath;
+          }
+        }
+      }
+    } catch {
+      // Symbol resolution can fail for various reasons, continue without file
+    }
+
+    return {
+      name: expressionText,
+      line,
+      file,
+    };
   }
 }
