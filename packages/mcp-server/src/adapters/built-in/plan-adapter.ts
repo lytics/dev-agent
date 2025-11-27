@@ -1,32 +1,41 @@
 /**
  * Plan Adapter
- * Generates development plans from GitHub issues
+ * Assembles context for development planning from GitHub issues
  *
- * Routes through PlannerAgent when coordinator is available,
- * falls back to direct utility calls otherwise.
+ * Philosophy: Provide raw, structured context - let the LLM do the reasoning
+ *
+ * Two modes:
+ * - "context" (default): Returns rich context package for LLM consumption
+ * - "legacy": Returns heuristic task breakdown (deprecated)
  */
 
 import type { RepositoryIndexer } from '@lytics/dev-agent-core';
 import type {
   Plan as AgentPlan,
   PlanTask as AgentPlanTask,
+  ContextAssemblyOptions,
+  ContextPackage,
   PlanningResult,
   RelevantCode,
 } from '@lytics/dev-agent-subagents';
 import {
   addEstimatesToTasks,
+  assembleContext,
   breakdownIssue,
   calculateTotalEstimate,
   cleanDescription,
   extractAcceptanceCriteria,
   fetchGitHubIssue,
+  formatContextPackage,
   inferPriority,
 } from '@lytics/dev-agent-subagents';
+import { estimateTokensForText, startTimer } from '../../formatters/utils';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
 
 /**
  * Plan task (local type definition - matches planner/types.ts)
+ * @deprecated Use ContextPackage instead
  */
 interface PlanTask {
   id: string;
@@ -44,6 +53,7 @@ interface PlanTask {
 
 /**
  * Development plan (local type definition - matches planner/types.ts)
+ * @deprecated Use ContextPackage instead
  */
 interface Plan {
   issueNumber: number;
@@ -86,13 +96,13 @@ export interface PlanAdapterConfig {
 
 /**
  * Plan Adapter
- * Implements the dev_plan tool for generating implementation plans from GitHub issues
+ * Implements the dev_plan tool for generating implementation context from GitHub issues
  */
 export class PlanAdapter extends ToolAdapter {
   readonly metadata = {
     name: 'plan-adapter',
-    version: '1.0.0',
-    description: 'GitHub issue planning adapter',
+    version: '2.0.0',
+    description: 'GitHub issue context assembler',
     author: 'Dev-Agent Team',
   };
 
@@ -125,7 +135,7 @@ export class PlanAdapter extends ToolAdapter {
     return {
       name: 'dev_plan',
       description:
-        'Generate implementation plan from GitHub issue with tasks, estimates, and dependencies',
+        'Assemble context for implementing a GitHub issue. Returns issue details, relevant code, and codebase patterns for LLM consumption.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -133,23 +143,33 @@ export class PlanAdapter extends ToolAdapter {
             type: 'number',
             description: 'GitHub issue number (e.g., 29)',
           },
+          mode: {
+            type: 'string',
+            enum: ['context', 'legacy'],
+            description:
+              'Mode: "context" returns rich context package (default), "legacy" returns heuristic task breakdown (deprecated)',
+            default: 'context',
+          },
           format: {
             type: 'string',
             enum: ['compact', 'verbose'],
-            description:
-              'Output format: "compact" for markdown checklist (default), "verbose" for detailed JSON',
+            description: 'Output format: "compact" for markdown (default), "verbose" for JSON',
             default: this.defaultFormat,
           },
-          useExplorer: {
+          includeCode: {
             type: 'boolean',
-            description: 'Find relevant code using semantic search (default: true)',
+            description: 'Include relevant code snippets (default: true)',
             default: true,
           },
-          detailLevel: {
-            type: 'string',
-            enum: ['simple', 'detailed'],
-            description: 'Task granularity: "simple" (4-8 tasks) or "detailed" (10-15 tasks)',
-            default: 'detailed',
+          includePatterns: {
+            type: 'boolean',
+            description: 'Include detected codebase patterns (default: true)',
+            default: true,
+          },
+          tokenBudget: {
+            type: 'number',
+            description: 'Maximum tokens for output (default: 4000)',
+            default: 4000,
           },
         },
         required: ['issue'],
@@ -160,9 +180,11 @@ export class PlanAdapter extends ToolAdapter {
   async execute(args: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {
     const {
       issue,
+      mode = 'context',
       format = this.defaultFormat,
-      useExplorer = true,
-      detailLevel = 'detailed',
+      includeCode = true,
+      includePatterns = true,
+      tokenBudget = 4000,
     } = args;
 
     // Validate issue number
@@ -172,6 +194,17 @@ export class PlanAdapter extends ToolAdapter {
         error: {
           code: 'INVALID_ISSUE',
           message: 'Issue must be a positive number',
+        },
+      };
+    }
+
+    // Validate mode
+    if (mode !== 'context' && mode !== 'legacy') {
+      return {
+        success: false,
+        error: {
+          code: 'INVALID_MODE',
+          message: 'Mode must be either "context" or "legacy"',
         },
       };
     }
@@ -187,26 +220,91 @@ export class PlanAdapter extends ToolAdapter {
       };
     }
 
-    // Validate detailLevel
-    if (detailLevel !== 'simple' && detailLevel !== 'detailed') {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_DETAIL_LEVEL',
-          message: 'Detail level must be either "simple" or "detailed"',
-        },
-      };
-    }
-
     try {
-      context.logger.debug('Generating plan', {
+      const timer = startTimer();
+
+      // Route based on mode
+      if (mode === 'legacy') {
+        context.logger.warn('Using deprecated legacy mode', { issue });
+        return this.executeLegacy(args, context);
+      }
+
+      // Context mode (new default)
+      context.logger.debug('Assembling context', {
         issue,
         format,
-        useExplorer,
-        detailLevel,
-        viaAgent: this.hasCoordinator(),
+        includeCode,
+        includePatterns,
+        tokenBudget,
       });
 
+      const options: ContextAssemblyOptions = {
+        includeCode: includeCode as boolean,
+        includePatterns: includePatterns as boolean,
+        includeHistory: false, // TODO: Enable when GitHub indexer is available
+        maxCodeResults: 10,
+        tokenBudget: tokenBudget as number,
+      };
+
+      const contextPackage = await this.withTimeout(
+        assembleContext(issue as number, this.indexer, this.repositoryPath, options),
+        this.timeout
+      );
+
+      // Format output
+      const content =
+        format === 'verbose'
+          ? JSON.stringify(contextPackage, null, 2)
+          : formatContextPackage(contextPackage);
+
+      const tokens = estimateTokensForText(content);
+      const duration_ms = timer.elapsed();
+
+      context.logger.info('Context assembled', {
+        issue,
+        codeResults: contextPackage.relevantCode.length,
+        hasPatterns: !!contextPackage.codebasePatterns.testPattern,
+        tokens,
+        duration_ms,
+      });
+
+      return {
+        success: true,
+        data: {
+          issue,
+          format,
+          mode: 'context',
+          content,
+          context: format === 'verbose' ? contextPackage : undefined,
+        },
+        metadata: {
+          tokens,
+          duration_ms,
+          timestamp: new Date().toISOString(),
+          cached: false,
+        },
+      };
+    } catch (error) {
+      context.logger.error('Context assembly failed', { error });
+      return this.handleError(error, issue as number);
+    }
+  }
+
+  /**
+   * Execute legacy mode (deprecated heuristic task breakdown)
+   */
+  private async executeLegacy(
+    args: Record<string, unknown>,
+    context: ToolExecutionContext
+  ): Promise<ToolResult> {
+    const {
+      issue,
+      format = this.defaultFormat,
+      useExplorer = true,
+      detailLevel = 'detailed',
+    } = args;
+
+    try {
       let plan: Plan;
 
       // Try routing through PlannerAgent if coordinator is available
@@ -220,10 +318,8 @@ export class PlanAdapter extends ToolAdapter {
         if (agentPlan) {
           plan = this.convertAgentPlan(agentPlan);
         } else {
-          // Fall through to direct execution if agent dispatch failed
-          context.logger.debug('Agent dispatch returned null, falling back to direct execution');
           plan = await this.withTimeout(
-            this.generatePlan(
+            this.generateLegacyPlan(
               issue as number,
               useExplorer as boolean,
               detailLevel as 'simple' | 'detailed',
@@ -233,9 +329,8 @@ export class PlanAdapter extends ToolAdapter {
           );
         }
       } else {
-        // Direct execution (no coordinator)
         plan = await this.withTimeout(
-          this.generatePlan(
+          this.generateLegacyPlan(
             issue as number,
             useExplorer as boolean,
             detailLevel as 'simple' | 'detailed',
@@ -245,10 +340,9 @@ export class PlanAdapter extends ToolAdapter {
         );
       }
 
-      // Format plan based on format parameter
       const content = format === 'verbose' ? this.formatVerbose(plan) : this.formatCompact(plan);
 
-      context.logger.info('Plan generated', {
+      context.logger.info('Legacy plan generated', {
         issue,
         taskCount: plan.tasks.length,
         totalEstimate: plan.totalEstimate,
@@ -259,63 +353,69 @@ export class PlanAdapter extends ToolAdapter {
         data: {
           issue,
           format,
+          mode: 'legacy',
           content,
-          plan: format === 'verbose' ? plan : undefined, // Include full plan in verbose mode
+          plan: format === 'verbose' ? plan : undefined,
         },
       };
     } catch (error) {
-      context.logger.error('Plan generation failed', { error });
-
-      // Handle specific error types
-      if (error instanceof Error) {
-        if (error.message.includes('timeout')) {
-          return {
-            success: false,
-            error: {
-              code: 'PLANNER_TIMEOUT',
-              message: `Planning timeout after ${this.timeout / 1000}s. Issue may be too complex.`,
-              suggestion: 'Try breaking the issue into smaller sub-issues or increase timeout.',
-            },
-          };
-        }
-
-        if (error.message.includes('not found') || error.message.includes('404')) {
-          return {
-            success: false,
-            error: {
-              code: 'ISSUE_NOT_FOUND',
-              message: `GitHub issue #${issue} not found`,
-              suggestion: 'Check the issue number or run "dev gh index" to sync GitHub data.',
-            },
-          };
-        }
-
-        if (error.message.includes('GitHub') || error.message.includes('gh')) {
-          return {
-            success: false,
-            error: {
-              code: 'GITHUB_ERROR',
-              message: error.message,
-              suggestion: 'Ensure GitHub CLI (gh) is installed and authenticated.',
-            },
-          };
-        }
-      }
-
-      return {
-        success: false,
-        error: {
-          code: 'PLANNING_FAILED',
-          message: error instanceof Error ? error.message : 'Unknown error',
-          details: error,
-        },
-      };
+      context.logger.error('Legacy plan generation failed', { error });
+      return this.handleError(error, issue as number);
     }
   }
 
   /**
+   * Handle errors with appropriate error codes
+   */
+  private handleError(error: unknown, issueNumber: number): ToolResult {
+    if (error instanceof Error) {
+      if (error.message.includes('timeout')) {
+        return {
+          success: false,
+          error: {
+            code: 'PLANNER_TIMEOUT',
+            message: `Context assembly timeout after ${this.timeout / 1000}s.`,
+            suggestion: 'Try reducing tokenBudget or disabling some options.',
+          },
+        };
+      }
+
+      if (error.message.includes('not found') || error.message.includes('404')) {
+        return {
+          success: false,
+          error: {
+            code: 'ISSUE_NOT_FOUND',
+            message: `GitHub issue #${issueNumber} not found`,
+            suggestion: 'Check the issue number or run "dev gh index" to sync GitHub data.',
+          },
+        };
+      }
+
+      if (error.message.includes('GitHub') || error.message.includes('gh')) {
+        return {
+          success: false,
+          error: {
+            code: 'GITHUB_ERROR',
+            message: error.message,
+            suggestion: 'Ensure GitHub CLI (gh) is installed and authenticated.',
+          },
+        };
+      }
+    }
+
+    return {
+      success: false,
+      error: {
+        code: 'CONTEXT_ASSEMBLY_FAILED',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        details: error,
+      },
+    };
+  }
+
+  /**
    * Execute planning via PlannerAgent through the coordinator
-   * Returns agent plan, or null if dispatch fails
+   * @deprecated Use context mode instead
    */
   private async executeViaAgent(
     issueNumber: number,
@@ -329,14 +429,12 @@ export class PlanAdapter extends ToolAdapter {
       detailLevel,
     };
 
-    // Dispatch to PlannerAgent
     const response = await this.dispatchToAgent('planner', payload);
 
     if (!response) {
       return null;
     }
 
-    // Check for error response
     if (response.type === 'error') {
       this.logger?.warn('PlannerAgent returned error', {
         error: response.payload.error,
@@ -344,14 +442,13 @@ export class PlanAdapter extends ToolAdapter {
       return null;
     }
 
-    // Extract plan from response payload
     const result = response.payload as unknown as PlanningResult;
     return result.plan;
   }
 
   /**
    * Convert agent plan format to adapter plan format
-   * (They're nearly identical, but we ensure type safety)
+   * @deprecated Use context mode instead
    */
   private convertAgentPlan(agentPlan: AgentPlan): Plan {
     return {
@@ -367,7 +464,7 @@ export class PlanAdapter extends ToolAdapter {
           score: code.score,
         })),
         estimatedHours: task.estimatedHours,
-        dependencies: undefined, // Not in agent plan
+        dependencies: undefined,
         priority: task.priority,
         phase: task.phase,
       })),
@@ -378,24 +475,22 @@ export class PlanAdapter extends ToolAdapter {
   }
 
   /**
-   * Generate a development plan from a GitHub issue (direct execution)
+   * Generate a legacy development plan from a GitHub issue
+   * @deprecated Use context mode instead
    */
-  private async generatePlan(
+  private async generateLegacyPlan(
     issueNumber: number,
     useExplorer: boolean,
     detailLevel: 'simple' | 'detailed',
     context: ToolExecutionContext
   ): Promise<Plan> {
-    // Fetch GitHub issue
     context.logger.debug('Fetching GitHub issue', { issueNumber });
     const issue = await fetchGitHubIssue(issueNumber, this.repositoryPath);
 
-    // Parse issue content
     const acceptanceCriteria = extractAcceptanceCriteria(issue.body);
     const priority = inferPriority(issue.labels);
     const description = cleanDescription(issue.body);
 
-    // Break down into tasks
     const maxTasks = detailLevel === 'simple' ? 8 : 15;
     let tasks = breakdownIssue(issue, acceptanceCriteria, {
       detailLevel,
@@ -403,7 +498,6 @@ export class PlanAdapter extends ToolAdapter {
       includeEstimates: false,
     });
 
-    // Find relevant code if Explorer enabled
     if (useExplorer) {
       context.logger.debug('Finding relevant code', { taskCount: tasks.length });
 
@@ -420,13 +514,11 @@ export class PlanAdapter extends ToolAdapter {
             score: r.score,
           }));
         } catch (error) {
-          // Continue without Explorer context for this task
           context.logger.debug('Explorer search failed for task', { task: task.id, error });
         }
       }
     }
 
-    // Add effort estimates
     tasks = addEstimatesToTasks(tasks);
     const totalEstimate = calculateTotalEstimate(tasks);
 
@@ -447,19 +539,17 @@ export class PlanAdapter extends ToolAdapter {
 
   /**
    * Format plan as compact markdown checklist
+   * @deprecated Use context mode instead
    */
   private formatCompact(plan: Plan): string {
     const lines: string[] = [];
 
-    // Header
     lines.push(`## Plan for #${plan.issueNumber}: ${plan.title}`);
     lines.push('');
     lines.push(
       `**Estimate:** ${plan.totalEstimate} | **Priority:** ${plan.priority} | **Tasks:** ${plan.tasks.length}`
     );
     lines.push('');
-
-    // Tasks as checklist
     lines.push('### Implementation Steps');
     lines.push('');
 
@@ -468,7 +558,6 @@ export class PlanAdapter extends ToolAdapter {
       const estimate = task.estimatedHours ? ` (${task.estimatedHours}h)` : '';
       lines.push(`${i + 1}. ${task.description}${estimate}`);
 
-      // Add relevant code if available (compact: just file paths)
       if (task.relevantCode && task.relevantCode.length > 0) {
         const paths = task.relevantCode
           .slice(0, 2)
@@ -480,7 +569,6 @@ export class PlanAdapter extends ToolAdapter {
       lines.push('');
     }
 
-    // Next step
     lines.push('### Next Step');
     lines.push('');
     lines.push(
@@ -492,6 +580,7 @@ export class PlanAdapter extends ToolAdapter {
 
   /**
    * Format plan as verbose JSON with all details
+   * @deprecated Use context mode instead
    */
   private formatVerbose(plan: Plan): string {
     return JSON.stringify(plan, null, 2);
@@ -510,14 +599,17 @@ export class PlanAdapter extends ToolAdapter {
   }
 
   estimateTokens(args: Record<string, unknown>): number {
-    const { format = this.defaultFormat, detailLevel = 'detailed' } = args;
+    const { mode = 'context', tokenBudget = 4000 } = args;
 
-    // Rough estimates based on format and detail level
+    if (mode === 'context') {
+      return tokenBudget as number;
+    }
+
+    // Legacy mode estimates
+    const { format = this.defaultFormat, detailLevel = 'detailed' } = args;
     if (format === 'verbose') {
       return detailLevel === 'simple' ? 800 : 1500;
     }
-
-    // Compact estimates
     return detailLevel === 'simple' ? 300 : 600;
   }
 }
