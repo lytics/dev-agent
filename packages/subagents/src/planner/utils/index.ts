@@ -9,6 +9,11 @@ export {
   groupTasksByPhase,
   validateTasks,
 } from './breakdown';
+// Context assembly utilities
+export {
+  assembleContext,
+  formatContextPackage,
+} from './context-assembler';
 // Estimation utilities
 export {
   addEstimatesToTasks,
@@ -25,6 +30,7 @@ export {
 } from './formatting';
 // GitHub utilities
 export {
+  type FetchIssueOptions,
   fetchGitHubIssue,
   isGhInstalled,
   isGitHubRepo,
