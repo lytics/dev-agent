@@ -3,6 +3,8 @@
 export { MarkdownScanner } from './markdown';
 export { ScannerRegistry } from './registry';
 export type {
+  CalleeInfo,
+  CallerInfo,
   Document,
   DocumentMetadata,
   DocumentType,
