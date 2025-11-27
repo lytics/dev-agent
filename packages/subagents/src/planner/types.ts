@@ -4,6 +4,15 @@
  */
 
 /**
+ * GitHub issue comment
+ */
+export interface GitHubComment {
+  author?: string;
+  body: string;
+  createdAt?: string;
+}
+
+/**
  * GitHub issue data from gh CLI
  */
 export interface GitHubIssue {
@@ -13,8 +22,10 @@ export interface GitHubIssue {
   state: 'open' | 'closed';
   labels: string[];
   assignees: string[];
+  author?: string;
   createdAt: string;
   updatedAt: string;
+  comments?: GitHubComment[];
 }
 
 /**
