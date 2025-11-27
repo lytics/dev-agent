@@ -15,7 +15,7 @@
 #   gh-issue-add-subs 31 52 53 54
 #
 #   # Add a single sub-issue
-#   gh-issue-add-subs 31 52
+#   gh-issue-add-subs 31 52                                                      
 #
 # Requirements:
 #   - GitHub CLI (gh) installed and authenticated

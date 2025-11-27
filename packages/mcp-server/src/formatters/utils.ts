@@ -1,7 +1,35 @@
 /**
  * Formatter Utilities
- * Token estimation and text processing utilities
+ * Token estimation, text processing, and timing utilities
  */
+
+/**
+ * Simple timer for measuring operation duration
+ */
+export interface SimpleTimer {
+  /** Get elapsed time in milliseconds */
+  elapsed(): number;
+}
+
+/**
+ * Start a simple timer for measuring operation duration
+ * Unlike logger.startTimer(), this doesn't log automatically
+ *
+ * @returns Timer object with elapsed() method
+ *
+ * @example
+ * ```typescript
+ * const timer = startTimer();
+ * await doSomething();
+ * const duration_ms = timer.elapsed();
+ * ```
+ */
+export function startTimer(): SimpleTimer {
+  const start = Date.now();
+  return {
+    elapsed: () => Date.now() - start,
+  };
+}
 
 /**
  * Estimate tokens for text using a calibrated heuristic
