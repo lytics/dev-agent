@@ -197,15 +197,20 @@ npm link
 ## CLI Commands
 
 ```bash
-# Index repository
+# Index everything (code, git history, GitHub)
 dev index .
+dev index . --no-github               # Skip GitHub indexing
 
 # Semantic search
 dev search "how do agents communicate"
 dev search "error handling" --threshold 0.3
 
+# Git history search
+dev git search "authentication fix"   # Semantic search over commits
+dev git stats                         # Show indexed commit count
+
 # GitHub integration
-dev gh index                          # Index issues and PRs
+dev gh index                          # Index issues and PRs (also done by dev index)
 dev gh search "authentication bug"    # Semantic search
 
 # View statistics
