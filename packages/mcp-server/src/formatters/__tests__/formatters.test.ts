@@ -467,4 +467,183 @@ describe('Formatters', () => {
       });
     });
   });
+
+  describe('Token Budget Management', () => {
+    // Generate mock results with snippets for testing
+    const generateMockResults = (count: number): SearchResult[] => {
+      return Array.from({ length: count }, (_, i) => ({
+        id: `test-${i}`,
+        score: 0.9 - i * 0.05,
+        metadata: {
+          path: `src/file${i}.ts`,
+          type: 'function',
+          language: 'typescript',
+          name: `function${i}`,
+          startLine: i * 10,
+          endLine: i * 10 + 20,
+          exported: true,
+          signature: `function function${i}(): void`,
+          snippet: `export function function${i}() {\n  // Line 1\n  // Line 2\n  // Line 3\n  return ${i};\n}`,
+          imports: ['./utils', '../lib'],
+        },
+      }));
+    };
+
+    describe('CompactFormatter budget', () => {
+      it('should respect token budget', () => {
+        const formatter = new CompactFormatter({
+          tokenBudget: 100,
+          maxResults: 10,
+          includeSnippets: true,
+          includeImports: true,
+          progressiveDisclosure: false, // Force all results to use full detail
+        });
+
+        const results = generateMockResults(10);
+        const output = formatter.formatResults(results);
+
+        // Should be within budget (with some tolerance for truncation notice)
+        expect(output.tokens).toBeLessThanOrEqual(150);
+        // Should have truncation notice since budget is small
+        expect(output.content).toContain('more results');
+      });
+
+      it('should use progressive disclosure', () => {
+        const formatter = new CompactFormatter({
+          tokenBudget: 1000,
+          maxResults: 10,
+          includeSnippets: true,
+          includeImports: true,
+          fullDetailCount: 2,
+          signatureDetailCount: 2,
+        });
+
+        const results = generateMockResults(10);
+        const output = formatter.formatResults(results);
+
+        // First results should have snippets
+        expect(output.content).toContain('export function function0');
+        // Later results should be minimal (just name + path)
+        // Check that result 5+ doesn't have its snippet
+        const lines = output.content.split('\n');
+        const result5Line = lines.find((l) => l.includes('function5'));
+        expect(result5Line).toBeDefined();
+      });
+
+      it('should always include at least first result', () => {
+        const formatter = new CompactFormatter({
+          tokenBudget: 10, // Very small budget
+          maxResults: 10,
+          includeSnippets: true,
+        });
+
+        const results = generateMockResults(5);
+        const output = formatter.formatResults(results);
+
+        // Should have at least one result
+        expect(output.content).toContain('function0');
+      });
+
+      it('should disable progressive disclosure when option is false', () => {
+        const formatter = new CompactFormatter({
+          tokenBudget: 500,
+          maxResults: 5,
+          includeSnippets: true,
+          progressiveDisclosure: false,
+        });
+
+        const results = generateMockResults(5);
+        const output = formatter.formatResults(results);
+
+        // All results should have full detail (until budget runs out)
+        // Check that early results have snippets
+        expect(output.content).toContain('export function function0');
+      });
+    });
+
+    describe('VerboseFormatter budget', () => {
+      it('should respect token budget', () => {
+        const formatter = new VerboseFormatter({
+          tokenBudget: 500,
+          maxResults: 10,
+          includeSnippets: true,
+          includeImports: true,
+        });
+
+        const results = generateMockResults(10);
+        const output = formatter.formatResults(results);
+
+        // Should be within budget (with some tolerance)
+        expect(output.tokens).toBeLessThanOrEqual(600);
+      });
+
+      it('should use progressive disclosure', () => {
+        const formatter = new VerboseFormatter({
+          tokenBudget: 2000,
+          maxResults: 10,
+          includeSnippets: true,
+          includeImports: true,
+          fullDetailCount: 2,
+          signatureDetailCount: 3,
+        });
+
+        const results = generateMockResults(10);
+        const output = formatter.formatResults(results);
+
+        // First results should have Code: section
+        expect(output.content).toContain('Code:');
+        expect(output.content).toContain('export function function0');
+      });
+
+      it('should show truncation notice when budget exceeded', () => {
+        const formatter = new VerboseFormatter({
+          tokenBudget: 100, // Very small budget
+          maxResults: 10,
+          includeSnippets: true,
+          progressiveDisclosure: false, // Force all results to use full detail
+        });
+
+        const results = generateMockResults(10);
+        const output = formatter.formatResults(results);
+
+        expect(output.content).toContain('more results (token budget reached)');
+      });
+    });
+
+    describe('Detail levels', () => {
+      it('should format with full detail', () => {
+        const formatter = new CompactFormatter({ includeSnippets: true, includeImports: true });
+        const result = generateMockResults(1)[0];
+
+        const output = formatter.formatResultWithDetail(result, 'full');
+
+        expect(output).toContain('export function');
+        expect(output).toContain('Imports:');
+      });
+
+      it('should format with signature detail', () => {
+        const formatter = new CompactFormatter({ includeSnippets: true, includeImports: true });
+        const result = generateMockResults(1)[0];
+
+        const output = formatter.formatResultWithDetail(result, 'signature');
+
+        expect(output).toContain('function function0(): void');
+        expect(output).not.toContain('export function');
+        expect(output).not.toContain('Imports:');
+      });
+
+      it('should format with minimal detail', () => {
+        const formatter = new CompactFormatter({ includeSnippets: true, includeImports: true });
+        const result = generateMockResults(1)[0];
+
+        const output = formatter.formatResultWithDetail(result, 'minimal');
+
+        expect(output).toContain('function0');
+        expect(output).toContain('src/file0.ts');
+        expect(output).not.toContain('export function');
+        expect(output).not.toContain('Imports:');
+        expect(output).not.toContain('function function0(): void');
+      });
+    });
+  });
 });

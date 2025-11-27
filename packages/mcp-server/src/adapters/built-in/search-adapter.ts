@@ -41,8 +41,6 @@ export class SearchAdapter extends ToolAdapter {
   };
 
   private indexer: RepositoryIndexer;
-  private compactFormatter: CompactFormatter;
-  private verboseFormatter: VerboseFormatter;
   private config: Required<SearchAdapterConfig>;
 
   constructor(config: SearchAdapterConfig) {
@@ -53,17 +51,6 @@ export class SearchAdapter extends ToolAdapter {
       defaultFormat: config.defaultFormat ?? 'compact',
       defaultLimit: config.defaultLimit ?? 10,
     };
-
-    // Initialize formatters
-    this.compactFormatter = new CompactFormatter({
-      maxResults: this.config.defaultLimit,
-      tokenBudget: 1000,
-    });
-
-    this.verboseFormatter = new VerboseFormatter({
-      maxResults: this.config.defaultLimit,
-      tokenBudget: 5000,
-    });
   }
 
   async initialize(context: AdapterContext): Promise<void> {
@@ -107,6 +94,13 @@ export class SearchAdapter extends ToolAdapter {
             maximum: 1,
             default: 0,
           },
+          tokenBudget: {
+            type: 'number',
+            description:
+              'Maximum tokens for results. Uses progressive disclosure to fit within budget (default: 2000 compact, 5000 verbose)',
+            minimum: 500,
+            maximum: 10000,
+          },
         },
         required: ['query'],
       },
@@ -119,6 +113,7 @@ export class SearchAdapter extends ToolAdapter {
       format = this.config.defaultFormat,
       limit = this.config.defaultLimit,
       scoreThreshold = 0,
+      tokenBudget,
     } = args;
 
     // Validate query
@@ -165,9 +160,29 @@ export class SearchAdapter extends ToolAdapter {
       };
     }
 
+    // Validate tokenBudget if provided
+    if (
+      tokenBudget !== undefined &&
+      (typeof tokenBudget !== 'number' || tokenBudget < 500 || tokenBudget > 10000)
+    ) {
+      return {
+        success: false,
+        error: {
+          code: 'INVALID_TOKEN_BUDGET',
+          message: 'Token budget must be a number between 500 and 10000',
+        },
+      };
+    }
+
     try {
       const startTime = Date.now();
-      context.logger.debug('Executing search', { query, format, limit, scoreThreshold });
+      context.logger.debug('Executing search', {
+        query,
+        format,
+        limit,
+        scoreThreshold,
+        tokenBudget,
+      });
 
       // Perform search
       const results = await this.indexer.search(query as string, {
@@ -175,8 +190,22 @@ export class SearchAdapter extends ToolAdapter {
         scoreThreshold: scoreThreshold as number,
       });
 
-      // Format results
-      const formatter = format === 'verbose' ? this.verboseFormatter : this.compactFormatter;
+      // Create formatter with token budget if specified
+      const formatter =
+        format === 'verbose'
+          ? new VerboseFormatter({
+              maxResults: limit as number,
+              tokenBudget: (tokenBudget as number | undefined) ?? 5000,
+              includeSnippets: true,
+              includeImports: true,
+            })
+          : new CompactFormatter({
+              maxResults: limit as number,
+              tokenBudget: (tokenBudget as number | undefined) ?? 2000,
+              includeSnippets: true,
+              includeImports: true,
+            });
+
       const formatted = formatter.formatResults(results);
 
       const duration_ms = Date.now() - startTime;
