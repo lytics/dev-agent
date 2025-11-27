@@ -1,5 +1,14 @@
 # @lytics/dev-agent-cli
 
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [c42f5ba]
+  - @lytics/dev-agent-core@0.4.0
+  - @lytics/dev-agent-mcp@0.4.0
+  - @lytics/dev-agent-subagents@0.3.0
+
 ## 0.1.2
 
 ### Patch Changes
