@@ -489,6 +489,125 @@ describe('Codebase Map', () => {
     });
   });
 
+  describe('Smart Depth', () => {
+    it('should expand dense directories when smartDepth is enabled', async () => {
+      // Create a structure with varying density
+      const mixedDensity: SearchResult[] = [
+        // Dense directory - 15 components
+        ...Array.from({ length: 15 }, (_, i) => ({
+          id: `packages/core/src/dense/file${i}.ts:fn:1`,
+          score: 0.9,
+          metadata: {
+            path: `packages/core/src/dense/file${i}.ts`,
+            type: 'function',
+            name: `fn${i}`,
+            exported: true,
+          },
+        })),
+        // Sparse directory - 2 components
+        ...Array.from({ length: 2 }, (_, i) => ({
+          id: `packages/core/src/sparse/file${i}.ts:fn:1`,
+          score: 0.9,
+          metadata: {
+            path: `packages/core/src/sparse/file${i}.ts`,
+            type: 'function',
+            name: `fn${i}`,
+            exported: true,
+          },
+        })),
+      ];
+
+      const indexer = createMockIndexer(mixedDensity);
+      const map = await generateCodebaseMap(indexer, {
+        depth: 5,
+        smartDepth: true,
+        smartDepthThreshold: 10,
+      });
+
+      // Find the core node
+      const findNode = (node: typeof map.root, name: string): typeof map.root | null => {
+        if (node.name === name) return node;
+        for (const child of node.children) {
+          const found = findNode(child, name);
+          if (found) return found;
+        }
+        return null;
+      };
+
+      const srcNode = findNode(map.root, 'src');
+      expect(srcNode).not.toBeNull();
+
+      // Dense should be expanded (has children or is at leaf level)
+      const denseNode = srcNode?.children.find((c) => c.name === 'dense');
+      expect(denseNode).toBeDefined();
+      expect(denseNode?.componentCount).toBe(15);
+
+      // Sparse should also exist but may be collapsed
+      const sparseNode = srcNode?.children.find((c) => c.name === 'sparse');
+      expect(sparseNode).toBeDefined();
+      expect(sparseNode?.componentCount).toBe(2);
+    });
+
+    it('should always expand first 2 levels regardless of density', async () => {
+      const sparseResults: SearchResult[] = [
+        {
+          id: 'packages/tiny/src/file.ts:fn:1',
+          score: 0.9,
+          metadata: {
+            path: 'packages/tiny/src/file.ts',
+            type: 'function',
+            name: 'fn',
+            exported: true,
+          },
+        },
+      ];
+
+      const indexer = createMockIndexer(sparseResults);
+      const map = await generateCodebaseMap(indexer, {
+        depth: 5,
+        smartDepth: true,
+        smartDepthThreshold: 100, // Very high threshold
+      });
+
+      // Should still show packages and tiny (first 2 levels)
+      const packagesNode = map.root.children.find((c) => c.name === 'packages');
+      expect(packagesNode).toBeDefined();
+      expect(packagesNode?.children.length).toBeGreaterThan(0);
+    });
+
+    it('should not use smart depth when disabled', async () => {
+      const results: SearchResult[] = Array.from({ length: 5 }, (_, i) => ({
+        id: `a/b/c/d/e/file${i}.ts:fn:1`,
+        score: 0.9,
+        metadata: {
+          path: `a/b/c/d/e/file${i}.ts`,
+          type: 'function',
+          name: `fn${i}`,
+          exported: true,
+        },
+      }));
+
+      const indexer = createMockIndexer(results);
+      const mapWithSmart = await generateCodebaseMap(indexer, {
+        depth: 3,
+        smartDepth: true,
+        smartDepthThreshold: 1,
+      });
+      const mapWithoutSmart = await generateCodebaseMap(indexer, {
+        depth: 3,
+        smartDepth: false,
+      });
+
+      // Without smart depth, should strictly follow depth limit
+      const countDepth = (node: typeof mapWithSmart.root, d = 0): number => {
+        if (node.children.length === 0) return d;
+        return Math.max(...node.children.map((c) => countDepth(c, d + 1)));
+      };
+
+      expect(countDepth(mapWithoutSmart.root)).toBeLessThanOrEqual(3);
+    });
+  });
+
   describe('Edge Cases', () => {
     it('should handle empty results', async () => {
       const indexer = createMockIndexer([]);
