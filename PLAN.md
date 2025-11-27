@@ -144,7 +144,7 @@ Focus on quality, documentation, and developer experience before adding new feat
 | Task | Status | Priority |
 |------|--------|----------|
 | Fix lint warnings | ✅ Done | 🔴 High |
-| Context assembler tests | 🔲 Todo | 🟡 Medium |
+| Context assembler tests | ✅ Done | 🟡 Medium |
 | Integration tests for new tools | 🔲 Todo | 🟢 Low |
 
 ### Issue Cleanup
