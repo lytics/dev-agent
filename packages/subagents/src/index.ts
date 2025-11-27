@@ -48,6 +48,17 @@ export * from './github/utils';
 export { CoordinatorLogger } from './logger';
 // Agent modules
 export { PlannerAgent } from './planner';
+// Types - Context Assembler
+export type {
+  CodebasePatterns,
+  ContextAssemblyOptions,
+  ContextMetadata,
+  ContextPackage,
+  IssueComment,
+  IssueContext,
+  RelatedHistory,
+  RelevantCodeContext,
+} from './planner/context-types';
 // Types - Planner
 export type {
   Plan,
@@ -60,6 +71,7 @@ export type {
 // Planner utilities
 export {
   addEstimatesToTasks,
+  assembleContext,
   breakdownIssue,
   calculateTotalEstimate,
   cleanDescription,
@@ -68,6 +80,7 @@ export {
   extractEstimate,
   extractTechnicalRequirements,
   fetchGitHubIssue,
+  formatContextPackage,
   formatEstimate,
   formatJSON,
   formatMarkdown,
