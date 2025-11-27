@@ -8,7 +8,7 @@ Real-world usage patterns for dev-agent MCP tools.
 # Install dev-agent
 npm install -g dev-agent
 
-# Index your repository
+# Index your repository (code, git history, GitHub)
 cd /path/to/your/project
 dev index .
 
@@ -350,8 +350,14 @@ dev_health
 ## CLI Examples
 
 ```bash
-# Search from command line
+# Index everything
+dev index .
+
+# Search code
 dev search "authentication" --limit 5 --threshold 0.4
+
+# Search git history
+dev git search "authentication fix"
 
 # Check stats
 dev stats

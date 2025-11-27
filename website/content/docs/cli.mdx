@@ -22,18 +22,28 @@ Creates a `.dev-agent.json` configuration file with default settings.
 
 ### `dev index`
 
-Index your repository for semantic search.
+Index your repository for semantic search. Indexes code, git history, and GitHub issues/PRs.
 
 ```bash
 dev index .
 dev index /path/to/repo
 ```
 
+**What gets indexed:**
+- ✅ Code (always)
+- ✅ Git history (if in a git repo)
+- ✅ GitHub issues/PRs (if gh CLI installed and authenticated)
+
+Shows an upfront "indexing plan" before starting.
+
 **Options:**
 | Flag | Description |
 |------|-------------|
 | `-f, --force` | Force re-index even if unchanged |
 | `-v, --verbose` | Show verbose output |
+| `--no-git` | Skip git history indexing |
+| `--no-github` | Skip GitHub issues/PRs indexing |
+| `--git-limit <n>` | Max git commits to index (default: 500) |
 
 ### `dev search`
 
@@ -95,12 +105,51 @@ dev plan 42 --include-comments --include-history
 Index and search GitHub issues/PRs.
 
 ```bash
-# Index GitHub metadata
+# Index GitHub metadata (also done by dev index)
 dev gh index
 
 # Search issues/PRs
 dev gh search "authentication bug"
+
+# Get context for an issue
+dev gh context --issue 42
 ```
+
+### `dev git`
+
+Index and search git commit history.
+
+```bash
+# Index git history (also done by dev index)
+dev git index
+dev git index --limit 1000 --since "6 months ago"
+
+# Semantic search over commits
+dev git search "authentication fix"
+dev git search "bug fix" --limit 5
+
+# Show indexed commit stats
+dev git stats
+```
+
+**Subcommands:**
+| Command | Description |
+|---------|-------------|
+| `dev git index` | Index git commit history |
+| `dev git search <query>` | Semantic search over commits |
+| `dev git stats` | Show indexed commit count |
+
+**Index Options:**
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--limit <n>` | Max commits to index | 500 |
+| `--since <date>` | Only index commits after date | - |
+
+**Search Options:**
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--limit <n>` | Max results | 10 |
+| `--json` | Output as JSON | false |
 
 ### `dev update`
 
@@ -245,12 +294,14 @@ The `.dev-agent.json` file configures the indexer:
 ### Basic Workflow
 
 ```bash
-# Initialize and index
-dev init
+# Index everything (code, git history, GitHub)
 dev index .
 
 # Search for code
 dev search "user authentication"
+
+# Search git history
+dev git search "authentication fix"
 
 # View statistics
 dev stats
