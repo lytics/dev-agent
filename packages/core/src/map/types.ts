@@ -47,8 +47,24 @@ export interface MapOptions {
   includeExports?: boolean;
   /** Maximum exports to show per directory (default: 5) */
   maxExportsPerDir?: number;
+  /** Include hot paths - most referenced files (default: true) */
+  includeHotPaths?: boolean;
+  /** Maximum hot paths to show (default: 5) */
+  maxHotPaths?: number;
   /** Token budget for output (default: 2000) */
   tokenBudget?: number;
+}
+
+/**
+ * Information about a frequently referenced file
+ */
+export interface HotPath {
+  /** File path */
+  file: string;
+  /** Number of incoming references (callers) */
+  incomingRefs: number;
+  /** Primary component name in this file */
+  primaryComponent?: string;
 }
 
 /**
@@ -61,6 +77,8 @@ export interface CodebaseMap {
   totalComponents: number;
   /** Total number of directories */
   totalDirectories: number;
+  /** Most referenced files (hot paths) */
+  hotPaths: HotPath[];
   /** Generation timestamp */
   generatedAt: string;
 }

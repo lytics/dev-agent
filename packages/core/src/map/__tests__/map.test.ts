@@ -337,6 +337,158 @@ describe('Codebase Map', () => {
     });
   });
 
+  describe('Hot Paths', () => {
+    it('should compute hot paths from callers data', async () => {
+      const resultsWithCallers: SearchResult[] = [
+        {
+          id: 'src/core.ts:coreFunction:1',
+          score: 0.9,
+          metadata: {
+            path: 'src/core.ts',
+            type: 'function',
+            name: 'coreFunction',
+            exported: true,
+            callers: [
+              { name: 'caller1', file: 'src/a.ts', startLine: 10 },
+              { name: 'caller2', file: 'src/b.ts', startLine: 20 },
+              { name: 'caller3', file: 'src/c.ts', startLine: 30 },
+            ],
+          },
+        },
+        {
+          id: 'src/utils.ts:utilFunction:1',
+          score: 0.8,
+          metadata: {
+            path: 'src/utils.ts',
+            type: 'function',
+            name: 'utilFunction',
+            exported: true,
+            callers: [{ name: 'caller1', file: 'src/a.ts', startLine: 15 }],
+          },
+        },
+      ];
+
+      const indexer = createMockIndexer(resultsWithCallers);
+      const map = await generateCodebaseMap(indexer, { includeHotPaths: true });
+
+      expect(map.hotPaths.length).toBeGreaterThan(0);
+      // coreFunction should be first (more callers)
+      expect(map.hotPaths[0].file).toBe('src/core.ts');
+      expect(map.hotPaths[0].incomingRefs).toBe(3);
+    });
+
+    it('should compute hot paths from callees data', async () => {
+      const resultsWithCallees: SearchResult[] = [
+        {
+          id: 'src/main.ts:main:1',
+          score: 0.9,
+          metadata: {
+            path: 'src/main.ts',
+            type: 'function',
+            name: 'main',
+            exported: true,
+            callees: [
+              { name: 'helper', file: 'src/helpers.ts', line: 10 },
+              { name: 'helper', file: 'src/helpers.ts', line: 10 },
+            ],
+          },
+        },
+        {
+          id: 'src/other.ts:other:1',
+          score: 0.8,
+          metadata: {
+            path: 'src/other.ts',
+            type: 'function',
+            name: 'other',
+            exported: true,
+            callees: [{ name: 'helper', file: 'src/helpers.ts', line: 10 }],
+          },
+        },
+      ];
+
+      const indexer = createMockIndexer(resultsWithCallees);
+      const map = await generateCodebaseMap(indexer, { includeHotPaths: true });
+
+      expect(map.hotPaths.length).toBeGreaterThan(0);
+      // helpers.ts should be referenced most
+      expect(map.hotPaths[0].file).toBe('src/helpers.ts');
+      expect(map.hotPaths[0].incomingRefs).toBe(3);
+    });
+
+    it('should limit hot paths to maxHotPaths', async () => {
+      const manyRefs: SearchResult[] = Array.from({ length: 20 }, (_, i) => ({
+        id: `src/file${i}.ts:fn:1`,
+        score: 0.9,
+        metadata: {
+          path: `src/file${i}.ts`,
+          type: 'function',
+          name: `fn${i}`,
+          exported: true,
+          callers: Array.from({ length: 20 - i }, (_, j) => ({
+            name: `caller${j}`,
+            file: `src/other${j}.ts`,
+            startLine: j * 10,
+          })),
+        },
+      }));
+
+      const indexer = createMockIndexer(manyRefs);
+      const map = await generateCodebaseMap(indexer, { includeHotPaths: true, maxHotPaths: 3 });
+
+      expect(map.hotPaths.length).toBe(3);
+      // Should be sorted by refs descending
+      expect(map.hotPaths[0].incomingRefs).toBeGreaterThanOrEqual(map.hotPaths[1].incomingRefs);
+    });
+
+    it('should not include hot paths when disabled', async () => {
+      const resultsWithCallers: SearchResult[] = [
+        {
+          id: 'src/core.ts:coreFunction:1',
+          score: 0.9,
+          metadata: {
+            path: 'src/core.ts',
+            type: 'function',
+            name: 'coreFunction',
+            exported: true,
+            callers: [{ name: 'caller1', file: 'src/a.ts', startLine: 10 }],
+          },
+        },
+      ];
+
+      const indexer = createMockIndexer(resultsWithCallers);
+      const map = await generateCodebaseMap(indexer, { includeHotPaths: false });
+
+      expect(map.hotPaths.length).toBe(0);
+    });
+
+    it('should format hot paths in output', async () => {
+      const resultsWithCallers: SearchResult[] = [
+        {
+          id: 'src/core.ts:coreFunction:1',
+          score: 0.9,
+          metadata: {
+            path: 'src/core.ts',
+            type: 'function',
+            name: 'coreFunction',
+            exported: true,
+            callers: [
+              { name: 'caller1', file: 'src/a.ts', startLine: 10 },
+              { name: 'caller2', file: 'src/b.ts', startLine: 20 },
+            ],
+          },
+        },
+      ];
+
+      const indexer = createMockIndexer(resultsWithCallers);
+      const map = await generateCodebaseMap(indexer, { includeHotPaths: true });
+      const output = formatCodebaseMap(map, { includeHotPaths: true });
+
+      expect(output).toContain('## Hot Paths');
+      expect(output).toContain('src/core.ts');
+      expect(output).toContain('2 refs');
+    });
+  });
+
   describe('Edge Cases', () => {
     it('should handle empty results', async () => {
       const indexer = createMockIndexer([]);

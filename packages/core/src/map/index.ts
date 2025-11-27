@@ -6,7 +6,7 @@
 import * as path from 'node:path';
 import type { RepositoryIndexer } from '../indexer';
 import type { SearchResult } from '../vector/types';
-import type { CodebaseMap, ExportInfo, MapNode, MapOptions } from './types';
+import type { CodebaseMap, ExportInfo, HotPath, MapNode, MapOptions } from './types';
 
 export * from './types';
 
@@ -16,6 +16,8 @@ const DEFAULT_OPTIONS: Required<MapOptions> = {
   focus: '',
   includeExports: true,
   maxExportsPerDir: 5,
+  includeHotPaths: true,
+  maxHotPaths: 5,
   tokenBudget: 2000,
 };
 
@@ -46,10 +48,14 @@ export async function generateCodebaseMap(
   const totalComponents = countComponents(root);
   const totalDirectories = countDirectories(root);
 
+  // Compute hot paths (most referenced files)
+  const hotPaths = opts.includeHotPaths ? computeHotPaths(allDocs, opts.maxHotPaths) : [];
+
   return {
     root,
     totalComponents,
     totalDirectories,
+    hotPaths,
     generatedAt: new Date().toISOString(),
   };
 }
@@ -229,6 +235,54 @@ function countDirectories(node: MapNode): number {
 }
 
 /**
+ * Compute hot paths - files with the most incoming references
+ */
+function computeHotPaths(docs: SearchResult[], maxPaths: number): HotPath[] {
+  // Count incoming references per file
+  const refCounts = new Map<string, { count: number; component?: string }>();
+
+  for (const doc of docs) {
+    const callers = doc.metadata.callers as Array<{ file: string }> | undefined;
+    if (callers && Array.isArray(callers)) {
+      // This document is called by others - count it
+      const filePath = (doc.metadata.path as string) || (doc.metadata.file as string) || '';
+      if (filePath) {
+        const existing = refCounts.get(filePath) || { count: 0 };
+        existing.count += callers.length;
+        existing.component = existing.component || (doc.metadata.name as string);
+        refCounts.set(filePath, existing);
+      }
+    }
+  }
+
+  // Also count based on callees pointing to files
+  for (const doc of docs) {
+    const callees = doc.metadata.callees as Array<{ file: string; name: string }> | undefined;
+    if (callees && Array.isArray(callees)) {
+      for (const callee of callees) {
+        if (callee.file) {
+          const existing = refCounts.get(callee.file) || { count: 0 };
+          existing.count += 1;
+          refCounts.set(callee.file, existing);
+        }
+      }
+    }
+  }
+
+  // Sort by count and take top N
+  const sorted = Array.from(refCounts.entries())
+    .map(([file, data]) => ({
+      file,
+      incomingRefs: data.count,
+      primaryComponent: data.component,
+    }))
+    .sort((a, b) => b.incomingRefs - a.incomingRefs)
+    .slice(0, maxPaths);
+
+  return sorted;
+}
+
+/**
  * Format codebase map as readable text
  */
 export function formatCodebaseMap(map: CodebaseMap, options: MapOptions = {}): string {
@@ -238,7 +292,20 @@ export function formatCodebaseMap(map: CodebaseMap, options: MapOptions = {}): s
   lines.push('# Codebase Map');
   lines.push('');
 
+  // Format hot paths if present
+  if (opts.includeHotPaths && map.hotPaths.length > 0) {
+    lines.push('## Hot Paths (most referenced)');
+    for (let i = 0; i < map.hotPaths.length; i++) {
+      const hp = map.hotPaths[i];
+      const component = hp.primaryComponent ? ` (${hp.primaryComponent})` : '';
+      lines.push(`${i + 1}. \`${hp.file}\`${component} - ${hp.incomingRefs} refs`);
+    }
+    lines.push('');
+  }
+
   // Format tree
+  lines.push('## Directory Structure');
+  lines.push('');
   formatNode(map.root, lines, '', true, opts);
 
   lines.push('');
