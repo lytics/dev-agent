@@ -215,3 +215,6 @@ export class PlannerAgent implements Agent {
 export type * from './context-types';
 // Export types
 export type * from './types';
+export type { ContextAssemblyContext } from './utils/context-assembler';
+// Export context assembler utilities
+export { assembleContext, formatContextPackage } from './utils/context-assembler';

@@ -5,7 +5,7 @@
  * Philosophy: Provide raw, structured context - let the LLM do the reasoning
  */
 
-import type { RepositoryIndexer } from '@lytics/dev-agent-core';
+import type { GitIndexer, RepositoryIndexer } from '@lytics/dev-agent-core';
 import type { ContextAssemblyOptions } from '@lytics/dev-agent-subagents';
 import { assembleContext, formatContextPackage } from '@lytics/dev-agent-subagents';
 import { estimateTokensForText, startTimer } from '../../formatters/utils';
@@ -20,6 +20,11 @@ export interface PlanAdapterConfig {
    * Repository indexer instance (for finding relevant code)
    */
   repositoryIndexer: RepositoryIndexer;
+
+  /**
+   * Git indexer instance (for finding relevant commits)
+   */
+  gitIndexer?: GitIndexer;
 
   /**
    * Repository path
@@ -44,12 +49,13 @@ export interface PlanAdapterConfig {
 export class PlanAdapter extends ToolAdapter {
   readonly metadata = {
     name: 'plan-adapter',
-    version: '2.0.0',
-    description: 'GitHub issue context assembler',
+    version: '2.1.0',
+    description: 'GitHub issue context assembler with git history',
     author: 'Dev-Agent Team',
   };
 
   private indexer: RepositoryIndexer;
+  private gitIndexer?: GitIndexer;
   private repositoryPath: string;
   private defaultFormat: 'compact' | 'verbose';
   private timeout: number;
@@ -57,6 +63,7 @@ export class PlanAdapter extends ToolAdapter {
   constructor(config: PlanAdapterConfig) {
     super();
     this.indexer = config.repositoryIndexer;
+    this.gitIndexer = config.gitIndexer;
     this.repositoryPath = config.repositoryPath;
     this.defaultFormat = config.defaultFormat ?? 'compact';
     this.timeout = config.timeout ?? 60000; // 60 seconds default
@@ -105,6 +112,11 @@ export class PlanAdapter extends ToolAdapter {
             description: 'Maximum tokens for output (default: 4000)',
             default: 4000,
           },
+          includeGitHistory: {
+            type: 'boolean',
+            description: 'Include related git commits (default: true)',
+            default: true,
+          },
         },
         required: ['issue'],
       },
@@ -118,6 +130,7 @@ export class PlanAdapter extends ToolAdapter {
       includeCode = true,
       includePatterns = true,
       tokenBudget = 4000,
+      includeGitHistory = true,
     } = args;
 
     // Validate issue number
@@ -150,6 +163,7 @@ export class PlanAdapter extends ToolAdapter {
         format,
         includeCode,
         includePatterns,
+        includeGitHistory,
         tokenBudget,
       });
 
@@ -157,12 +171,19 @@ export class PlanAdapter extends ToolAdapter {
         includeCode: includeCode as boolean,
         includePatterns: includePatterns as boolean,
         includeHistory: false, // TODO: Enable when GitHub indexer integration is ready
+        includeGitHistory: (includeGitHistory as boolean) && !!this.gitIndexer,
         maxCodeResults: 10,
+        maxGitCommitResults: 5,
         tokenBudget: tokenBudget as number,
       };
 
       const contextPackage = await this.withTimeout(
-        assembleContext(issue as number, this.indexer, this.repositoryPath, options),
+        assembleContext(
+          issue as number,
+          { indexer: this.indexer, gitIndexer: this.gitIndexer },
+          this.repositoryPath,
+          options
+        ),
         this.timeout
       );
 
@@ -178,6 +199,7 @@ export class PlanAdapter extends ToolAdapter {
       context.logger.info('Context assembled', {
         issue,
         codeResults: contextPackage.relevantCode.length,
+        commitResults: contextPackage.relatedCommits.length,
         hasPatterns: !!contextPackage.codebasePatterns.testPattern,
         tokens,
         duration_ms,

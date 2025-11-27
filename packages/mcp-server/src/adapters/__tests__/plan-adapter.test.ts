@@ -88,11 +88,13 @@ describe('PlanAdapter', () => {
         testLocation: '__tests__/',
       },
       relatedHistory: [],
+      relatedCommits: [],
       metadata: {
         generatedAt: '2024-01-01T00:00:00Z',
         tokensUsed: 500,
         codeSearchUsed: true,
         historySearchUsed: false,
+        gitHistorySearchUsed: false,
         repositoryPath: '/test/repo',
       },
     });
@@ -105,7 +107,7 @@ describe('PlanAdapter', () => {
   describe('metadata', () => {
     it('should have correct metadata', () => {
       expect(adapter.metadata.name).toBe('plan-adapter');
-      expect(adapter.metadata.version).toBe('2.0.0');
+      expect(adapter.metadata.version).toBe('2.1.0');
       expect(adapter.metadata.description).toContain('context');
     });
   });
@@ -265,7 +267,7 @@ describe('PlanAdapter', () => {
 
         expect(utils.assembleContext).toHaveBeenCalledWith(
           29,
-          mockIndexer,
+          expect.objectContaining({ indexer: mockIndexer }),
           '/test/repo',
           expect.objectContaining({
             includeCode: false,

@@ -225,11 +225,13 @@ describe('Context Assembler', () => {
           relevanceScore: 0.7,
         },
       ],
+      relatedCommits: [],
       metadata: {
         generatedAt: '2025-01-03T00:00:00Z',
         tokensUsed: 500,
         codeSearchUsed: true,
         historySearchUsed: true,
+        gitHistorySearchUsed: false,
         repositoryPath: '/repo',
       },
     };
@@ -363,6 +365,127 @@ describe('Context Assembler', () => {
       const output = formatContextPackage(contextWithIssue);
 
       expect(output).toContain('**Issue #5:** Related bug (closed)');
+    });
+
+    it('should format related commits', () => {
+      const contextWithCommits: ContextPackage = {
+        ...mockContext,
+        relatedCommits: [
+          {
+            hash: 'abc123',
+            subject: 'feat: add authentication',
+            author: 'dev',
+            date: '2025-01-15T10:00:00Z',
+            filesChanged: ['src/auth.ts', 'src/types.ts'],
+            issueRefs: [42],
+            relevanceScore: 0.9,
+          },
+        ],
+      };
+
+      const output = formatContextPackage(contextWithCommits);
+
+      expect(output).toContain('## Related Commits');
+      expect(output).toContain('`abc123`');
+      expect(output).toContain('feat: add authentication');
+      expect(output).toContain('dev');
+      expect(output).toContain('#42');
+      expect(output).toContain('src/auth.ts');
+    });
+
+    it('should truncate long file lists in commits', () => {
+      const contextWithManyFiles: ContextPackage = {
+        ...mockContext,
+        relatedCommits: [
+          {
+            hash: 'def456',
+            subject: 'refactor: big change',
+            author: 'dev',
+            date: '2025-01-15T10:00:00Z',
+            filesChanged: ['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts'],
+            issueRefs: [],
+            relevanceScore: 0.8,
+          },
+        ],
+      };
+
+      const output = formatContextPackage(contextWithManyFiles);
+
+      expect(output).toContain('+2 more');
+    });
+  });
+
+  describe('Git History Integration', () => {
+    const mockGitIndexer = {
+      search: vi.fn().mockResolvedValue([
+        {
+          shortHash: 'abc123',
+          subject: 'feat: add JWT auth',
+          author: { name: 'developer', date: new Date('2025-01-15') },
+          files: [{ path: 'src/auth.ts' }],
+          refs: { issueRefs: [42] },
+        },
+        {
+          shortHash: 'def456',
+          subject: 'fix: token validation',
+          author: { name: 'developer', date: new Date('2025-01-14') },
+          files: [{ path: 'src/auth.ts' }, { path: 'src/utils.ts' }],
+          refs: { issueRefs: [] },
+        },
+      ]),
+    };
+
+    it('should include related commits when git indexer is provided', async () => {
+      const result = await assembleContext(
+        42,
+        { indexer: mockIndexer, gitIndexer: mockGitIndexer as any },
+        '/repo',
+        { includeGitHistory: true }
+      );
+
+      expect(result.relatedCommits).toHaveLength(2);
+      expect(result.relatedCommits[0].hash).toBe('abc123');
+      expect(result.relatedCommits[0].subject).toBe('feat: add JWT auth');
+      expect(result.metadata.gitHistorySearchUsed).toBe(true);
+    });
+
+    it('should skip git history when includeGitHistory is false', async () => {
+      const result = await assembleContext(
+        42,
+        { indexer: mockIndexer, gitIndexer: mockGitIndexer as any },
+        '/repo',
+        { includeGitHistory: false }
+      );
+
+      expect(result.relatedCommits).toHaveLength(0);
+      expect(mockGitIndexer.search).not.toHaveBeenCalled();
+    });
+
+    it('should skip git history when git indexer is null', async () => {
+      const result = await assembleContext(
+        42,
+        { indexer: mockIndexer, gitIndexer: null },
+        '/repo',
+        { includeGitHistory: true }
+      );
+
+      expect(result.relatedCommits).toHaveLength(0);
+      expect(result.metadata.gitHistorySearchUsed).toBe(false);
+    });
+
+    it('should handle git search errors gracefully', async () => {
+      const errorGitIndexer = {
+        search: vi.fn().mockRejectedValue(new Error('Git search failed')),
+      };
+
+      const result = await assembleContext(
+        42,
+        { indexer: mockIndexer, gitIndexer: errorGitIndexer as any },
+        '/repo',
+        { includeGitHistory: true }
+      );
+
+      expect(result.relatedCommits).toHaveLength(0);
     });
   });
 });
