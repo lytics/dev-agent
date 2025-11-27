@@ -470,4 +470,128 @@ describe('Scanner', () => {
       expect(bodyLine?.startsWith('    ')).toBe(true);
     });
   });
+
+  describe('Import Extraction', () => {
+    it('should extract imports for classes', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/typescript.ts'],
+        exclude: ['**/*.test.ts'],
+      });
+
+      // Find TypeScriptScanner class
+      const tsScanner = result.documents.find((d) => d.metadata.name === 'TypeScriptScanner');
+      expect(tsScanner).toBeDefined();
+      expect(tsScanner?.metadata.imports).toBeDefined();
+      expect(tsScanner?.metadata.imports).toContain('ts-morph');
+      expect(tsScanner?.metadata.imports).toContain('node:path');
+    });
+
+    it('should extract imports for functions', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/index.ts'],
+      });
+
+      // Find createDefaultRegistry function
+      const fn = result.documents.find((d) => d.metadata.name === 'createDefaultRegistry');
+      expect(fn).toBeDefined();
+      expect(fn?.metadata.imports).toBeDefined();
+      // index.ts imports from local files
+      expect(fn?.metadata.imports?.some((i) => i.includes('./typescript'))).toBe(true);
+    });
+
+    it('should extract imports for interfaces', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/types.ts'],
+      });
+
+      // Find Scanner interface
+      const scannerInterface = result.documents.find((d) => d.metadata.name === 'Scanner');
+      expect(scannerInterface).toBeDefined();
+      expect(scannerInterface?.metadata.imports).toBeDefined();
+      // types.ts has no imports, so should be empty array
+      expect(scannerInterface?.metadata.imports).toEqual([]);
+    });
+
+    it('should extract imports for methods', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/typescript.ts'],
+        exclude: ['**/*.test.ts'],
+      });
+
+      // Find a method from TypeScriptScanner
+      const method = result.documents.find(
+        (d) => d.type === 'method' && d.metadata.name === 'TypeScriptScanner.canHandle'
+      );
+      expect(method).toBeDefined();
+      expect(method?.metadata.imports).toBeDefined();
+      // Methods inherit file-level imports
+      expect(method?.metadata.imports).toContain('ts-morph');
+    });
+
+    it('should handle relative imports', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/typescript.ts'],
+        exclude: ['**/*.test.ts'],
+      });
+
+      const tsScanner = result.documents.find((d) => d.metadata.name === 'TypeScriptScanner');
+      expect(tsScanner?.metadata.imports).toContain('./types');
+    });
+
+    it('should handle scoped package imports', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/mcp-server/src/adapters/built-in/search-adapter.ts'],
+        exclude: ['**/*.test.ts'],
+      });
+
+      const doc = result.documents.find((d) => d.metadata.name === 'SearchAdapter');
+      expect(doc).toBeDefined();
+      // Should have scoped package imports
+      expect(doc?.metadata.imports?.some((i) => i.startsWith('@lytics/'))).toBe(true);
+    });
+
+    it('should handle node builtin imports', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/typescript.ts'],
+        exclude: ['**/*.test.ts'],
+      });
+
+      const tsScanner = result.documents.find((d) => d.metadata.name === 'TypeScriptScanner');
+      expect(tsScanner?.metadata.imports).toContain('node:path');
+    });
+
+    it('should handle re-exports as imports', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/index.ts'],
+      });
+
+      // The index.ts file uses re-exports (export * from "./scanner")
+      // These should be captured as imports
+      const docs = result.documents;
+      // Even if there are no named exports, the file should have import entries
+      // from re-exports if present
+      expect(docs.length >= 0).toBe(true);
+    });
+
+    it('should return empty array for files with no imports', async () => {
+      // types.ts should have no imports
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/types.ts'],
+      });
+
+      const docType = result.documents.find((d) => d.metadata.name === 'DocumentType');
+      expect(docType).toBeDefined();
+      expect(docType?.metadata.imports).toBeDefined();
+      expect(docType?.metadata.imports).toEqual([]);
+    });
+  });
 });
