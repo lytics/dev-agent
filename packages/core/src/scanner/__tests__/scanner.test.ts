@@ -594,4 +594,117 @@ describe('Scanner', () => {
       expect(docType?.metadata.imports).toEqual([]);
     });
   });
+
+  describe('Callee Extraction', () => {
+    it('should extract callees from functions', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/index.ts'],
+      });
+
+      // createDefaultRegistry calls registry.register()
+      const fn = result.documents.find((d) => d.metadata.name === 'createDefaultRegistry');
+      expect(fn).toBeDefined();
+      expect(fn?.metadata.callees).toBeDefined();
+      expect(fn?.metadata.callees?.length).toBeGreaterThan(0);
+
+      // Should have calls to ScannerRegistry constructor and register method
+      const calleeNames = fn?.metadata.callees?.map((c) => c.name) || [];
+      expect(calleeNames.some((n) => n.includes('ScannerRegistry') || n.includes('new'))).toBe(
+        true
+      );
+    });
+
+    it('should extract callees from methods', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/typescript.ts'],
+        exclude: ['**/*.test.ts'],
+      });
+
+      // extractFromSourceFile calls other methods like extractFunction, extractClass
+      const method = result.documents.find(
+        (d) => d.type === 'method' && d.metadata.name === 'TypeScriptScanner.extractFromSourceFile'
+      );
+      expect(method).toBeDefined();
+      expect(method?.metadata.callees).toBeDefined();
+      expect(method?.metadata.callees?.length).toBeGreaterThan(0);
+
+      // Should call extractFunction, extractClass, etc.
+      const calleeNames = method?.metadata.callees?.map((c) => c.name) || [];
+      expect(calleeNames.some((n) => n.includes('extractFunction'))).toBe(true);
+    });
+
+    it('should include line numbers for callees', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/index.ts'],
+      });
+
+      const fn = result.documents.find((d) => d.metadata.name === 'createDefaultRegistry');
+      expect(fn?.metadata.callees).toBeDefined();
+
+      for (const callee of fn?.metadata.callees || []) {
+        expect(callee.line).toBeDefined();
+        expect(typeof callee.line).toBe('number');
+        expect(callee.line).toBeGreaterThan(0);
+      }
+    });
+
+    it('should not have callees for interfaces', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/types.ts'],
+      });
+
+      // Interfaces don't have callees (no function body)
+      const iface = result.documents.find((d) => d.metadata.name === 'Scanner');
+      expect(iface).toBeDefined();
+      expect(iface?.metadata.callees).toBeUndefined();
+    });
+
+    it('should not have callees for type aliases', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/types.ts'],
+      });
+
+      // Type aliases don't have callees
+      const typeAlias = result.documents.find((d) => d.metadata.name === 'DocumentType');
+      expect(typeAlias).toBeDefined();
+      expect(typeAlias?.metadata.callees).toBeUndefined();
+    });
+
+    it('should deduplicate callees at same line', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/index.ts'],
+      });
+
+      const fn = result.documents.find((d) => d.metadata.name === 'createDefaultRegistry');
+      expect(fn?.metadata.callees).toBeDefined();
+
+      // Check for no duplicates (same name + same line)
+      const seen = new Set<string>();
+      for (const callee of fn?.metadata.callees || []) {
+        const key = `${callee.name}:${callee.line}`;
+        expect(seen.has(key)).toBe(false);
+        seen.add(key);
+      }
+    });
+
+    it('should handle method calls on objects', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/index.ts'],
+      });
+
+      const fn = result.documents.find((d) => d.metadata.name === 'createDefaultRegistry');
+      expect(fn?.metadata.callees).toBeDefined();
+
+      // Should have registry.register() calls
+      const calleeNames = fn?.metadata.callees?.map((c) => c.name) || [];
+      expect(calleeNames.some((n) => n.includes('register'))).toBe(true);
+    });
+  });
 });

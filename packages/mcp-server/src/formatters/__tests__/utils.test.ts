@@ -3,7 +3,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { estimateTokensForJSON, estimateTokensForText, truncateToTokenBudget } from '../utils';
+import {
+  estimateTokensForJSON,
+  estimateTokensForText,
+  startTimer,
+  truncateToTokenBudget,
+} from '../utils';
 
 describe('Formatter Utils', () => {
   describe('estimateTokensForText', () => {
@@ -196,6 +201,39 @@ describe('Formatter Utils', () => {
       // Should be within 5% of actual (calibrated at 0.6%)
       const errorPercent = Math.abs((estimate - actualTokens) / actualTokens) * 100;
       expect(errorPercent).toBeLessThan(5);
+    });
+  });
+
+  describe('startTimer', () => {
+    it('should return elapsed time', async () => {
+      const timer = startTimer();
+
+      // Wait a bit
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      const elapsed = timer.elapsed();
+      expect(elapsed).toBeGreaterThanOrEqual(10);
+      expect(elapsed).toBeLessThan(100); // Should be fast
+    });
+
+    it('should allow multiple elapsed() calls', async () => {
+      const timer = startTimer();
+
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      const elapsed1 = timer.elapsed();
+
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      const elapsed2 = timer.elapsed();
+
+      expect(elapsed2).toBeGreaterThan(elapsed1);
+    });
+
+    it('should return 0 immediately after creation', () => {
+      const timer = startTimer();
+      const elapsed = timer.elapsed();
+
+      // Should be very small (< 5ms)
+      expect(elapsed).toBeLessThan(5);
     });
   });
 });
