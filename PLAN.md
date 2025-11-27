@@ -136,7 +136,7 @@ Focus on quality, documentation, and developer experience before adding new feat
 |------|--------|----------|
 | CLI reference docs | ✅ Done | 🟡 Medium |
 | Configuration guide | ✅ Done | 🟡 Medium |
-| Troubleshooting guide | 🔲 Todo | 🟡 Medium |
+| Troubleshooting guide | ✅ Done | 🟡 Medium |
 | Examples for new tools | 🔲 Todo | 🟢 Low |
 
 ### Code Quality

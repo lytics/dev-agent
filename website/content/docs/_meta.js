@@ -4,6 +4,7 @@ export default {
   quickstart: 'Quickstart',
   cli: 'CLI Reference',
   configuration: 'Configuration',
+  troubleshooting: 'Troubleshooting',
   '---tools': {
     type: 'separator',
     title: 'MCP Tools',

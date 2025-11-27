@@ -1,0 +1,161 @@
+# Troubleshooting
+
+Quick solutions for common issues. For detailed troubleshooting, see the [full guide on GitHub](https://github.com/lytics/dev-agent/blob/main/TROUBLESHOOTING.md).
+
+## Installation Issues
+
+### `dev: command not found`
+
+Global npm bin directory not in PATH:
+
+```bash
+# Find npm bin directory
+npm config get prefix
+
+# Add to shell profile (~/.zshrc or ~/.bashrc)
+export PATH="$(npm config get prefix)/bin:$PATH"
+
+# Reload
+source ~/.zshrc
+```
+
+### Permission errors on install
+
+```bash
+# Option 1: Use npx (no install needed)
+npx dev-agent index .
+
+# Option 2: Fix npm permissions
+npm config set prefix ~/.npm-global
+export PATH=~/.npm-global/bin:$PATH
+npm install -g dev-agent
+```
+
+## Indexing Issues
+
+### "No source files found"
+
+```bash
+# Verify you're in repository root
+ls -la  # Should see .git/
+
+# Check for supported files
+find . -name "*.ts" -o -name "*.js" | head -10
+```
+
+### "Vector storage initialization failed"
+
+```bash
+# Check permissions
+ls -la ~/.dev-agent/
+
+# Clear and rebuild
+rm -rf ~/.dev-agent/indexes/*
+dev index .
+```
+
+## MCP Server Issues
+
+### Server won't start
+
+```bash
+# 1. Check if indexed
+ls -la ~/.dev-agent/indexes/
+
+# 2. Verify installation
+dev mcp list --cursor  # or without --cursor
+
+# 3. Test manually
+dev mcp start --verbose
+```
+
+### "Repository not indexed" in Cursor
+
+```bash
+# Index the workspace
+dev index .
+
+# Restart Cursor
+```
+
+### Rate limit errors (429)
+
+- Wait for `retryAfterMs` period
+- Check health: `dev_health`
+- Restart AI tool if persistent
+
+## Search Issues
+
+### No results
+
+```bash
+# Verify indexed
+dev stats
+
+# Re-index if needed
+dev index .
+```
+
+**Tips for better searches:**
+- Use natural language, not exact code
+- Describe what code does
+- Try different phrasings
+
+### Poor relevance
+
+Adjust score threshold:
+- `0.7+` — Precise matches only
+- `0.4-0.6` — Balanced
+- `0.25-0.3` — Exploratory
+
+## GitHub Integration
+
+### `dev gh index` fails
+
+```bash
+# Check GitHub CLI
+gh auth status
+
+# Login if needed
+gh auth login
+```
+
+### Stale GitHub data
+
+```bash
+dev gh index  # Re-index
+```
+
+## Quick Fixes
+
+### Clear everything and start fresh
+
+```bash
+rm -rf ~/.dev-agent/indexes/*
+dev index .
+dev gh index
+dev mcp install --cursor
+```
+
+### Check health
+
+```
+Use dev_health tool in Cursor/Claude Code
+```
+
+### Enable debug logging
+
+**Cursor:** Edit `~/.cursor/mcp.json`:
+```json
+"env": { "LOG_LEVEL": "debug" }
+```
+
+## Getting Help
+
+1. Run `dev_health` for diagnostics
+2. Check [full troubleshooting guide](https://github.com/lytics/dev-agent/blob/main/TROUBLESHOOTING.md)
+3. [File an issue](https://github.com/lytics/dev-agent/issues) with:
+   - `dev --version`
+   - `dev_health` output
+   - Steps to reproduce
+
