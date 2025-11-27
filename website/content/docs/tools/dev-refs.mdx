@@ -1,0 +1,126 @@
+# dev_refs
+
+Query code relationships to understand what calls what.
+
+## Overview
+
+`dev_refs` helps you understand code flow by finding:
+- **Callers** — What functions/methods call a given symbol
+- **Callees** — What functions/methods a given symbol calls
+
+This is invaluable for understanding impact of changes and navigating unfamiliar codebases.
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `name` | string | required | Symbol name to query |
+| `direction` | string | `"both"` | `"callers"`, `"callees"`, or `"both"` |
+| `limit` | number | `10` | Maximum results |
+| `tokenBudget` | number | `2000` | Max tokens for output |
+
+## Examples
+
+### Find Callers
+
+```
+Find all functions that call authenticate
+```
+
+```json
+{
+  "name": "authenticate",
+  "direction": "callers"
+}
+```
+
+**Output:**
+```
+## Callers of `authenticate`
+
+1. **loginHandler** (src/auth/handlers.ts:45)
+   Calls authenticate at line 52
+
+2. **middleware** (src/auth/middleware.ts:23)
+   Calls authenticate at line 28
+
+3. **apiRoute** (src/routes/api.ts:102)
+   Calls authenticate at line 110
+```
+
+### Find Callees
+
+```
+What does the validateToken function call?
+```
+
+```json
+{
+  "name": "validateToken",
+  "direction": "callees"
+}
+```
+
+**Output:**
+```
+## Callees of `validateToken`
+
+1. **decodeJWT** (src/utils/jwt.ts:15)
+   Called at line 8
+
+2. **checkExpiry** (src/utils/jwt.ts:45)
+   Called at line 12
+
+3. **verifySignature** (src/crypto/verify.ts:22)
+   Called at line 15
+```
+
+### Both Directions
+
+```json
+{
+  "name": "authenticate",
+  "direction": "both"
+}
+```
+
+## Use Cases
+
+### Impact Analysis
+Before modifying a function, find all callers to understand impact:
+```
+Find all callers of the deprecated legacyAuth function
+```
+
+### Understanding Flow
+Trace execution flow through the codebase:
+```
+What does the main function call?
+```
+
+### Refactoring
+Identify all usages before renaming or moving code:
+```
+Find everything that calls the old validateUser function
+```
+
+## How It Works
+
+1. Searches indexed documents for the symbol name
+2. Extracts `callers` and `callees` from document metadata
+3. Filters based on `direction` parameter
+4. Formats results with file paths and line numbers
+
+## Tips
+
+- Use exact function/method names for best results
+- Combine with `dev_search` to first find the symbol, then query refs
+- Use `direction: "callers"` for impact analysis
+- Use `direction: "callees"` for understanding implementation
+
+## Related Tools
+
+- [`dev_search`](/docs/tools/dev-search) — Find symbols first
+- [`dev_map`](/docs/tools/dev-map) — See hot paths (most referenced files)
+- [`dev_explore`](/docs/tools/dev-explore) — Find similar patterns
+

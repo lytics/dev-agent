@@ -1,106 +1,173 @@
 # dev_plan
 
-Generate implementation plans from GitHub issues. Creates structured task breakdowns with estimates and dependencies.
+Assemble rich context for implementing GitHub issues.
 
-## Usage
+## Overview
 
-```
-dev_plan(issue, detailLevel?, format?, useExplorer?)
-```
+`dev_plan` fetches a GitHub issue and assembles comprehensive context for AI assistants to create implementation plans. Instead of generating heuristic task breakdowns, it provides:
+
+- Full issue content with comments
+- Relevant code snippets from semantic search
+- Detected codebase patterns
+- Metadata for token budgeting
+
+**Philosophy:** Provide data, let LLMs reason. AI assistants create better plans when given rich context.
 
 ## Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `issue` | number | required | GitHub issue number |
-| `detailLevel` | `"simple"` \| `"detailed"` | `"detailed"` | Task granularity |
 | `format` | `"compact"` \| `"verbose"` | `"compact"` | Output format |
-| `useExplorer` | boolean | true | Find relevant code via semantic search |
+| `includeCode` | boolean | `true` | Include relevant code snippets |
+| `includePatterns` | boolean | `true` | Include codebase patterns |
+| `tokenBudget` | number | `4000` | Max tokens for output |
 
-## Examples
+## Example Output
 
-### Basic Planning
+### Compact Format
 
-> "Use dev_plan to create a plan for issue 42"
+```markdown
+# Issue #42: Add user preferences API
 
-```
-## Implementation Plan: Add user preferences API (#42)
+**Author:** alice | **State:** open | **Labels:** enhancement, api
 
-### Tasks
-- [ ] 1. Create preferences schema (2h)
-- [ ] 2. Add database migration (1h)
-- [ ] 3. Implement GET /preferences endpoint (2h)
-- [ ] 4. Implement PUT /preferences endpoint (2h)
-- [ ] 5. Add validation middleware (1h)
-- [ ] 6. Write unit tests (2h)
-- [ ] 7. Update API documentation (1h)
+## Description
 
-### Relevant Code
-- src/api/routes/user.ts (existing user routes)
-- src/db/migrations/ (migration patterns)
-- src/middleware/validation.ts (validation examples)
+We need an API endpoint for user preferences. Should support:
+- GET /preferences - retrieve current preferences
+- PUT /preferences - update preferences
 
-### Estimated Total: 11 hours
-```
+## Comments
 
-### Simple Plan
+**bob** (2024-01-15):
+Consider using the existing validation middleware from src/middleware/validation.ts
 
-> "Use dev_plan for issue 42, detailLevel simple"
+## Relevant Code
 
-```
-## Implementation Plan: Add user preferences API (#42)
+### UserController (class)
+**File:** `src/api/controllers/user.ts` | **Relevance:** 85%
+**Reason:** Similar pattern
 
-- [ ] Create preferences model and migration
-- [ ] Implement API endpoints
-- [ ] Add tests and documentation
-
-### Estimated Total: 4-6 hours
-```
-
-## How It Works
-
-1. **Fetch issue** — Retrieves issue title, body, labels, and comments from GitHub
-2. **Analyze context** — Understands the feature request or bug report
-3. **Explore code** — Uses semantic search to find relevant existing code
-4. **Generate plan** — Creates structured tasks with estimates
-5. **Map dependencies** — Identifies task ordering and blockers
-
-## Requirements
-
-> ⚠️ **GitHub CLI required.** dev_plan uses `gh` to fetch issue data. Install it from [cli.github.com](https://cli.github.com).
-
-Make sure you're authenticated:
-
-```bash
-gh auth status
-```
-
-## Index GitHub First
-
-For best results, index your GitHub issues:
-
-```bash
-dev gh index
-```
-
-This enables semantic search across your project's issues and PRs.
-
-## Tips
-
-> **Use detailed plans for complex features.** The default `detailed` level produces 10-15 actionable tasks.
-
-> **Plans improve with codebase context.** The `useExplorer` option (default: true) finds relevant code patterns to inform the plan.
-
-## Response Metadata
-
-```json
-{
-  "metadata": {
-    "tokens": 892,
-    "duration_ms": 1234,
-    "issue_number": 42,
-    "tasks_generated": 7
+```typescript
+export class UserController {
+  async getUser(req: Request, res: Response) {
+    // ...
   }
 }
 ```
 
+### validateBody (function)
+**File:** `src/middleware/validation.ts` | **Relevance:** 72%
+**Reason:** Relevant type definition
+
+```typescript
+export function validateBody(schema: Schema) {
+  // ...
+}
+```
+
+## Codebase Patterns
+
+- **Test naming:** *.test.ts
+- **Test location:** __tests__/
+
+---
+*Context assembled at 2024-01-20T10:30:00Z | ~1250 tokens*
+```
+
+### Verbose Format (JSON)
+
+```json
+{
+  "issue": {
+    "number": 42,
+    "title": "Add user preferences API",
+    "body": "We need an API endpoint...",
+    "labels": ["enhancement", "api"],
+    "author": "alice",
+    "comments": [...]
+  },
+  "relevantCode": [
+    {
+      "file": "src/api/controllers/user.ts",
+      "name": "UserController",
+      "type": "class",
+      "snippet": "export class UserController {...}",
+      "relevanceScore": 0.85,
+      "reason": "Similar pattern"
+    }
+  ],
+  "codebasePatterns": {
+    "testPattern": "*.test.ts",
+    "testLocation": "__tests__/"
+  },
+  "metadata": {
+    "generatedAt": "2024-01-20T10:30:00Z",
+    "tokensUsed": 1250
+  }
+}
+```
+
+## How It Works
+
+1. **Fetch issue** — Retrieves issue with comments via GitHub CLI
+2. **Search code** — Finds relevant code using semantic search
+3. **Detect patterns** — Identifies test naming and location patterns
+4. **Assemble context** — Packages everything for LLM consumption
+
+## Requirements
+
+> ⚠️ **GitHub CLI required.** `dev_plan` uses `gh` to fetch issue data.
+
+```bash
+# Install GitHub CLI
+brew install gh  # macOS
+# or visit https://cli.github.com
+
+# Authenticate
+gh auth login
+```
+
+## Use Cases
+
+### Implementation Planning
+
+```
+Assemble context for issue #42 so I can create an implementation plan
+```
+
+### Understanding Requirements
+
+```
+Get the full context for issue #123 including comments
+```
+
+### Code Discovery
+
+```
+What existing code is relevant to implementing issue #55?
+```
+
+## Tips
+
+- **Comments are valuable** — They often contain design decisions and constraints
+- **Relevant code shows patterns** — Use it to understand existing conventions
+- **Codebase patterns help** — Know where to put tests and how to name them
+- **Token budget matters** — Reduce if context is too large
+
+## Migration from v0.2
+
+In v0.2, `dev_plan` generated heuristic task breakdowns with estimates. In v0.3+, it returns raw context instead.
+
+**Why the change?** AI assistants create better plans when given comprehensive context rather than our heuristic guesses.
+
+**Old parameters removed:**
+- `detailLevel` — No longer applicable
+- `useExplorer` — Now always uses code search (controlled by `includeCode`)
+
+## Related Tools
+
+- [`dev_search`](/docs/tools/dev-search) — Search for more relevant code
+- [`dev_refs`](/docs/tools/dev-refs) — Understand relationships in relevant code
+- [`dev_gh`](/docs/tools/dev-gh) — Search related issues/PRs

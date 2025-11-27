@@ -1,0 +1,135 @@
+# dev_map
+
+Get a high-level overview of your codebase structure.
+
+## Overview
+
+`dev_map` generates a hierarchical view of your repository showing:
+- Directory structure with component counts
+- **Hot Paths** — Most referenced files in the codebase
+- **Exports** — Public API with function signatures
+- **Smart Depth** — Adaptive expansion based on density
+
+This helps AI assistants quickly understand codebase organization.
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `depth` | number | `2` | Maximum depth (1-5) |
+| `focus` | string | `""` | Focus on specific directory |
+| `includeExports` | boolean | `true` | Show exported symbols |
+| `includeHotPaths` | boolean | `true` | Show most referenced files |
+| `smartDepth` | boolean | `false` | Adaptive depth based on density |
+| `tokenBudget` | number | `2000` | Max tokens for output |
+
+## Example Output
+
+```markdown
+# Codebase Map
+
+## Hot Paths (most referenced)
+1. `packages/core/src/indexer/index.ts` (RepositoryIndexer) - 47 refs
+2. `packages/core/src/vector/store.ts` (LanceDBVectorStore) - 32 refs
+3. `packages/mcp-server/src/server/mcp-server.ts` (MCPServer) - 28 refs
+
+## Directory Structure
+
+└── packages/ (195 components)
+    ├── core/ (45 components)
+    │   ├── src/ (42 components)
+    │   │   └── exports: function search(query): Promise<Result[]>, class RepositoryIndexer
+    │   └── dist/
+    ├── mcp-server/ (28 components)
+    │   └── exports: class MCPServer, class SearchAdapter
+    ├── cli/ (15 components)
+    └── subagents/ (35 components)
+
+**Total:** 195 indexed components across 24 directories
+```
+
+## Features
+
+### Hot Paths
+
+Shows the most referenced files in your codebase. These are typically:
+- Core utilities used everywhere
+- Base classes/interfaces
+- Central orchestrators
+
+Useful for understanding which code is most critical.
+
+### Smart Depth
+
+When enabled, expands directories with many components and collapses sparse ones:
+
+```json
+{
+  "smartDepth": true,
+  "smartDepthThreshold": 10
+}
+```
+
+- Directories with ≥10 components get expanded
+- Sparse directories get collapsed
+- First 2 levels always shown
+
+### Focus Directory
+
+Zoom into a specific part of the codebase:
+
+```json
+{
+  "focus": "packages/core/src",
+  "depth": 4
+}
+```
+
+### Signatures in Exports
+
+Exports show function/class signatures (truncated to 60 chars):
+
+```
+└── exports: function search(query, opts): Promise<Result[]>, class Indexer
+```
+
+## Use Cases
+
+### Onboarding
+
+```
+Show me the overall structure of this codebase
+```
+
+### Finding Entry Points
+
+```
+What are the main components in packages/mcp-server?
+```
+
+### Understanding Architecture
+
+```
+Show the codebase map with hot paths to understand the core modules
+```
+
+### Scoping Work
+
+```
+Focus on packages/core/src with depth 4 to see all scanner components
+```
+
+## Tips
+
+- Start with default depth (2) for overview
+- Use `focus` to drill into specific areas
+- Enable `smartDepth` for large codebases
+- Hot paths reveal the most important code
+- Signatures help understand APIs without reading files
+
+## Related Tools
+
+- [`dev_refs`](/docs/tools/dev-refs) — Query relationships for hot path files
+- [`dev_search`](/docs/tools/dev-search) — Search within focused area
+- [`dev_status`](/docs/tools/dev-status) — Check indexing completeness
+
