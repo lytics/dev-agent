@@ -50,6 +50,7 @@
   "devDependencies": {
     "@lytics/dev-agent-cli": "workspace:*",
     "@lytics/dev-agent-mcp": "workspace:*",
+    "@types/node": "^22.0.0",
     "tsup": "^8.3.0"
   },
   "engines": {

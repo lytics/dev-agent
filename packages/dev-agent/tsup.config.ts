@@ -1,4 +1,9 @@
+import { readFileSync } from 'fs';
 import { defineConfig } from 'tsup';
+
+// Read version from package.json at build time
+const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'));
+const version = packageJson.version;
 
 // External dependencies that should NOT be bundled:
 // - Native modules (have platform-specific binaries)
@@ -26,6 +31,10 @@ export default defineConfig([
     external,
     sourcemap: true,
     clean: true,
+    // Inject version at build time
+    define: {
+      __VERSION__: JSON.stringify(version),
+    },
     // Note: shebang is already in source file
   },
   // MCP server entry point
