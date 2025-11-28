@@ -168,7 +168,9 @@ export class GitHubAdapter extends ToolAdapter {
     return {
       name: 'dev_gh',
       description:
-        'Search GitHub issues and pull requests using semantic search. Supports filtering by type, state, labels, and more.',
+        'Search GitHub issues/PRs by MEANING, not just keywords - finds relevant issues even without exact terms. ' +
+        'Actions: "search" (semantic query), "context" (full details for issue #), "related" (find similar issues). ' +
+        'Use when exploring project history or finding past discussions about a topic.',
       inputSchema: {
         type: 'object',
         properties: {

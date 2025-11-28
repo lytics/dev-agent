@@ -91,7 +91,7 @@ describe('MapAdapter', () => {
       const def = adapter.getToolDefinition();
 
       expect(def.name).toBe('dev_map');
-      expect(def.description).toContain('codebase structure');
+      expect(def.description).toContain('structural overview');
       expect(def.inputSchema.type).toBe('object');
       expect(def.inputSchema.properties).toHaveProperty('depth');
       expect(def.inputSchema.properties).toHaveProperty('focus');

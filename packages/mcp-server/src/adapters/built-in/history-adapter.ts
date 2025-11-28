@@ -72,7 +72,8 @@ export class HistoryAdapter extends ToolAdapter {
     return {
       name: 'dev_history',
       description:
-        'Search git commit history semantically or get history for a specific file. Use this to understand what changed and why.',
+        'Understand WHY code looks the way it does. Search commits by concept ("auth refactor", "bug fix") or get file history. ' +
+        'Use after finding code with dev_search to understand its evolution.',
       inputSchema: {
         type: 'object',
         properties: {

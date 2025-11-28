@@ -72,7 +72,8 @@ export class ExploreAdapter extends ToolAdapter {
     return {
       name: 'dev_explore',
       description:
-        'Explore code patterns and relationships using semantic search. Supports pattern search, similar code detection, and relationship mapping.',
+        'After finding code with dev_search, use this for deeper analysis: "similar" finds other code that looks like a given file, ' +
+        '"relationships" maps a file\'s imports and what depends on it. (Also has "pattern" which works like dev_search.)',
       inputSchema: {
         type: 'object',
         properties: {
