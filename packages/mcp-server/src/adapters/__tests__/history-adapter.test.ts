@@ -97,10 +97,8 @@ describe('HistoryAdapter', () => {
     it('should require either query or file', () => {
       const definition = adapter.getToolDefinition();
 
-      expect(definition.inputSchema.anyOf).toEqual([
-        { required: ['query'] },
-        { required: ['file'] },
-      ]);
+      // Note: anyOf removed for Claude API compatibility - validation is done in execute()
+      expect(definition.inputSchema.required).toEqual([]);
     });
   });
 
