@@ -110,8 +110,8 @@ export class HistoryAdapter extends ToolAdapter {
             default: this.config.defaultTokenBudget,
           },
         },
-        // At least one of query or file is required
-        anyOf: [{ required: ['query'] }, { required: ['file'] }],
+        // Note: At least one of query or file is required (validated in execute)
+        required: [],
       },
     };
   }
