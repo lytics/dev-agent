@@ -85,7 +85,7 @@ describe('HistoryAdapter', () => {
       const definition = adapter.getToolDefinition();
 
       expect(definition.name).toBe('dev_history');
-      expect(definition.description).toContain('git commit history');
+      expect(definition.description).toContain('commits');
       expect(definition.inputSchema.properties).toHaveProperty('query');
       expect(definition.inputSchema.properties).toHaveProperty('file');
       expect(definition.inputSchema.properties).toHaveProperty('limit');

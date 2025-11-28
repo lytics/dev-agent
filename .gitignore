@@ -64,3 +64,6 @@ Thumbs.db
 # Temporary files and invalid paths
 temp/
 *-github/*.tgz
+
+# Work in progress packages (not ready for commit)
+packages/benchmark/

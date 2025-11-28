@@ -43,9 +43,9 @@ describe('ExploreAdapter', () => {
       const definition = adapter.getToolDefinition();
 
       expect(definition.name).toBe('dev_explore');
-      expect(definition.description).toContain('semantic search');
+      expect(definition.description).toContain('similar');
       expect(definition.inputSchema.required).toEqual(['action', 'query']);
-      expect(definition.inputSchema.properties.action.enum).toEqual([
+      expect(definition.inputSchema.properties?.action.enum).toEqual([
         'pattern',
         'similar',
         'relationships',

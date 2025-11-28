@@ -73,7 +73,8 @@ export class RefsAdapter extends ToolAdapter {
     return {
       name: 'dev_refs',
       description:
-        'Find call relationships for a function or method. Shows what calls it (callers) and what it calls (callees).',
+        'Find who calls a function and what it calls. Use when you have a SPECIFIC symbol name and need to trace dependencies. ' +
+        'For conceptual queries like "where is auth used", use dev_search instead.',
       inputSchema: {
         type: 'object',
         properties: {

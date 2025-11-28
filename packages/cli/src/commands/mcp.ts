@@ -6,12 +6,23 @@
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { getStorageFilePaths, getStoragePath, RepositoryIndexer } from '@lytics/dev-agent-core';
+import {
+  GitIndexer,
+  getStorageFilePaths,
+  getStoragePath,
+  LocalGitExtractor,
+  RepositoryIndexer,
+  VectorStorage,
+} from '@lytics/dev-agent-core';
 import {
   ExploreAdapter,
   GitHubAdapter,
+  HealthAdapter,
+  HistoryAdapter,
+  MapAdapter,
   MCPServer,
   PlanAdapter,
+  RefsAdapter,
   SearchAdapter,
   StatusAdapter,
 } from '@lytics/dev-agent-mcp';
@@ -101,13 +112,6 @@ export const mcpCommand = new Command('mcp')
             defaultSection: 'summary',
           });
 
-          const planAdapter = new PlanAdapter({
-            repositoryIndexer: indexer,
-            repositoryPath,
-            defaultFormat: 'compact',
-            timeout: 60000,
-          });
-
           const exploreAdapter = new ExploreAdapter({
             repositoryPath,
             repositoryIndexer: indexer,
@@ -124,7 +128,53 @@ export const mcpCommand = new Command('mcp')
             defaultFormat: 'compact',
           });
 
-          // Create MCP server
+          const healthAdapter = new HealthAdapter({
+            repositoryPath,
+            vectorStorePath: vectors,
+            githubStatePath: getStorageFilePaths(storagePath).githubState,
+          });
+
+          const refsAdapter = new RefsAdapter({
+            repositoryIndexer: indexer,
+            defaultLimit: 20,
+          });
+
+          const mapAdapter = new MapAdapter({
+            repositoryIndexer: indexer,
+            repositoryPath,
+            defaultDepth: 2,
+            defaultTokenBudget: 2000,
+          });
+
+          // Create git extractor and indexer (needed by plan and history adapters)
+          const gitExtractor = new LocalGitExtractor(repositoryPath);
+          const gitVectorStorage = new VectorStorage({
+            storePath: `${vectors}-git`,
+          });
+          await gitVectorStorage.initialize();
+
+          const gitIndexer = new GitIndexer({
+            extractor: gitExtractor,
+            vectorStorage: gitVectorStorage,
+          });
+
+          const historyAdapter = new HistoryAdapter({
+            gitIndexer,
+            gitExtractor,
+            defaultLimit: 10,
+            defaultTokenBudget: 2000,
+          });
+
+          // Update plan adapter to include git indexer
+          const planAdapterWithGit = new PlanAdapter({
+            repositoryIndexer: indexer,
+            gitIndexer,
+            repositoryPath,
+            defaultFormat: 'compact',
+            timeout: 60000,
+          });
+
+          // Create MCP server with all 9 adapters
           const server = new MCPServer({
             serverInfo: {
               name: 'dev-agent',
@@ -135,7 +185,17 @@ export const mcpCommand = new Command('mcp')
               logLevel: logLevel as 'debug' | 'info' | 'warn' | 'error',
             },
             transport: options.transport === 'stdio' ? 'stdio' : undefined,
-            adapters: [searchAdapter, statusAdapter, planAdapter, exploreAdapter, githubAdapter],
+            adapters: [
+              searchAdapter,
+              statusAdapter,
+              planAdapterWithGit,
+              exploreAdapter,
+              githubAdapter,
+              healthAdapter,
+              refsAdapter,
+              mapAdapter,
+              historyAdapter,
+            ],
             coordinator,
           });
 
@@ -144,6 +204,7 @@ export const mcpCommand = new Command('mcp')
             logger.info('Shutting down MCP server...');
             await server.stop();
             await indexer.close();
+            await gitVectorStorage.close();
             if (githubAdapter.githubIndexer) {
               await githubAdapter.githubIndexer.close();
             }
@@ -157,7 +218,9 @@ export const mcpCommand = new Command('mcp')
           await server.start();
 
           logger.info(chalk.green('MCP server started successfully!'));
-          logger.info('Available tools: dev_search, dev_status, dev_plan, dev_explore, dev_gh');
+          logger.info(
+            'Available tools: dev_search, dev_status, dev_plan, dev_explore, dev_gh, dev_health, dev_refs, dev_map, dev_history'
+          );
 
           if (options.transport === 'stdio') {
             logger.info('Server running on stdio transport (for AI tools)');
@@ -223,6 +286,10 @@ export const mcpCommand = new Command('mcp')
               logger.log(`  ${chalk.cyan('dev_plan')}    - Generate development plans`);
               logger.log(`  ${chalk.cyan('dev_explore')} - Explore code patterns`);
               logger.log(`  ${chalk.cyan('dev_gh')}      - Search GitHub issues/PRs`);
+              logger.log(`  ${chalk.cyan('dev_health')} - Server health checks`);
+              logger.log(`  ${chalk.cyan('dev_refs')}    - Find symbol references`);
+              logger.log(`  ${chalk.cyan('dev_map')}     - Generate codebase map`);
+              logger.log(`  ${chalk.cyan('dev_history')} - Search git history`);
               logger.log('');
               logger.log(`Repository: ${chalk.yellow(repositoryPath)}`);
               logger.log(`Storage: ${chalk.yellow(storagePath)}`);
@@ -275,6 +342,10 @@ export const mcpCommand = new Command('mcp')
                 logger.log(`  ${chalk.cyan('dev_plan')}    - Generate development plans`);
                 logger.log(`  ${chalk.cyan('dev_explore')} - Explore code patterns`);
                 logger.log(`  ${chalk.cyan('dev_gh')}      - Search GitHub issues/PRs`);
+                logger.log(`  ${chalk.cyan('dev_health')} - Server health checks`);
+                logger.log(`  ${chalk.cyan('dev_refs')}    - Find symbol references`);
+                logger.log(`  ${chalk.cyan('dev_map')}     - Generate codebase map`);
+                logger.log(`  ${chalk.cyan('dev_history')} - Search git history`);
                 logger.log('');
                 logger.log(`Repository: ${chalk.yellow(repositoryPath)}`);
                 logger.log(`Storage: ${chalk.yellow(storagePath)}`);

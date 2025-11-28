@@ -83,7 +83,8 @@ export class PlanAdapter extends ToolAdapter {
     return {
       name: 'dev_plan',
       description:
-        'Assemble context for implementing a GitHub issue. Returns issue details, relevant code snippets, and codebase patterns for LLM consumption.',
+        'When implementing a GitHub issue, use this to get ALL context in one call: issue details, relevant code, similar patterns, ' +
+        'and related commits. Saves multiple tool calls vs searching manually.',
       inputSchema: {
         type: 'object',
         properties: {

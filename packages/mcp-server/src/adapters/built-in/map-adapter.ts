@@ -77,7 +77,8 @@ export class MapAdapter extends ToolAdapter {
     return {
       name: 'dev_map',
       description:
-        'Get a high-level overview of the codebase structure. Shows directories, component counts, and exported symbols.',
+        'Get a structural overview showing WHAT IS IN each directory - not just file names but component counts (classes, functions, interfaces) ' +
+        'and key exports. Better than list_dir when you need to understand code organization. Optionally shows git change frequency.',
       inputSchema: {
         type: 'object',
         properties: {

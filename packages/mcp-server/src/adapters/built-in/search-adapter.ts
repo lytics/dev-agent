@@ -64,7 +64,9 @@ export class SearchAdapter extends ToolAdapter {
     return {
       name: 'dev_search',
       description:
-        'Semantic search for code components (functions, classes, interfaces) in the indexed repository',
+        'USE THIS FIRST for code exploration. Semantic search finds code by meaning, not just keywords. ' +
+        'Better than grep for conceptual queries like "authentication flow", "error handling", "database connections". ' +
+        'Returns ranked results with context snippets.',
       inputSchema: {
         type: 'object',
         properties: {

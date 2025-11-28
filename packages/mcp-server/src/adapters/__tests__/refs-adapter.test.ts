@@ -100,7 +100,7 @@ describe('RefsAdapter', () => {
       const def = adapter.getToolDefinition();
 
       expect(def.name).toBe('dev_refs');
-      expect(def.description).toContain('call relationships');
+      expect(def.description).toContain('calls');
       expect(def.inputSchema.type).toBe('object');
       expect(def.inputSchema.properties).toHaveProperty('name');
       expect(def.inputSchema.properties).toHaveProperty('direction');
