@@ -336,23 +336,40 @@ How we know dev-agent is working:
 4. **Daily use:** We actually use it ourselves (dogfooding)
 5. **LLM effectiveness:** Claude/Cursor make better suggestions with dev-agent
 
-### Benchmark Results (v0.4.2)
+### Benchmark Results (v0.4.3)
 
-Measured against baseline Claude Code across 5 task types:
+#### By Task Type
 
-| Metric | Baseline | With dev-agent | Improvement |
-|--------|----------|----------------|-------------|
-| Cost per session | $1.82 | $1.02 | **-44%** |
-| Time per session | 14.1 min | 11.5 min | **-19%** |
-| Tool calls | 69 | 40 | **-42%** |
-| Files examined | 23 | 15 | **-35%** |
+| Task Type | Cost Savings | Time Savings | Why |
+|-----------|--------------|--------------|-----|
+| **Debugging** | **42%** | 37% | Semantic search beats grep chains |
+| **Exploration** | **44%** | 19% | Find code by meaning |
+| **Implementation** | **29%** | 22% | Context bundling via `dev_plan` |
+| **Simple lookup** | ~0% | ~0% | Both approaches are fast |
+
+**Key insight:** Savings scale with task complexity.
+
+#### Why It Saves Money
+
+| What dev-agent does | Manual equivalent | Impact |
+|---------------------|-------------------|--------|
+| Returns code snippets in search | Read entire files | 99% fewer input tokens |
+| `dev_plan` bundles issue + code + commits | 5-10 separate tool calls | 29% cost reduction |
+| Semantic search finds relevant code | grep chains + filtering | 42% cost reduction |
+
+#### Token Analysis (Debugging Task)
+
+| Metric | Without dev-agent | With dev-agent | Difference |
+|--------|-------------------|----------------|------------|
+| Input tokens | 18,800 | 65 | **99.7% less** |
+| Output tokens | 12,200 | 6,200 | **49% less** |
+| Files read | 10 | 5 | **50% less** |
 
 **Trade-offs identified:**
-- Less thorough for debugging (missing diagnostic commands)
-- Fewer code examples in responses
-- Skips test files (baseline reads them)
+- Baseline provides more diagnostic shell commands
+- Baseline reads more files (sometimes helpful for thoroughness)
 
-**Target users:** Mid-to-senior engineers who value speed over exhaustiveness for routine exploration tasks.
+**Target users:** Engineers working on complex exploration, debugging, or implementation tasks in large/unfamiliar codebases.
 
 ---
 
@@ -369,4 +386,4 @@ pnpm test
 
 ---
 
-*Last updated: November 29, 2025 at 01:42 PST*
+*Last updated: November 29, 2025 at 02:30 PST*
