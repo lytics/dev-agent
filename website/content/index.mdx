@@ -2,69 +2,196 @@
 title: dev-agent
 ---
 
+import { Callout, Steps, Tabs, FileTree } from 'nextra/components'
+
 # dev-agent
 
-Deep code intelligence + AI subagents via MCP. Local-first semantic search for Cursor and Claude Code.
+Local semantic code search for Cursor and Claude Code via MCP.
 
 [Get Started](/docs) · [View on GitHub](https://github.com/lytics/dev-agent)
 
-## Why dev-agent?
+<Callout type="info">
+  **v0.4.3** — Now with git history search (`dev_history`), change frequency in `dev_map`, and improved tool descriptions. [See what's new →](https://github.com/lytics/dev-agent/releases)
+</Callout>
 
-AI coding assistants are only as good as the context they receive. dev-agent gives your AI tools **deep understanding** of your codebase:
+<Callout type="default">
+  **Built by engineers, for engineers.** An MCP server that gives your AI tools semantic code search. We built it to speed up our own workflow — and measured 44% cost savings.
+</Callout>
 
-| Feature | Description |
-|---------|-------------|
-| 🔍 **Semantic Search** | Find code by meaning, not keywords. "Where do we handle auth?" actually works. |
-| 📋 **Smart Planning** | Generate implementation plans from GitHub issues with accurate estimates. |
-| 🐙 **GitHub Integration** | Search issues and PRs semantically. Understand project history. |
-| 🧭 **Code Exploration** | Find patterns, similar code, and trace relationships across your codebase. |
+## Same question, different approach
+
+We asked Claude Code: *"Where is rate limiting implemented and how does it work?"*
+
+<Tabs items={['Without dev-agent', 'With dev-agent']}>
+  <Tabs.Tab>
+    **Claude's approach (8 tool calls):**
+    <FileTree>
+      <FileTree.Folder name="grep 'rate' → 47 matches" />
+      <FileTree.Folder name="grep 'limit' → 23 matches" />
+      <FileTree.Folder name="grep 'RateLimiter' → found 3 files" defaultOpen>
+        <FileTree.File name="rate-limiter.ts" />
+        <FileTree.File name="adapter-registry.ts" />
+        <FileTree.File name="rate-limiter.test.ts" />
+      </FileTree.Folder>
+      <FileTree.File name="Read rate-limiter.ts" />
+      <FileTree.Folder name="grep 'rateLimiter' → find usage" />
+      <FileTree.File name="Read adapter-registry.ts" />
+      <FileTree.Folder name="grep for test files" />
+      <FileTree.File name="Read rate-limiter.test.ts" />
+    </FileTree>
+    
+    **Result:** 8 tool calls, 3 files read → **$0.36, 2.1 minutes**
+  </Tabs.Tab>
+  <Tabs.Tab>
+    **Claude's approach (2 tool calls):**
+    <FileTree>
+      <FileTree.Folder name="dev_search 'rate limiting implementation'" defaultOpen>
+        <FileTree.File name="→ rate-limiter.ts (score: 0.89, with code snippet)" />
+        <FileTree.File name="→ adapter-registry.ts (score: 0.72, shows caller)" />
+      </FileTree.Folder>
+      <FileTree.File name="Read rate-limiter.ts (for full implementation)" />
+    </FileTree>
+    
+    **Result:** 2 tool calls, 1 file read → **$0.20, 1.3 minutes**
+  </Tabs.Tab>
+</Tabs>
+
+<Callout type="info">
+  **Same answer. 44% cheaper. 38% faster.**
+</Callout>
+
+## Measured results
+
+We ran 5 task types comparing baseline Claude Code vs. with dev-agent:
+
+| Metric | Baseline | With dev-agent | Change |
+|--------|----------|----------------|--------|
+| Cost | $1.82 | $1.02 | **-44%** |
+| Time | 14.1 min | 11.5 min | **-19%** |
+| Tool calls | 69 | 40 | **-42%** |
+| Files read | 23 | 15 | **-35%** |
+
+<Callout type="warning">
+  **Trade-off:** Faster but sometimes less thorough. Baseline Claude read more files for debugging tasks. dev-agent excels at implementation and exploration.
+</Callout>
+
+## How it works
+
+```mermaid
+flowchart LR
+    subgraph IDE["Your AI Tool"]
+        A["Cursor / Claude Code"]
+    end
+    
+    subgraph Agent["dev-agent"]
+        B["MCP Server"]
+        C["9 Tools"]
+    end
+    
+    subgraph Local["Local Storage"]
+        D["Vector DB"]
+        E["Embeddings"]
+    end
+    
+    A <-->|"MCP Protocol"| B
+    B --> C
+    C <--> D
+    D <--> E
+```
+
+**The flow:**
+1. Your AI tool asks a question like *"where is auth handled?"*
+2. dev-agent searches the vector database semantically
+3. Returns relevant code with snippets, relationships, and context
+4. All processing happens locally — your code never leaves your machine
 
 ## Quick Start
 
-```bash
-# Install globally
-npm install -g @lytics/dev-agent
+<Steps>
+### Install
 
-# Index your repository
+```bash
+npm install -g dev-agent
+```
+
+### Index your repository
+
+```bash
 cd your-project
 dev index .
-
-# Install in Cursor
-dev mcp install --cursor
 ```
 
-That's it. Your AI assistant now has superpowers.
+### Connect to your AI tool
 
-## How It Works
+```bash
+dev mcp install --cursor  # For Cursor
+dev mcp install           # For Claude Code
+```
+</Steps>
 
+## Example: What dev_search returns
+
+When Claude asks *"where is rate limiting implemented?"*, dev-agent returns:
+
+```typescript
+// dev_search: "rate limiting implementation"
+// Found 2 results
+
+// 1. packages/mcp-server/src/server/utils/rate-limiter.ts
+//    Score: 0.89 | Type: Class
+//    Callers: AdapterRegistry.executeTool
+
+export class RateLimiter {
+  private buckets = new Map<string, TokenBucket>();
+  
+  check(key: string): { allowed: boolean; retryAfter?: number } {
+    // Token bucket algorithm implementation
+  }
+}
+
+// 2. packages/mcp-server/src/adapters/adapter-registry.ts  
+//    Score: 0.72 | Type: Function
+
+if (this.rateLimiter) {
+  const result = this.rateLimiter.check(toolName);
+  if (!result.allowed) return { error: 'Rate limited' };
+}
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Your AI Tool                           │
-│                  (Cursor / Claude Code)                     │
-└─────────────────────┬───────────────────────────────────────┘
-                      │ MCP Protocol
-┌─────────────────────▼───────────────────────────────────────┐
-│                     dev-agent                               │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │ dev_search  │  │  dev_plan   │  │     dev_explore     │  │
-│  │ dev_status  │  │   dev_gh    │  │     dev_health      │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-│                           │                                 │
-│  ┌────────────────────────▼────────────────────────────┐    │
-│  │              Local Vector Storage                   │    │
-│  │         (LanceDB + MiniLM embeddings)               │    │
-│  └─────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
-```
+
+Claude gets **code snippets + relationships** in one call. No grep chains needed.
+
+## 9 MCP Tools
+
+| Tool | What it does |
+|------|--------------|
+| [`dev_search`](/docs/tools/dev-search) | Semantic code search — find by meaning, not keywords |
+| [`dev_refs`](/docs/tools/dev-refs) | Find callers/callees of any function |
+| [`dev_map`](/docs/tools/dev-map) | Codebase structure with change frequency |
+| [`dev_history`](/docs/tools/dev-history) | Semantic search over git commits |
+| [`dev_plan`](/docs/tools/dev-plan) | Assemble context for GitHub issues |
+| [`dev_explore`](/docs/tools/dev-explore) | Find similar code, trace relationships |
+| [`dev_gh`](/docs/tools/dev-gh) | Search GitHub issues/PRs semantically |
+| [`dev_status`](/docs/tools/dev-status) | Repository indexing status |
+| [`dev_health`](/docs/tools/dev-health) | Server health checks |
+
+## When to use it
+
+| Scenario | dev-agent? | Why |
+|----------|------------|-----|
+| Large/unfamiliar codebase | ✅ Yes | Semantic search beats grep for conceptual queries |
+| Implementation tasks | ✅ Yes | Finds existing code to reuse |
+| Reducing API costs | ✅ Yes | 44% cost reduction measured |
+| Small codebase you know | ❌ Skip | Your mental model is faster |
+| Deep debugging | ⚠️ Maybe | May need more file reads than dev-agent provides |
+| Thoroughness over speed | ⚠️ Maybe | Baseline Claude reads more files |
 
 ## Features
 
-- **100% Local** — Your code never leaves your machine
-- **Multi-Language** — TypeScript, JavaScript, Markdown (more coming)
-- **Fast** — Sub-second semantic search across large codebases
-- **MCP Native** — Works with any MCP-compatible AI tool
-- **GitHub Aware** — Understands your issues, PRs, and project history
+- **100% Local** — Code never leaves your machine. No API keys needed.
+- **TypeScript/JS/Markdown** — Full support today. More languages planned.
+- **Sub-second Search** — Fast even on large repos with LanceDB.
+- **1300+ Tests** — Production-grade reliability.
 
 ---
 
-MIT License • Built by [Lytics](https://github.com/lytics)
+MIT License • Built by [prosdev](https://github.com/prosdev)

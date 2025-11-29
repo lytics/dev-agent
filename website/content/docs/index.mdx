@@ -1,46 +1,48 @@
 # Introduction
 
-**dev-agent** is a local-first repository context provider for AI tools. It gives AI assistants like Cursor and Claude Code deep understanding of your codebase through semantic search, code analysis, and GitHub integration.
+**dev-agent** provides semantic code search to AI assistants like Cursor and Claude Code via MCP.
 
-## The Problem
+We built this for ourselves. When exploring large codebases, we found AI tools spending too much time grepping through files. dev-agent gives them a faster path: search by meaning, not keywords.
 
-AI coding assistants are powerful, but they struggle with context:
+## What it does
 
-- They can't search your codebase semantically
-- They don't understand relationships between files
-- They lack awareness of your GitHub issues and PRs
-- They hallucinate about code that doesn't exist
+1. **Indexes your codebase** locally with embeddings (all-MiniLM-L6-v2)
+2. **Exposes 9 MCP tools** for semantic search, code relationships, git history
+3. **Integrates with GitHub** to search issues and PRs semantically
 
-## The Solution
+## Measured impact
 
-dev-agent solves this by:
+We benchmarked dev-agent against baseline Claude Code:
 
-1. **Indexing your codebase** with local embeddings (all-MiniLM-L6-v2)
-2. **Exposing semantic search** via the Model Context Protocol (MCP)
-3. **Integrating with GitHub** to understand your project's history
-4. **Providing specialized tools** for planning, exploration, and more
+| Metric | Baseline | With dev-agent | Change |
+|--------|----------|----------------|--------|
+| Cost | $1.82 | $1.02 | **-44%** |
+| Time | 14.1 min | 11.5 min | **-19%** |
+| Tool calls | 69 | 40 | **-42%** |
+
+**Trade-off:** Faster but sometimes less thorough. Best for implementation tasks and exploration. For deep debugging, baseline Claude may read more files.
 
 ## Key Features
 
 | Feature | Description |
 |---------|-------------|
 | **Semantic Search** | Find code by meaning, not keywords |
-| **AST Analysis** | Type-aware understanding of your code |
+| **Relationship Queries** | What calls this function? What does it call? |
+| **Git History** | Semantic search over commits |
 | **GitHub Integration** | Search issues and PRs semantically |
-| **Local-First** | Your code never leaves your machine |
-| **MCP Native** | Works with Cursor, Claude Code, VS Code |
+| **100% Local** | Your code never leaves your machine |
 
-## Architecture Overview
+## Architecture
 
-dev-agent is built as a monorepo with specialized packages:
+dev-agent is a monorepo:
 
-- **@lytics/dev-agent-core** — Repository scanning, vector storage, GitHub integration
+- **@lytics/dev-agent-core** — Scanning, vector storage, GitHub integration
 - **@lytics/dev-agent-cli** — Command-line interface
-- **@lytics/dev-agent-mcp** — MCP server with tool adapters
-- **@lytics/dev-agent-subagents** — Specialized agents (planner, explorer, PR manager)
+- **@lytics/dev-agent-mcp** — MCP server with 9 tool adapters
+- **@lytics/dev-agent-subagents** — Planner, explorer agents
 
 ## Next Steps
 
 - [Installation →](/docs/install) — Get dev-agent installed in under 2 minutes
-- [Quickstart →](/docs/quickstart) — From zero to semantic search in 5 minutes
+- [Quickstart →](/docs/quickstart) — Index and search in 5 minutes
 

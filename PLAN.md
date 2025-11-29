@@ -181,7 +181,35 @@ Git history is valuable context that LLMs can't easily access. We add intelligen
 
 ---
 
-## Current: Extended Git Intelligence (v0.5.0)
+## Current: Quality & Thoroughness (v0.4.x)
+
+> Addressing gaps identified in benchmark study comparing dev-agent vs baseline Claude Code.
+
+**Context:** Benchmarks showed dev-agent provides 44% cost savings and 19% faster responses, but with quality trade-offs. These improvements close the gap.
+
+### Benchmark-Driven Improvements
+
+| Task | Gap Identified | Priority | Status |
+|------|----------------|----------|--------|
+| Diagnostic command suggestions | Baseline provided shell commands for debugging; dev-agent didn't | 🔴 High | 🔲 Todo |
+| Test file inclusion hints | Baseline read test files; dev-agent skipped them | 🔴 High | 🔲 Todo |
+| Code example extraction | Baseline included more code snippets in responses | 🟡 Medium | 🔲 Todo |
+| Exhaustive mode for debugging | Option for thorough exploration vs fast satisficing | 🟡 Medium | 🔲 Todo |
+| Related files suggestions | "You might also want to check: X, Y, Z" | 🟡 Medium | 🔲 Todo |
+
+### Tool Description Refinements (Done in v0.4.2)
+
+| Task | Status |
+|------|--------|
+| Improved dev_search description ("USE THIS FIRST") | ✅ Done |
+| Improved dev_map description (vs list_dir) | ✅ Done |
+| Improved dev_explore description (workflow hints) | ✅ Done |
+| Improved dev_refs description (specific symbols) | ✅ Done |
+| All 9 adapters registered in CLI | ✅ Done |
+
+---
+
+## Next: Extended Git Intelligence (v0.5.0)
 
 > Building on git history with deeper insights.
 
@@ -285,6 +313,24 @@ How we know dev-agent is working:
 3. **Response time:** Search <100ms, index <5min for 10k files
 4. **Daily use:** We actually use it ourselves (dogfooding)
 5. **LLM effectiveness:** Claude/Cursor make better suggestions with dev-agent
+
+### Benchmark Results (v0.4.2)
+
+Measured against baseline Claude Code across 5 task types:
+
+| Metric | Baseline | With dev-agent | Improvement |
+|--------|----------|----------------|-------------|
+| Cost per session | $1.82 | $1.02 | **-44%** |
+| Time per session | 14.1 min | 11.5 min | **-19%** |
+| Tool calls | 69 | 40 | **-42%** |
+| Files examined | 23 | 15 | **-35%** |
+
+**Trade-offs identified:**
+- Less thorough for debugging (missing diagnostic commands)
+- Fewer code examples in responses
+- Skips test files (baseline reads them)
+
+**Target users:** Mid-to-senior engineers who value speed over exhaustiveness for routine exploration tasks.
 
 ---
 

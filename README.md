@@ -4,19 +4,45 @@
 [![pnpm](https://img.shields.io/badge/pnpm-8.15.4-orange.svg)](https://pnpm.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**Local-first repository context provider for AI tools. Semantic code search, git history, relationship queries, and codebase mapping via MCP.**
+**Local semantic code search for Cursor and Claude Code via MCP.**
 
-## What is dev-agent?
+## What it does
 
-dev-agent provides **rich, structured context** to AI assistants like Claude and Cursor. Instead of AI tools reading files one at a time, dev-agent gives them:
+dev-agent indexes your codebase and provides 9 MCP tools to AI assistants. Instead of AI tools grepping through files, they can ask conceptual questions like "where do we handle authentication?"
 
-- 🔍 **Semantic search** with code snippets and relationships
-- 🗺️ **Codebase maps** showing structure and change frequency
-- 🔗 **Relationship queries** (what calls what)
-- 📜 **Git history search** (who changed what and why)
-- 📋 **Issue context** assembled for planning
+- `dev_search` — Semantic code search by meaning
+- `dev_refs` — Find callers/callees of functions  
+- `dev_map` — Codebase structure with change frequency
+- `dev_history` — Semantic search over git commits
+- `dev_plan` — Assemble context for GitHub issues
+- `dev_explore` — Find similar code, trace relationships
+- `dev_gh` — Search GitHub issues/PRs semantically
+- `dev_status` / `dev_health` — Monitoring
 
-**Philosophy:** Provide data, let LLMs reason. We don't try to be smart with heuristics—we provide comprehensive context so AI assistants can be smart.
+## Measured results
+
+We benchmarked dev-agent against baseline Claude Code across 5 task types:
+
+| Metric | Baseline | With dev-agent | Change |
+|--------|----------|----------------|--------|
+| Cost | $1.82 | $1.02 | **-44%** |
+| Time | 14.1 min | 11.5 min | **-19%** |
+| Tool calls | 69 | 40 | **-42%** |
+
+**Trade-offs:** Faster but sometimes less thorough. Best for implementation tasks and codebase exploration. For deep debugging, baseline Claude may read more files.
+
+## When to use it
+
+**Good fit:**
+- Large or unfamiliar codebases
+- Implementation tasks ("add a feature like X")
+- Exploring how code works
+- Reducing AI API costs
+
+**Less useful:**
+- Small codebases you already know well
+- Deep debugging sessions
+- When thoroughness matters more than speed
 
 ## Quick Start
 
