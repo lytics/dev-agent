@@ -154,16 +154,19 @@ dev mcp install
 
 That's it! Claude Code now has access to all dev-agent capabilities.
 
-### Available Tools in Claude Code & Cursor
+### Available Tools in Claude Code & Cursor (9 tools)
 
-Once installed, AI tools gain access to these powerful capabilities:
+Once installed, AI tools gain access to:
 
-- **`dev_search`** - Semantic code search across indexed repositories
-- **`dev_status`** - Repository indexing status and health information  
-- **`dev_plan`** - Generate implementation plans from GitHub issues
-- **`dev_explore`** - Explore code patterns, find similar code, analyze relationships
-- **`dev_gh`** - Search GitHub issues and pull requests with semantic context (auto-reloads on index changes)
-- **`dev_health`** - Check MCP server health and component status (vector storage, repository, GitHub index)
+- **`dev_search`** - Semantic code search (USE THIS FIRST for conceptual queries)
+- **`dev_refs`** - Find callers/callees of functions (for specific symbols)
+- **`dev_map`** - Codebase structure with component counts and change frequency
+- **`dev_history`** - Semantic search over git commits (who changed what and why)
+- **`dev_plan`** - Assemble context for GitHub issues (code + history + patterns)
+- **`dev_explore`** - Find similar code, trace relationships
+- **`dev_gh`** - Search GitHub issues/PRs semantically
+- **`dev_status`** - Repository indexing status
+- **`dev_health`** - Server health checks
 
 ### MCP Command Reference
 
