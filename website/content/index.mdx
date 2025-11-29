@@ -15,65 +15,112 @@ Local semantic code search for Cursor and Claude Code via MCP.
 </Callout>
 
 <Callout type="default">
-  **Built by engineers, for engineers.** An MCP server that gives your AI tools semantic code search. We built it to speed up our own workflow — and measured 44% cost savings.
+  **Built by engineers, for engineers.** An MCP server that gives your AI tools semantic code search and context bundling. Savings scale with task complexity — up to 42% on debugging tasks.
+</Callout>
+
+## Why it saves money
+
+dev-agent doesn't just search — it **bundles context** so Claude reads less:
+
+| What dev-agent does | Manual equivalent | Savings |
+|---------------------|-------------------|---------|
+| Returns code snippets in search | Read entire files | 99% fewer input tokens |
+| `dev_plan` bundles issue + code + commits | 5-10 separate tool calls | 29% cost reduction |
+| Semantic search finds relevant code | grep chains + manual filtering | 42% cost reduction |
+
+**The harder the task, the bigger the savings.**
+
+## Measured results by task type
+
+| Task Type | Cost Savings | Time Savings | Why |
+|-----------|--------------|--------------|-----|
+| **Debugging** | **42%** | 37% | Semantic search beats grep for "where is the bug?" |
+| **Exploration** | **44%** | 19% | Find code by meaning, not keywords |
+| **Implementation** | **29%** | 22% | `dev_plan` bundles context in one call |
+| **Simple lookup** | ~0% | ~0% | Both approaches are fast |
+
+<Callout type="warning">
+  **Trade-off:** Faster but sometimes less thorough. Baseline Claude provides more diagnostic shell commands. dev-agent excels when you need to explore or understand code.
 </Callout>
 
 ## Same question, different approach
 
-We asked Claude Code: *"Where is rate limiting implemented and how does it work?"*
+We asked Claude Code: *"Debug why search returns duplicates"*
 
 <Tabs items={['Without dev-agent', 'With dev-agent']}>
   <Tabs.Tab>
-    **Claude's approach (8 tool calls):**
+    **Claude's approach:**
     <FileTree>
-      <FileTree.Folder name="grep 'rate' → 47 matches" />
-      <FileTree.Folder name="grep 'limit' → 23 matches" />
-      <FileTree.Folder name="grep 'RateLimiter' → found 3 files" defaultOpen>
-        <FileTree.File name="rate-limiter.ts" />
-        <FileTree.File name="adapter-registry.ts" />
-        <FileTree.File name="rate-limiter.test.ts" />
-      </FileTree.Folder>
-      <FileTree.File name="Read rate-limiter.ts" />
-      <FileTree.Folder name="grep 'rateLimiter' → find usage" />
-      <FileTree.File name="Read adapter-registry.ts" />
-      <FileTree.Folder name="grep for test files" />
-      <FileTree.File name="Read rate-limiter.test.ts" />
+      <FileTree.Folder name="grep 'duplicate' → 30 matches" />
+      <FileTree.Folder name="grep 'search' → 100+ matches" />
+      <FileTree.Folder name="grep 'id' → too many, narrow down" />
+      <FileTree.File name="Read indexer/index.ts (441 lines)" />
+      <FileTree.File name="Read vector/store.ts (258 lines)" />
+      <FileTree.File name="Read scanner/typescript.ts (full file)" />
+      <FileTree.File name="Read scanner/markdown.ts (full file)" />
+      <FileTree.Folder name="... more greps and reads" />
     </FileTree>
     
-    **Result:** 8 tool calls, 3 files read → **$0.36, 2.1 minutes**
+    **Result:** 18+ tool calls, 10 files read → **$1.37, 12 minutes**
+    
+    *18,800 input tokens consumed*
   </Tabs.Tab>
   <Tabs.Tab>
-    **Claude's approach (2 tool calls):**
+    **Claude's approach:**
     <FileTree>
-      <FileTree.Folder name="dev_search 'rate limiting implementation'" defaultOpen>
-        <FileTree.File name="→ rate-limiter.ts (score: 0.89, with code snippet)" />
-        <FileTree.File name="→ adapter-registry.ts (score: 0.72, shows caller)" />
+      <FileTree.Folder name="dev_search 'search duplicate results'" defaultOpen>
+        <FileTree.File name="→ store.ts (with upsert code snippet)" />
+        <FileTree.File name="→ indexer.ts (with ID generation)" />
       </FileTree.Folder>
-      <FileTree.File name="Read rate-limiter.ts (for full implementation)" />
+      <FileTree.Folder name="dev_search 'document ID generation'" defaultOpen>
+        <FileTree.File name="→ typescript.ts (ID pattern)" />
+        <FileTree.File name="→ markdown.ts (slug generation)" />
+      </FileTree.Folder>
+      <FileTree.File name="Read store.ts (for detail)" />
     </FileTree>
     
-    **Result:** 2 tool calls, 1 file read → **$0.20, 1.3 minutes**
+    **Result:** 6 tool calls, 5 files read → **$0.79, 7.5 minutes**
+    
+    *65 input tokens consumed (99.7% less)*
   </Tabs.Tab>
 </Tabs>
 
 <Callout type="info">
-  **Same answer. 44% cheaper. 38% faster.**
+  **Same root cause identified. 42% cheaper. 37% faster.**
 </Callout>
 
-## Measured results
+## Context bundling: `dev_plan`
 
-We ran 5 task types comparing baseline Claude Code vs. with dev-agent:
+For implementation tasks, `dev_plan` bundles everything in one call:
 
-| Metric | Baseline | With dev-agent | Change |
-|--------|----------|----------------|--------|
-| Cost | $1.82 | $1.02 | **-44%** |
-| Time | 14.1 min | 11.5 min | **-19%** |
-| Tool calls | 69 | 40 | **-42%** |
-| Files read | 23 | 15 | **-35%** |
-
-<Callout type="warning">
-  **Trade-off:** Faster but sometimes less thorough. Baseline Claude read more files for debugging tasks. dev-agent excels at implementation and exploration.
-</Callout>
+<Tabs items={['Without dev-agent', 'With dev-agent']}>
+  <Tabs.Tab>
+    **Claude's approach for "Implement issue #61":**
+    ```bash
+    gh issue view 61 --json title,body    # Fetch issue
+    grep "--json" -r packages/cli         # Find existing flags
+    Read search.ts                        # Check implementation
+    Read mcp.ts                           # Check implementation  
+    Read config.ts                        # Check file writes
+    # ... 5+ more tool calls
+    ```
+    
+    **Result:** $0.55, 5.7 minutes
+  </Tabs.Tab>
+  <Tabs.Tab>
+    **Claude's approach:**
+    ```bash
+    dev_plan --issue 61
+    # Returns in ONE call:
+    # - Issue details + comments
+    # - Relevant code snippets
+    # - Related commits (5 found)
+    # - Codebase patterns
+    ```
+    
+    **Result:** $0.39, 4.5 minutes (**29% cheaper**)
+  </Tabs.Tab>
+</Tabs>
 
 ## How it works
 
@@ -99,11 +146,7 @@ flowchart LR
     D <--> E
 ```
 
-**The flow:**
-1. Your AI tool asks a question like *"where is auth handled?"*
-2. dev-agent searches the vector database semantically
-3. Returns relevant code with snippets, relationships, and context
-4. All processing happens locally — your code never leaves your machine
+**Key insight:** dev-agent returns **code snippets with context** — Claude doesn't read entire files. This is why input tokens drop by 99%.
 
 ## Quick Start
 
@@ -129,46 +172,15 @@ dev mcp install           # For Claude Code
 ```
 </Steps>
 
-## Example: What dev_search returns
-
-When Claude asks *"where is rate limiting implemented?"*, dev-agent returns:
-
-```typescript
-// dev_search: "rate limiting implementation"
-// Found 2 results
-
-// 1. packages/mcp-server/src/server/utils/rate-limiter.ts
-//    Score: 0.89 | Type: Class
-//    Callers: AdapterRegistry.executeTool
-
-export class RateLimiter {
-  private buckets = new Map<string, TokenBucket>();
-  
-  check(key: string): { allowed: boolean; retryAfter?: number } {
-    // Token bucket algorithm implementation
-  }
-}
-
-// 2. packages/mcp-server/src/adapters/adapter-registry.ts  
-//    Score: 0.72 | Type: Function
-
-if (this.rateLimiter) {
-  const result = this.rateLimiter.check(toolName);
-  if (!result.allowed) return { error: 'Rate limited' };
-}
-```
-
-Claude gets **code snippets + relationships** in one call. No grep chains needed.
-
 ## 9 MCP Tools
 
 | Tool | What it does |
 |------|--------------|
-| [`dev_search`](/docs/tools/dev-search) | Semantic code search — find by meaning, not keywords |
+| [`dev_search`](/docs/tools/dev-search) | Semantic code search — returns snippets, not just paths |
+| [`dev_plan`](/docs/tools/dev-plan) | **Context bundling** — issue + code + commits in one call |
 | [`dev_refs`](/docs/tools/dev-refs) | Find callers/callees of any function |
 | [`dev_map`](/docs/tools/dev-map) | Codebase structure with change frequency |
 | [`dev_history`](/docs/tools/dev-history) | Semantic search over git commits |
-| [`dev_plan`](/docs/tools/dev-plan) | Assemble context for GitHub issues |
 | [`dev_explore`](/docs/tools/dev-explore) | Find similar code, trace relationships |
 | [`dev_gh`](/docs/tools/dev-gh) | Search GitHub issues/PRs semantically |
 | [`dev_status`](/docs/tools/dev-status) | Repository indexing status |
@@ -176,21 +188,21 @@ Claude gets **code snippets + relationships** in one call. No grep chains needed
 
 ## When to use it
 
-| Scenario | dev-agent? | Why |
-|----------|------------|-----|
-| Large/unfamiliar codebase | ✅ Yes | Semantic search beats grep for conceptual queries |
-| Implementation tasks | ✅ Yes | Finds existing code to reuse |
-| Reducing API costs | ✅ Yes | 44% cost reduction measured |
-| Small codebase you know | ❌ Skip | Your mental model is faster |
-| Deep debugging | ⚠️ Maybe | May need more file reads than dev-agent provides |
-| Thoroughness over speed | ⚠️ Maybe | Baseline Claude reads more files |
+| Scenario | dev-agent? | Expected Savings |
+|----------|------------|------------------|
+| Debugging unfamiliar code | ✅ Yes | **42% cost** |
+| Exploring large codebase | ✅ Yes | **44% cost** |
+| Implementing GitHub issues | ✅ Yes | **29% cost** |
+| Small codebase you know | ❌ Skip | ~0% |
+| Need exhaustive file reads | ⚠️ Maybe | Trade speed for thoroughness |
 
 ## Features
 
-- **100% Local** — Code never leaves your machine. No API keys needed.
-- **TypeScript/JS/Markdown** — Full support today. More languages planned.
-- **Sub-second Search** — Fast even on large repos with LanceDB.
-- **1300+ Tests** — Production-grade reliability.
+- **Context Bundling** — `dev_plan` replaces 5-10 tool calls with one
+- **Code Snippets** — Search returns code, not just file paths
+- **100% Local** — Your code never leaves your machine
+- **Sub-second Search** — Fast even on large repos with LanceDB
+- **1379+ Tests** — Production-grade reliability
 
 ---
 

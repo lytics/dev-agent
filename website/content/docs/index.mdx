@@ -1,35 +1,46 @@
 # Introduction
 
-**dev-agent** provides semantic code search to AI assistants like Cursor and Claude Code via MCP.
+**dev-agent** provides semantic code search and context bundling to AI assistants like Cursor and Claude Code via MCP.
 
-We built this for ourselves. When exploring large codebases, we found AI tools spending too much time grepping through files. dev-agent gives them a faster path: search by meaning, not keywords.
+We built this for ourselves. When exploring large codebases, we found AI tools spending too much time grepping through files and reading entire files to find relevant code. dev-agent gives them a faster path: search by meaning, get code snippets, bundle context.
 
 ## What it does
 
 1. **Indexes your codebase** locally with embeddings (all-MiniLM-L6-v2)
-2. **Exposes 9 MCP tools** for semantic search, code relationships, git history
-3. **Integrates with GitHub** to search issues and PRs semantically
+2. **Returns code snippets** — not just file paths, reducing input tokens by 99%
+3. **Bundles context** — `dev_plan` assembles issue + code + commits in one call
+4. **Integrates with GitHub** to search issues and PRs semantically
 
 ## Measured impact
 
-We benchmarked dev-agent against baseline Claude Code:
+We benchmarked dev-agent against baseline Claude Code across different task types:
 
-| Metric | Baseline | With dev-agent | Change |
-|--------|----------|----------------|--------|
-| Cost | $1.82 | $1.02 | **-44%** |
-| Time | 14.1 min | 11.5 min | **-19%** |
-| Tool calls | 69 | 40 | **-42%** |
+| Task Type | Cost Savings | Time Savings | Why |
+|-----------|--------------|--------------|-----|
+| **Debugging** | **42%** | 37% | Semantic search beats grep chains |
+| **Exploration** | **44%** | 19% | Find code by meaning |
+| **Implementation** | **29%** | 22% | Context bundling via `dev_plan` |
 
-**Trade-off:** Faster but sometimes less thorough. Best for implementation tasks and exploration. For deep debugging, baseline Claude may read more files.
+**Key insight:** Savings scale with task complexity. Simple lookups show no improvement; complex debugging shows 42% cost reduction.
+
+**Trade-off:** Faster but sometimes less thorough. Baseline Claude provides more diagnostic shell commands.
+
+## Why it saves money
+
+| What dev-agent does | Manual equivalent | Impact |
+|---------------------|-------------------|--------|
+| Returns code snippets in search | Read entire files | 99% fewer input tokens |
+| `dev_plan` bundles issue + code + commits | 5-10 separate tool calls | 29% cost reduction |
+| Semantic search finds relevant code | grep chains + filtering | 42% cost reduction |
 
 ## Key Features
 
 | Feature | Description |
 |---------|-------------|
+| **Context Bundling** | `dev_plan` replaces 5-10 tool calls with one |
+| **Code Snippets** | Search returns code, not just file paths |
 | **Semantic Search** | Find code by meaning, not keywords |
-| **Relationship Queries** | What calls this function? What does it call? |
 | **Git History** | Semantic search over commits |
-| **GitHub Integration** | Search issues and PRs semantically |
 | **100% Local** | Your code never leaves your machine |
 
 ## Architecture
@@ -45,4 +56,3 @@ dev-agent is a monorepo:
 
 - [Installation →](/docs/install) — Get dev-agent installed in under 2 minutes
 - [Quickstart →](/docs/quickstart) — Index and search in 5 minutes
-
