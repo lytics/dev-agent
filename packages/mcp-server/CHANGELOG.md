@@ -1,5 +1,14 @@
 # @lytics/dev-agent-mcp
 
+## 0.4.2
+
+### Patch Changes
+
+- 40192f5: Fix dev_history tool schema for Claude API compatibility
+
+  - Removed `anyOf` from input schema (Claude API doesn't support it at top level)
+  - Validation for "at least one of query or file required" is still enforced in execute()
+
 ## 0.4.1
 
 ### Patch Changes
