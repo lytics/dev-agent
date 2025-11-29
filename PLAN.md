@@ -213,7 +213,7 @@ Git history is valuable context that LLMs can't easily access. We add intelligen
 
 > Building on git history with deeper insights.
 
-### Tasks
+### Git Tasks
 
 | Task | Priority | Status |
 |------|----------|--------|
@@ -221,6 +221,28 @@ Git history is valuable context that LLMs can't easily access. We add intelligen
 | PR/issue linking from commits | 🟡 Medium | 🔲 Todo |
 | Contributor expertise mapping | 🟢 Low | 🔲 Todo |
 | Cross-repo history | 🟢 Low | 🔲 Todo |
+
+### Tool Improvements
+
+| Task | Rationale | Priority | Status |
+|------|-----------|----------|--------|
+| Generalize `dev_plan` → `dev_context` | Currently requires GitHub issue; should work with any task description | 🔴 High | 🔲 Todo |
+| Freeform context assembly | `dev_context "Add rate limiting"` without needing issue # | 🔴 High | 🔲 Todo |
+| Multiple input modes | `--issue 42`, `--file src/auth.ts`, or freeform query | 🟡 Medium | 🔲 Todo |
+
+**Why:** `dev_plan` is really a context assembler but is tightly coupled to GitHub issues. Generalizing it:
+- Works without GitHub
+- Easier to benchmark (no real issues needed)
+- Name matches function (assembles context, doesn't "plan")
+- More useful for ad-hoc implementation tasks
+
+### Benchmark Improvements
+
+| Task | Rationale | Priority | Status |
+|------|-----------|----------|--------|
+| Add implementation task types | Current benchmark only tests exploration; missing `dev_plan`/`dev_gh` coverage | 🟡 Medium | 🔲 Todo |
+| Generic implementation patterns | "Add a new adapter similar to X" — tests pattern discovery | 🟡 Medium | 🔲 Todo |
+| Snapshotted issue tests | Capture real issues for reproducible `dev_plan` testing | 🟢 Low | 🔲 Todo |
 
 ---
 
@@ -347,4 +369,4 @@ pnpm test
 
 ---
 
-*Last updated: November 2025*
+*Last updated: November 29, 2025 at 01:42 PST*

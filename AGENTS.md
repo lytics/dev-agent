@@ -179,10 +179,13 @@ Specialized agents for development tasks.
 
 MCP server with built-in adapters for AI tools.
 
-**Adapters:**
+**Adapters (9 tools):**
 - **SearchAdapter:** Semantic code search (`dev_search`)
+- **RefsAdapter:** Relationship queries - callers/callees (`dev_refs`)
+- **MapAdapter:** Codebase structure with change frequency (`dev_map`)
+- **HistoryAdapter:** Semantic git commit search (`dev_history`)
 - **StatusAdapter:** Repository status (`dev_status`)
-- **PlanAdapter:** Planning from issues (`dev_plan`)
+- **PlanAdapter:** Context assembly for issues (`dev_plan`)
 - **ExploreAdapter:** Code exploration (`dev_explore`)
 - **GitHubAdapter:** Issue/PR search (`dev_gh`)
 - **HealthAdapter:** Server health checks (`dev_health`)
