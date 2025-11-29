@@ -67,3 +67,6 @@ temp/
 
 # Work in progress packages (not ready for commit)
 packages/benchmark/
+
+# Benchmark studies and session logs
+studies/

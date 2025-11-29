@@ -23,10 +23,13 @@ const config = {
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <meta
         name="description"
-        content="dev-agent: AI-native code intelligence for Cursor and Claude Code"
+        content="dev-agent: Local semantic code search for Cursor and Claude Code. 44% cheaper, 19% faster."
       />
       <meta name="og:title" content="dev-agent" />
-      <meta name="og:description" content="Deep code intelligence + AI subagents via MCP" />
+      <meta
+        name="og:description"
+        content="Local semantic code search via MCP. Measured: 44% cost reduction, 19% faster."
+      />
     </>
   ),
   sidebar: {
