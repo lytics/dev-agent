@@ -1,5 +1,12 @@
 # @lytics/dev-agent-integrations
 
+## 0.1.7
+
+### Patch Changes
+
+- Updated dependencies [5918edb]
+  - @lytics/dev-agent-cli@0.1.7
+
 ## 0.1.6
 
 ### Patch Changes
