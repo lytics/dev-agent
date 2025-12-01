@@ -1,6 +1,6 @@
 {
   "name": "@lytics/dev-agent-cli",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
