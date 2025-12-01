@@ -192,10 +192,41 @@ Git history is valuable context that LLMs can't easily access. We add intelligen
 | Task | Gap Identified | Priority | Status |
 |------|----------------|----------|--------|
 | Diagnostic command suggestions | Baseline provided shell commands for debugging; dev-agent didn't | 🔴 High | 🔲 Todo |
-| Test file inclusion hints | Baseline read test files; dev-agent skipped them | 🔴 High | 🔲 Todo |
+| Test file inclusion hints | Baseline read test files; dev-agent skipped them | 🔴 High | ✅ Done |
 | Code example extraction | Baseline included more code snippets in responses | 🟡 Medium | 🔲 Todo |
 | Exhaustive mode for debugging | Option for thorough exploration vs fast satisficing | 🟡 Medium | 🔲 Todo |
 | Related files suggestions | "You might also want to check: X, Y, Z" | 🟡 Medium | 🔲 Todo |
+
+### Test File Hints - Design (v0.4.4)
+
+**Problem:** Benchmark showed baseline Claude read test files, but dev-agent didn't surface them.
+
+**Root cause:** Test files have *structural* relationship (same name), not *semantic* relationship:
+- Searching "authentication middleware" finds `auth/middleware.ts` (semantic match ✓)
+- `auth/middleware.test.ts` might NOT appear because test semantics differ
+- "describe('AuthMiddleware', () => {...})" doesn't semantically match the query
+
+**Design decision:** Keep semantic search pure. Add "Related files:" section using filesystem lookup.
+
+| Approach | Decision | Rationale |
+|----------|----------|-----------|
+| Filename matching | ✅ Chosen | Fast, reliable, honest about what it is |
+| Boost test queries | ❌ Rejected | Might return unrelated tests |
+| Index-time metadata | ❌ Rejected | Requires re-index, complex |
+
+**Phased rollout:**
+
+| Phase | Tool | Status |
+|-------|------|--------|
+| 1 (v0.4.4) | `dev_search` | ✅ Done |
+| 2 | `dev_refs`, `dev_explore` | 🔲 Todo |
+| 3 | `dev_map`, `dev_status` | 🔲 Todo |
+
+**Implementation (Phase 1):**
+- After search results, check filesystem for test siblings
+- Patterns: `*.test.ts`, `*.spec.ts`, `__tests__/*.ts`
+- Add "Related files:" section to output
+- No change to semantic search scoring
 
 ### Tool Description Refinements (Done in v0.4.2)
 
