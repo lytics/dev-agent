@@ -616,7 +616,7 @@ dev mcp start --verbose
 # In another terminal, send test message
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | dev mcp start
 
-# Should list all 6 tools: dev_search, dev_status, dev_plan, dev_explore, dev_gh, dev_health
+# Should list all 9 tools: dev_search, dev_refs, dev_map, dev_history, dev_status, dev_plan, dev_explore, dev_gh, dev_health
 ```
 
 ### Inspect storage

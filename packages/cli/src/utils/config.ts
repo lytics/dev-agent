@@ -205,10 +205,14 @@ export function getDefaultConfig(repositoryPath: string = process.cwd()): DevAge
     mcp: {
       adapters: {
         search: { enabled: true },
-        github: { enabled: true },
+        refs: { enabled: true },
+        map: { enabled: true },
+        history: { enabled: true },
         plan: { enabled: true },
         explore: { enabled: true },
-        status: { enabled: false },
+        github: { enabled: true },
+        status: { enabled: true },
+        health: { enabled: true },
       },
     },
     // Legacy fields for backward compatibility
