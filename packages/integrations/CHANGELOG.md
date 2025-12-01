@@ -1,5 +1,11 @@
 # @lytics/dev-agent-integrations
 
+## 0.1.8
+
+### Patch Changes
+
+- @lytics/dev-agent-cli@0.1.8
+
 ## 0.1.7
 
 ### Patch Changes

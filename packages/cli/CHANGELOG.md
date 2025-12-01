@@ -1,5 +1,12 @@
 # @lytics/dev-agent-cli
 
+## 0.1.8
+
+### Patch Changes
+
+- Updated dependencies [ad4af12]
+  - @lytics/dev-agent-mcp@0.4.3
+
 ## 0.1.7
 
 ### Patch Changes
