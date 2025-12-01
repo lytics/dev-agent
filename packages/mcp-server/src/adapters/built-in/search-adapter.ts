@@ -5,6 +5,7 @@
 
 import type { RepositoryIndexer } from '@lytics/dev-agent-core';
 import { CompactFormatter, type FormatMode, VerboseFormatter } from '../../formatters';
+import { findRelatedTestFiles, formatRelatedFiles } from '../../utils/related-files';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
 
@@ -18,6 +19,11 @@ export interface SearchAdapterConfig {
   repositoryIndexer: RepositoryIndexer;
 
   /**
+   * Repository root path (for finding related files)
+   */
+  repositoryPath?: string;
+
+  /**
    * Default format mode
    */
   defaultFormat?: FormatMode;
@@ -26,6 +32,11 @@ export interface SearchAdapterConfig {
    * Default result limit
    */
   defaultLimit?: number;
+
+  /**
+   * Include related test files in results
+   */
+  includeRelatedFiles?: boolean;
 }
 
 /**
@@ -41,15 +52,19 @@ export class SearchAdapter extends ToolAdapter {
   };
 
   private indexer: RepositoryIndexer;
-  private config: Required<SearchAdapterConfig>;
+  private config: Required<Omit<SearchAdapterConfig, 'repositoryPath'>> & {
+    repositoryPath?: string;
+  };
 
   constructor(config: SearchAdapterConfig) {
     super();
     this.indexer = config.repositoryIndexer;
     this.config = {
       repositoryIndexer: config.repositoryIndexer,
+      repositoryPath: config.repositoryPath,
       defaultFormat: config.defaultFormat ?? 'compact',
       defaultLimit: config.defaultLimit ?? 10,
+      includeRelatedFiles: config.includeRelatedFiles ?? true,
     };
   }
 
@@ -210,11 +225,27 @@ export class SearchAdapter extends ToolAdapter {
 
       const formatted = formatter.formatResults(results);
 
+      // Find related test files if enabled and repository path is available
+      let relatedFilesSection = '';
+      let relatedFilesCount = 0;
+      if (this.config.includeRelatedFiles && this.config.repositoryPath && results.length > 0) {
+        const sourcePaths = results
+          .map((r) => r.metadata.path)
+          .filter((p): p is string => typeof p === 'string');
+
+        if (sourcePaths.length > 0) {
+          const relatedFiles = await findRelatedTestFiles(sourcePaths, this.config.repositoryPath);
+          relatedFilesCount = relatedFiles.length;
+          relatedFilesSection = formatRelatedFiles(relatedFiles);
+        }
+      }
+
       const duration_ms = Date.now() - startTime;
 
       context.logger.info('Search completed', {
         query,
         resultCount: results.length,
+        relatedFilesCount,
         tokens: formatted.tokens,
         duration_ms,
       });
@@ -224,7 +255,7 @@ export class SearchAdapter extends ToolAdapter {
         data: {
           query,
           format,
-          content: formatted.content,
+          content: formatted.content + relatedFilesSection,
         },
         metadata: {
           tokens: formatted.tokens,
@@ -234,6 +265,7 @@ export class SearchAdapter extends ToolAdapter {
           results_total: results.length,
           results_returned: Math.min(results.length, limit as number),
           results_truncated: results.length > (limit as number),
+          related_files_count: relatedFilesCount,
         },
       };
     } catch (error) {

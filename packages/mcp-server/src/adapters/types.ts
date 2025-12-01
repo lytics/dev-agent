@@ -65,6 +65,10 @@ export interface MCPMetadata {
   results_returned?: number;
   /** Whether results were truncated due to limits */
   results_truncated?: boolean;
+
+  // Related files (optional)
+  /** Number of related test files found */
+  related_files_count?: number;
 }
 
 // Tool Result

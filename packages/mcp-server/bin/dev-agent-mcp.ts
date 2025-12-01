@@ -145,6 +145,7 @@ async function main() {
     // Create and register adapters
     const searchAdapter = new SearchAdapter({
       repositoryIndexer: indexer,
+      repositoryPath,
       defaultFormat: 'compact',
       defaultLimit: 10,
     });

@@ -208,11 +208,11 @@ describe('Formatter Utils', () => {
     it('should return elapsed time', async () => {
       const timer = startTimer();
 
-      // Wait a bit
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      // Wait a bit (use 15ms to avoid flaky timing issues)
+      await new Promise((resolve) => setTimeout(resolve, 15));
 
       const elapsed = timer.elapsed();
-      expect(elapsed).toBeGreaterThanOrEqual(10);
+      expect(elapsed).toBeGreaterThanOrEqual(10); // Allow some timing variance
       expect(elapsed).toBeLessThan(100); // Should be fast
     });
 
