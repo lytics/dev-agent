@@ -215,7 +215,7 @@ For advanced users or development, you can manually configure the MCP server:
 
 1. **Server Configuration**: The MCP server runs with full feature set including:
    - Subagent coordinator with explorer, planner, and PR agents
-   - All 6 adapters (search, status, plan, explore, github, health)
+   - All 9 adapters (search, refs, map, history, status, plan, explore, github, health)
    - STDIO transport for direct AI tool communication
    - Rate limiting (100 req/min default, configurable per-tool)
    - Retry logic with exponential backoff
