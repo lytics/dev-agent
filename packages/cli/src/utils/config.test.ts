@@ -37,6 +37,25 @@ describe('Config Utilities', () => {
       const config = getDefaultConfig();
       expect(config.repositoryPath).toBe(process.cwd());
     });
+
+    it('should include all 9 MCP adapters', () => {
+      const config = getDefaultConfig('/test/path');
+      const adapters = config.mcp?.adapters;
+
+      expect(adapters).toBeDefined();
+      expect(Object.keys(adapters!)).toHaveLength(9);
+
+      // Verify all adapters are present and enabled by default
+      expect(adapters?.search?.enabled).toBe(true);
+      expect(adapters?.refs?.enabled).toBe(true);
+      expect(adapters?.map?.enabled).toBe(true);
+      expect(adapters?.history?.enabled).toBe(true);
+      expect(adapters?.plan?.enabled).toBe(true);
+      expect(adapters?.explore?.enabled).toBe(true);
+      expect(adapters?.github?.enabled).toBe(true);
+      expect(adapters?.status?.enabled).toBe(true);
+      expect(adapters?.health?.enabled).toBe(true);
+    });
   });
 
   describe('saveConfig', () => {
