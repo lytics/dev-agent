@@ -7,7 +7,14 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { normalizeFilePath, prepareFileForSearch, readFileContent, resolveFilePath } from './file';
+import {
+  formatBytes,
+  getDirectorySize,
+  normalizeFilePath,
+  prepareFileForSearch,
+  readFileContent,
+  resolveFilePath,
+} from './file';
 
 describe('File Utilities', () => {
   describe('resolveFilePath', () => {
@@ -232,6 +239,99 @@ describe('File Utilities', () => {
 
       expect(result.content).toBe('content');
       expect(result.relativePath).toBe('test.txt');
+    });
+  });
+
+  describe('formatBytes', () => {
+    it('should format 0 bytes', () => {
+      expect(formatBytes(0)).toBe('0 B');
+    });
+
+    it('should format bytes', () => {
+      expect(formatBytes(500)).toBe('500 B');
+    });
+
+    it('should format kilobytes', () => {
+      expect(formatBytes(1024)).toBe('1 KB');
+      expect(formatBytes(1536)).toBe('1.5 KB');
+    });
+
+    it('should format megabytes', () => {
+      expect(formatBytes(1024 * 1024)).toBe('1 MB');
+      expect(formatBytes(1024 * 1024 * 2.5)).toBe('2.5 MB');
+    });
+
+    it('should format gigabytes', () => {
+      expect(formatBytes(1024 * 1024 * 1024)).toBe('1 GB');
+    });
+
+    it('should round to one decimal place', () => {
+      expect(formatBytes(1234567)).toBe('1.2 MB');
+    });
+  });
+
+  describe('getDirectorySize', () => {
+    let tempDir: string;
+
+    beforeEach(async () => {
+      tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'dirsize-test-'));
+    });
+
+    afterEach(async () => {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    });
+
+    it('should return 0 for empty directory', async () => {
+      const size = await getDirectorySize(tempDir);
+      expect(size).toBe(0);
+    });
+
+    it('should calculate size of single file', async () => {
+      const content = 'Hello, World!'; // 13 bytes
+      await fs.writeFile(path.join(tempDir, 'test.txt'), content);
+
+      const size = await getDirectorySize(tempDir);
+      expect(size).toBe(13);
+    });
+
+    it('should calculate size of multiple files', async () => {
+      await fs.writeFile(path.join(tempDir, 'file1.txt'), 'aaaa'); // 4 bytes
+      await fs.writeFile(path.join(tempDir, 'file2.txt'), 'bbbbbb'); // 6 bytes
+
+      const size = await getDirectorySize(tempDir);
+      expect(size).toBe(10);
+    });
+
+    it('should calculate size recursively', async () => {
+      const subDir = path.join(tempDir, 'subdir');
+      await fs.mkdir(subDir);
+      await fs.writeFile(path.join(tempDir, 'root.txt'), '12345'); // 5 bytes
+      await fs.writeFile(path.join(subDir, 'nested.txt'), '67890'); // 5 bytes
+
+      const size = await getDirectorySize(tempDir);
+      expect(size).toBe(10);
+    });
+
+    it('should handle deeply nested directories', async () => {
+      const deepDir = path.join(tempDir, 'a', 'b', 'c');
+      await fs.mkdir(deepDir, { recursive: true });
+      await fs.writeFile(path.join(deepDir, 'deep.txt'), 'content'); // 7 bytes
+
+      const size = await getDirectorySize(tempDir);
+      expect(size).toBe(7);
+    });
+
+    it('should return 0 for non-existent directory', async () => {
+      const size = await getDirectorySize('/nonexistent/path');
+      expect(size).toBe(0);
+    });
+
+    it('should handle single file path', async () => {
+      const filePath = path.join(tempDir, 'single.txt');
+      await fs.writeFile(filePath, '12345678'); // 8 bytes
+
+      const size = await getDirectorySize(filePath);
+      expect(size).toBe(8);
     });
   });
 });
