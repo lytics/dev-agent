@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { Command } from 'commander';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanCommand } from './clean';
+import { indexCommand } from './index';
 import { initCommand } from './init';
 
 describe('CLI Commands', () => {
@@ -71,5 +72,59 @@ describe('CLI Commands', () => {
       expect(forceOption).toBeDefined();
       expect(forceOption?.short).toBe('-f');
     });
+  });
+
+  describe('index command', () => {
+    it('should have correct command name and description', () => {
+      expect(indexCommand.name()).toBe('index');
+      expect(indexCommand.description()).toBe(
+        'Index a repository (code, git history, GitHub issues/PRs)'
+      );
+    });
+
+    it('should display storage size after indexing', async () => {
+      const indexDir = path.join(testDir, 'index-test');
+      await fs.mkdir(indexDir, { recursive: true });
+
+      // Create a simple TypeScript file to index
+      await fs.writeFile(
+        path.join(indexDir, 'sample.ts'),
+        `export function greet(name: string): string {
+  return \`Hello, \${name}!\`;
+}
+
+export class Calculator {
+  add(a: number, b: number): number {
+    return a + b;
+  }
+}`
+      );
+
+      // Capture logger output
+      const loggedMessages: string[] = [];
+      const loggerModule = await import('../utils/logger.js');
+      const originalLog = loggerModule.logger.log;
+      vi.spyOn(loggerModule.logger, 'log').mockImplementation((msg: string) => {
+        loggedMessages.push(msg);
+      });
+
+      // Mock process.exit to prevent test termination
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+      // Create a program and add the command
+      const program = new Command();
+      program.addCommand(indexCommand);
+
+      // Run index command (skip git and github for faster test)
+      await program.parseAsync(['node', 'cli', 'index', indexDir, '--no-git', '--no-github']);
+
+      exitSpy.mockRestore();
+      loggerModule.logger.log = originalLog;
+
+      // Verify storage size is in the output
+      const storageSizeLog = loggedMessages.find((msg) => msg.includes('Storage size:'));
+      expect(storageSizeLog).toBeDefined();
+      expect(storageSizeLog).toMatch(/Storage size:.*\d+(\.\d+)?\s*(B|KB|MB|GB)/);
+    }, 30000); // 30s timeout for indexing
   });
 });
