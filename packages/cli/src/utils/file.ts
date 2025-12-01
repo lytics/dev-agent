@@ -70,3 +70,44 @@ export async function prepareFileForSearch(
     relativePath,
   };
 }
+
+/**
+ * Calculate directory size recursively
+ * Returns total size in bytes
+ */
+export async function getDirectorySize(dirPath: string): Promise<number> {
+  try {
+    const stats = await fs.stat(dirPath);
+    if (!stats.isDirectory()) {
+      return stats.size;
+    }
+
+    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    let size = 0;
+
+    for (const entry of entries) {
+      const fullPath = path.join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        size += await getDirectorySize(fullPath);
+      } else {
+        const stat = await fs.stat(fullPath);
+        size += stat.size;
+      }
+    }
+
+    return size;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Format bytes to human-readable string
+ */
+export function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${Number.parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`;
+}
