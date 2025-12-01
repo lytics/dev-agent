@@ -1,3 +1,5 @@
+import { Callout } from 'nextra/components'
+
 # dev_search
 
 Semantic code search across your indexed repository. Find code by meaning, not just keywords.
@@ -50,6 +52,28 @@ dev_search(query, format?, limit?, scoreThreshold?)
 > "Use dev_search with query 'error handling middleware', scoreThreshold 0.8"
 
 Only returns results with 80%+ similarity.
+
+## Related Test Files
+
+<Callout type="info">
+  **New in v0.4.4** — Search results now automatically show related test files.
+</Callout>
+
+When search results include source files, dev_search checks for corresponding test files:
+
+```
+1. [89%] function: authenticate (src/auth.ts:15)
+2. [84%] class: AuthMiddleware (src/middleware.ts:5)
+
+---
+Related test files:
+  • src/auth.test.ts
+  • src/middleware.test.ts
+```
+
+**Patterns detected:** `*.test.ts`, `*.spec.ts`
+
+This surfaces test files without affecting semantic search rankings — tests are found by filename, not similarity.
 
 ## How It Works
 
