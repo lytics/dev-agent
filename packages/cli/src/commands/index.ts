@@ -16,6 +16,7 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
 import { getDefaultConfig, loadConfig } from '../utils/config.js';
+import { formatBytes, getDirectorySize } from '../utils/file.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -144,11 +145,12 @@ export const indexCommand = new Command('index')
         },
       });
 
-      // Update metadata with indexing stats
+      // Update metadata with indexing stats (calculate actual storage size)
+      const storageSize = await getDirectorySize(storagePath);
       await updateIndexedStats(storagePath, {
         files: stats.filesScanned,
         components: stats.documentsIndexed,
-        size: 0, // TODO: Calculate actual size
+        size: storageSize,
       });
 
       await indexer.close();
@@ -164,6 +166,7 @@ export const indexCommand = new Command('index')
       logger.log(`  ${chalk.cyan('Documents extracted:')} ${stats.documentsExtracted}`);
       logger.log(`  ${chalk.cyan('Documents indexed:')}   ${stats.documentsIndexed}`);
       logger.log(`  ${chalk.cyan('Vectors stored:')}      ${stats.vectorsStored}`);
+      logger.log(`  ${chalk.cyan('Storage size:')}        ${formatBytes(storageSize)}`);
       logger.log(`  ${chalk.cyan('Duration:')}            ${codeDuration}s`);
 
       // Index git history if available
