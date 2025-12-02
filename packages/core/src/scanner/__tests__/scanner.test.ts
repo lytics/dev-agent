@@ -854,23 +854,127 @@ describe('Scanner', () => {
       expect(fn?.metadata.docstring).toContain('documented');
     });
 
-    it('should not extract variables without function initializers', async () => {
+    it('should not extract non-exported variables without function initializers', async () => {
       const result = await scanRepository({
         repoRoot,
         include: ['packages/core/src/scanner/__tests__/fixtures/arrow-functions.ts'],
         exclude: fixtureExcludes,
       });
 
-      // Should NOT find plain constants
+      // Should NOT find non-exported plain constants
       const constant = result.documents.find(
         (d) => d.type === 'variable' && d.metadata.name === 'plainConstant'
       );
       expect(constant).toBeUndefined();
 
+      // Should NOT find non-exported object constants
       const objectConst = result.documents.find(
         (d) => d.type === 'variable' && d.metadata.name === 'configObject'
       );
       expect(objectConst).toBeUndefined();
+
+      // Should NOT find exported primitive constants (low semantic value)
+      const primitiveExport = result.documents.find(
+        (d) => d.type === 'variable' && d.metadata.name === 'API_ENDPOINT'
+      );
+      expect(primitiveExport).toBeUndefined();
+    });
+  });
+
+  describe('Exported Constant Extraction', () => {
+    // Note: We override exclude to allow fixtures directory (excluded by default)
+    const fixtureExcludes = ['**/node_modules/**', '**/dist/**'];
+
+    it('should extract exported object constants', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/__tests__/fixtures/arrow-functions.ts'],
+        exclude: fixtureExcludes,
+      });
+
+      const config = result.documents.find(
+        (d) => d.type === 'variable' && d.metadata.name === 'API_CONFIG'
+      );
+      expect(config).toBeDefined();
+      expect(config?.metadata.exported).toBe(true);
+      expect(config?.metadata.isConstant).toBe(true);
+      expect(config?.metadata.constantKind).toBe('object');
+    });
+
+    it('should extract exported array constants', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/__tests__/fixtures/arrow-functions.ts'],
+        exclude: fixtureExcludes,
+      });
+
+      const languages = result.documents.find(
+        (d) => d.type === 'variable' && d.metadata.name === 'SUPPORTED_LANGUAGES'
+      );
+      expect(languages).toBeDefined();
+      expect(languages?.metadata.exported).toBe(true);
+      expect(languages?.metadata.isConstant).toBe(true);
+      expect(languages?.metadata.constantKind).toBe('array');
+    });
+
+    it('should extract exported call expression constants (factories)', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/__tests__/fixtures/arrow-functions.ts'],
+        exclude: fixtureExcludes,
+      });
+
+      const context = result.documents.find(
+        (d) => d.type === 'variable' && d.metadata.name === 'AppContext'
+      );
+      expect(context).toBeDefined();
+      expect(context?.metadata.exported).toBe(true);
+      expect(context?.metadata.isConstant).toBe(true);
+      expect(context?.metadata.constantKind).toBe('value');
+    });
+
+    it('should extract typed exported constants with signature', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/__tests__/fixtures/arrow-functions.ts'],
+        exclude: fixtureExcludes,
+      });
+
+      const theme = result.documents.find(
+        (d) => d.type === 'variable' && d.metadata.name === 'THEME_CONFIG'
+      );
+      expect(theme).toBeDefined();
+      expect(theme?.metadata.signature).toContain('THEME_CONFIG');
+      expect(theme?.metadata.signature).toContain('dark');
+    });
+
+    it('should extract JSDoc from exported constants', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/__tests__/fixtures/arrow-functions.ts'],
+        exclude: fixtureExcludes,
+      });
+
+      const config = result.documents.find(
+        (d) => d.type === 'variable' && d.metadata.name === 'API_CONFIG'
+      );
+      expect(config).toBeDefined();
+      expect(config?.metadata.docstring).toBeDefined();
+      expect(config?.metadata.docstring).toContain('API configuration');
+    });
+
+    it('should not extract non-exported object constants', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/__tests__/fixtures/arrow-functions.ts'],
+        exclude: fixtureExcludes,
+      });
+
+      // configObject is not exported, should not be extracted
+      const config = result.documents.find(
+        (d) => d.type === 'variable' && d.metadata.name === 'configObject'
+      );
+      expect(config).toBeUndefined();
     });
   });
 });

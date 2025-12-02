@@ -53,19 +53,48 @@ const documentedArrow = (param: string) => {
   return param.toLowerCase();
 };
 
-// These should NOT be extracted (not function-valued):
+// ============================================
+// EXPORTED CONSTANTS - Should be extracted
+// ============================================
+
+/**
+ * API configuration object.
+ * This should be extracted as an exported constant.
+ */
+export const API_CONFIG = {
+  baseUrl: '/api',
+  timeout: 5000,
+  retries: 3,
+};
+
+// Exported array constant
+export const SUPPORTED_LANGUAGES = ['typescript', 'javascript', 'python', 'go'];
+
+// Exported call expression (factory pattern)
+// biome-ignore lint/suspicious/noEmptyBlockStatements: Test fixture
+export const AppContext = (() => ({ value: null }))();
+
+// Typed exported constant
+export const THEME_CONFIG: { dark: boolean; primary: string } = {
+  dark: false,
+  primary: '#007bff',
+};
+
+// ============================================
+// NON-EXPORTED - Should NOT be extracted
+// ============================================
 // biome-ignore lint/correctness/noUnusedVariables: Test fixtures for non-extraction
 
-// Plain constant (primitive)
+// Plain constant (primitive) - never extracted
 const plainConstant = 42;
 
-// Object constant
+// Non-exported object - not extracted (only exported objects are extracted)
 const configObject = {
   apiUrl: '/api',
   timeout: 5000,
 };
 
-// Array constant
+// Non-exported array - not extracted
 const colorList = ['red', 'green', 'blue'];
 
 // Suppress unused warnings - these are test fixtures
@@ -73,7 +102,7 @@ void plainConstant;
 void configObject;
 void colorList;
 
-// String constant
+// Exported primitive - NOT extracted (primitives have low semantic value)
 export const API_ENDPOINT = 'https://api.example.com';
 
 // Re-exported for testing

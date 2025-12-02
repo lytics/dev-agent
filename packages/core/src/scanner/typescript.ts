@@ -119,13 +119,15 @@ export class TypeScriptScanner implements Scanner {
       if (doc) documents.push(doc);
     }
 
-    // Extract variables with arrow functions or function expressions
+    // Extract variables with arrow functions, function expressions, or exported constants
     for (const varStmt of sourceFile.getVariableStatements()) {
       for (const decl of varStmt.getDeclarations()) {
         const initializer = decl.getInitializer();
         if (!initializer) continue;
 
         const kind = initializer.getKind();
+
+        // Arrow functions and function expressions (any export status)
         if (kind === SyntaxKind.ArrowFunction || kind === SyntaxKind.FunctionExpression) {
           const doc = this.extractVariableWithFunction(
             decl,
@@ -134,6 +136,16 @@ export class TypeScriptScanner implements Scanner {
             imports,
             sourceFile
           );
+          if (doc) documents.push(doc);
+        }
+        // Exported constants with object/array/call expression initializers
+        else if (
+          varStmt.isExported() &&
+          (kind === SyntaxKind.ObjectLiteralExpression ||
+            kind === SyntaxKind.ArrayLiteralExpression ||
+            kind === SyntaxKind.CallExpression)
+        ) {
+          const doc = this.extractExportedConstant(decl, varStmt, relativeFile, imports);
           if (doc) documents.push(doc);
         }
       }
@@ -467,6 +479,74 @@ export class TypeScriptScanner implements Scanner {
         isArrowFunction,
         isHook,
         isAsync,
+      },
+    };
+  }
+
+  /**
+   * Extract an exported constant with object literal, array literal, or call expression initializer.
+   * Captures configuration objects, contexts, and factory-created values.
+   */
+  private extractExportedConstant(
+    decl: VariableDeclaration,
+    varStmt: VariableStatement,
+    file: string,
+    imports: string[]
+  ): Document | null {
+    const name = decl.getName();
+    if (!name) return null;
+
+    const initializer = decl.getInitializer();
+    if (!initializer) return null;
+
+    const startLine = decl.getStartLineNumber();
+    const endLine = decl.getEndLineNumber();
+    const fullText = decl.getText();
+    const docComment = this.getDocComment(varStmt);
+    const snippet = this.truncateSnippet(fullText);
+
+    // Determine the kind of constant for better embedding text
+    const kind = initializer.getKind();
+    let constantKind: 'object' | 'array' | 'value';
+    if (kind === SyntaxKind.ObjectLiteralExpression) {
+      constantKind = 'object';
+    } else if (kind === SyntaxKind.ArrayLiteralExpression) {
+      constantKind = 'array';
+    } else {
+      constantKind = 'value'; // Call expression or other
+    }
+
+    // Build signature
+    const typeAnnotation = decl.getTypeNode()?.getText();
+    const signature = typeAnnotation
+      ? `export const ${name}: ${typeAnnotation}`
+      : `export const ${name}`;
+
+    const text = this.buildEmbeddingText({
+      type: 'constant',
+      name,
+      signature,
+      docComment,
+      language: 'typescript',
+    });
+
+    return {
+      id: `${file}:${name}:${startLine}`,
+      text,
+      type: 'variable',
+      language: 'typescript',
+      metadata: {
+        file,
+        startLine,
+        endLine,
+        name,
+        signature,
+        exported: true, // Always true for this method
+        docstring: docComment,
+        snippet,
+        imports,
+        isConstant: true,
+        constantKind,
       },
     };
   }
