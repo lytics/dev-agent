@@ -7,7 +7,8 @@ export type DocumentType =
   | 'type'
   | 'struct'
   | 'method'
-  | 'documentation';
+  | 'documentation'
+  | 'variable';
 
 /**
  * Information about a function/method that calls this component
@@ -56,6 +57,11 @@ export interface DocumentMetadata {
   // Relationship data (call graph)
   callees?: CalleeInfo[]; // Functions/methods this component calls
   // Note: callers are computed at query time via reverse lookup
+
+  // Variable/function metadata
+  isArrowFunction?: boolean; // True if variable initialized with arrow function
+  isHook?: boolean; // True if name starts with 'use' (React convention)
+  isAsync?: boolean; // True if async function/arrow function
 
   // Extensible for future use
   custom?: Record<string, unknown>;

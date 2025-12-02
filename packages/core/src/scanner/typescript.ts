@@ -1,8 +1,10 @@
 import * as path from 'node:path';
 import {
+  type ArrowFunction,
   type CallExpression,
   type ClassDeclaration,
   type FunctionDeclaration,
+  type FunctionExpression,
   type InterfaceDeclaration,
   type MethodDeclaration,
   type Node,
@@ -10,6 +12,8 @@ import {
   type SourceFile,
   SyntaxKind,
   type TypeAliasDeclaration,
+  type VariableDeclaration,
+  type VariableStatement,
 } from 'ts-morph';
 import type { CalleeInfo, Document, Scanner, ScannerCapabilities } from './types';
 
@@ -113,6 +117,26 @@ export class TypeScriptScanner implements Scanner {
     for (const typeAlias of sourceFile.getTypeAliases()) {
       const doc = this.extractTypeAlias(typeAlias, relativeFile, imports);
       if (doc) documents.push(doc);
+    }
+
+    // Extract variables with arrow functions or function expressions
+    for (const varStmt of sourceFile.getVariableStatements()) {
+      for (const decl of varStmt.getDeclarations()) {
+        const initializer = decl.getInitializer();
+        if (!initializer) continue;
+
+        const kind = initializer.getKind();
+        if (kind === SyntaxKind.ArrowFunction || kind === SyntaxKind.FunctionExpression) {
+          const doc = this.extractVariableWithFunction(
+            decl,
+            varStmt,
+            relativeFile,
+            imports,
+            sourceFile
+          );
+          if (doc) documents.push(doc);
+        }
+      }
     }
 
     return documents;
@@ -367,6 +391,82 @@ export class TypeScriptScanner implements Scanner {
         docstring: docComment,
         snippet,
         imports,
+      },
+    };
+  }
+
+  /**
+   * Extract a variable declaration that is initialized with an arrow function or function expression.
+   * Captures React hooks, utility functions, and other function-valued constants.
+   */
+  private extractVariableWithFunction(
+    decl: VariableDeclaration,
+    varStmt: VariableStatement,
+    file: string,
+    imports: string[],
+    sourceFile: SourceFile
+  ): Document | null {
+    const name = decl.getName();
+    if (!name) return null;
+
+    const initializer = decl.getInitializer();
+    if (!initializer) return null;
+
+    const isArrowFunction = initializer.getKind() === SyntaxKind.ArrowFunction;
+    const funcNode = initializer as ArrowFunction | FunctionExpression;
+
+    const startLine = decl.getStartLineNumber();
+    const endLine = decl.getEndLineNumber();
+    const fullText = decl.getText();
+    const docComment = this.getDocComment(varStmt);
+    const isExported = varStmt.isExported();
+    const snippet = this.truncateSnippet(fullText);
+    const callees = this.extractCallees(funcNode, sourceFile);
+
+    // Check if async
+    const isAsync = funcNode.isAsync?.() ?? false;
+
+    // Check if React hook (name starts with 'use' followed by uppercase)
+    const isHook = /^use[A-Z]/.test(name);
+
+    // Build signature from the variable declaration
+    // e.g., "const useAuth = (options: AuthOptions) => AuthResult"
+    const params = funcNode
+      .getParameters()
+      .map((p) => p.getText())
+      .join(', ');
+    const returnType = funcNode.getReturnType()?.getText() ?? '';
+    const asyncPrefix = isAsync ? 'async ' : '';
+    const arrowOrFunction = isArrowFunction ? '=>' : 'function';
+    const signature = `const ${name} = ${asyncPrefix}(${params}) ${arrowOrFunction}${returnType ? `: ${returnType}` : ''}`;
+
+    const text = this.buildEmbeddingText({
+      type: 'variable',
+      name,
+      signature,
+      docComment,
+      language: 'typescript',
+    });
+
+    return {
+      id: `${file}:${name}:${startLine}`,
+      text,
+      type: 'variable',
+      language: 'typescript',
+      metadata: {
+        file,
+        startLine,
+        endLine,
+        name,
+        signature,
+        exported: isExported,
+        docstring: docComment,
+        snippet,
+        imports,
+        callees: callees.length > 0 ? callees : undefined,
+        isArrowFunction,
+        isHook,
+        isAsync,
       },
     };
   }
