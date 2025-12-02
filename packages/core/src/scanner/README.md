@@ -56,7 +56,7 @@ Represents a single extracted code element or documentation section:
 interface Document {
   id: string;                // Unique identifier: "file:name:line"
   text: string;              // Text to embed (for vector search)
-  type: DocumentType;        // 'function' | 'class' | 'interface' | 'type' | 'method' | 'documentation'
+  type: DocumentType;        // 'function' | 'class' | 'interface' | 'type' | 'method' | 'documentation' | 'variable'
   language: string;          // 'typescript' | 'javascript' | 'markdown'
   
   metadata: {
@@ -67,6 +67,13 @@ interface Document {
     signature?: string;      // Full signature
     exported: boolean;       // Is it a public API?
     docstring?: string;      // Documentation comment
+    
+    // Variable/function metadata (for type: 'variable')
+    isArrowFunction?: boolean;  // True for arrow functions
+    isHook?: boolean;           // True for React hooks (use* pattern)
+    isAsync?: boolean;          // True for async functions
+    isConstant?: boolean;       // True for exported constants
+    constantKind?: 'object' | 'array' | 'value';  // Kind of constant
   };
 }
 ```
@@ -364,8 +371,8 @@ const utilDocs = result.documents.filter(
 
 | Language | Scanner | Extracts | Status |
 |----------|---------|----------|--------|
-| TypeScript | `TypeScriptScanner` | Functions, classes, methods, interfaces, types, JSDoc | ✅ Implemented |
-| JavaScript | `TypeScriptScanner` | Functions, classes, methods, JSDoc | ✅ Implemented (via .ts scanner) |
+| TypeScript | `TypeScriptScanner` | Functions, classes, methods, interfaces, types, arrow functions, exported constants, JSDoc | ✅ Implemented |
+| JavaScript | `TypeScriptScanner` | Functions, classes, methods, arrow functions, exported constants, JSDoc | ✅ Implemented (via .ts scanner) |
 | Markdown | `MarkdownScanner` | Documentation sections, code blocks | ✅ Implemented |
 | Go | - | Functions, structs, interfaces | 🔄 Planned (tree-sitter) |
 | Python | - | Functions, classes, docstrings | 🔄 Planned (tree-sitter) |
