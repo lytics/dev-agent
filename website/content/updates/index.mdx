@@ -1,0 +1,199 @@
+# Updates
+
+What's new in dev-agent. We ship improvements regularly to help AI assistants understand your code better.
+
+---
+
+## v0.5.0 — Modern JavaScript Support
+
+*Coming soon*
+
+**Better coverage for how developers actually write code today.**
+
+Modern JavaScript and TypeScript codebases look very different from traditional OOP. React hooks, arrow functions, and configuration objects are the primary APIs — and dev-agent now understands them.
+
+### What's New
+
+**🎯 Arrow Functions**
+
+```typescript
+// Now indexed! AI can find these via semantic search
+export const useAuth = () => { ... }
+const validateEmail = (email: string) => email.includes('@')
+```
+
+**⚛️ React Hooks Detection**
+
+Hooks are automatically detected by the `use*` naming pattern. When you search for "authentication hook", dev-agent knows `useAuth` is a hook — not just a function.
+
+**📦 Exported Constants**
+
+Configuration objects, context providers, and factory-created values are now searchable:
+
+```typescript
+export const API_CONFIG = { baseUrl: '/api', timeout: 5000 }
+export const ThemeContext = createContext({ dark: false })
+export const SUPPORTED_LANGUAGES = ['typescript', 'javascript']
+```
+
+### Why This Matters
+
+Before v0.5.0, searching for "API configuration" wouldn't find `export const API_CONFIG = {...}`. Now it does. This means:
+
+- **Better search results** for modern React/TypeScript codebases
+- **More context** for AI assistants to understand your code
+- **Fewer "I couldn't find..." moments** when asking about hooks or configs
+
+---
+
+## v0.4.4 — Test File Discovery
+
+*Released November 2024*
+
+**Search results now show related test files automatically.**
+
+When `dev_search` returns source files, it checks for matching test files (`*.test.ts`, `*.spec.ts`) and includes them in the response:
+
+```
+1. [89%] function: authenticate (src/auth.ts:15)
+2. [84%] class: AuthMiddleware (src/middleware.ts:5)
+
+---
+Related test files:
+  • src/auth.test.ts
+  • src/middleware.test.ts
+```
+
+This helps AI assistants find both implementation *and* tests without extra searches — useful when fixing bugs or understanding expected behavior.
+
+---
+
+## v0.4.0 — Intelligent Git History
+
+*Released November 2024*
+
+**Semantic search over your commit history.**
+
+Ever tried to find "when did we add rate limiting?" by scrolling through `git log`? Now you can just ask:
+
+### New Tool: `dev_history`
+
+Search commits by meaning, not just keywords:
+
+```
+> "Find commits related to authentication changes"
+
+1. [92%] fix(auth): resolve token refresh race condition
+   Author: jane@example.com | 3 days ago
+   Files: src/auth/refresh.ts, src/auth/token.ts
+
+2. [87%] feat(auth): add OAuth2 provider support  
+   Author: john@example.com | 2 weeks ago
+   Files: src/auth/oauth.ts, src/auth/providers/
+```
+
+### Change Frequency in `dev_map`
+
+See which parts of your codebase are actively changing:
+
+```
+packages/
+├── 🔥 core/ (45 components) — 12 commits in 30d
+├── ✏️ mcp-server/ (28 components) — 3 commits in 30d
+├── 📝 cli/ (15 components) — 2 commits in 90d
+└── subagents/ (35 components)
+```
+
+- 🔥 **Hot** — 10+ commits in last 30 days
+- ✏️ **Active** — 3-9 commits in last 30 days  
+- 📝 **Recent** — Any commits in last 90 days
+
+### Context Assembly Improvements
+
+`dev_plan` now includes related commits when assembling context for GitHub issues. AI assistants can see both *what* the issue asks for and *how* similar changes were made before.
+
+---
+
+## v0.3.0 — Code Relationships
+
+*Released November 2024*
+
+**Understand how your code connects.**
+
+### New Tool: `dev_refs`
+
+Find what calls what — and what's called by what:
+
+```
+> "What functions call validateUser?"
+
+Callers of validateUser:
+1. AuthMiddleware.authenticate (src/middleware.ts:45)
+2. LoginController.handleLogin (src/controllers/login.ts:23)
+3. SessionManager.validateSession (src/session.ts:67)
+```
+
+Essential for impact analysis before refactoring.
+
+### Hot Paths in `dev_map`
+
+See the most-referenced files in your codebase:
+
+```
+Hot Paths (most referenced):
+  🔥 src/utils/logger.ts (47 references)
+  🔥 src/types/index.ts (34 references)
+  🔥 src/config.ts (28 references)
+```
+
+### Smarter Context Assembly
+
+`dev_plan` was refactored from generating task breakdowns to assembling rich context. Instead of making assumptions about *how* to implement something, it now gives AI assistants the context they need to figure it out themselves.
+
+---
+
+## v0.1.0 — Initial Release
+
+*Released November 2024*
+
+**The foundation: local-first code understanding for AI tools.**
+
+### Core Features
+
+- **Semantic Search** — Find code by meaning, not keywords
+- **MCP Integration** — Works with Cursor, Claude Code, and any MCP client
+- **Multi-language** — TypeScript, JavaScript, Go, Python, Rust, Markdown
+- **100% Local** — No cloud, no telemetry, all processing on your machine
+
+### Five Tools at Launch
+
+| Tool | Purpose |
+|------|---------|
+| `dev_search` | Semantic code search |
+| `dev_plan` | Context assembly for issues |
+| `dev_explore` | Pattern discovery |
+| `dev_gh` | GitHub issue/PR search |
+| `dev_status` | Repository health |
+
+### Installation
+
+One command to index, one command to install:
+
+```bash
+npm install -g dev-agent
+dev index .
+dev mcp install --cursor
+```
+
+---
+
+## What's Next?
+
+We're working on:
+
+- **Incremental indexing** — Only re-index changed files
+- **More languages** — Better Go and Python support via tree-sitter
+- **Parallel search** — Query multiple repos simultaneously
+
+Have ideas? [Open an issue](https://github.com/lytics/dev-agent/issues) or join the discussion.
+
