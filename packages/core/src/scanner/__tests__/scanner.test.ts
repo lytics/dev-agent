@@ -707,4 +707,170 @@ describe('Scanner', () => {
       expect(calleeNames.some((n) => n.includes('register'))).toBe(true);
     });
   });
+
+  describe('Arrow Function Extraction', () => {
+    // Note: We override exclude to allow fixtures directory (excluded by default)
+    const fixtureExcludes = ['**/node_modules/**', '**/dist/**'];
+
+    it('should extract arrow functions assigned to variables', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/__tests__/fixtures/arrow-functions.ts'],
+        exclude: fixtureExcludes,
+      });
+
+      // Should find arrow function variables
+      const variables = result.documents.filter((d) => d.type === 'variable');
+      expect(variables.length).toBeGreaterThan(0);
+    });
+
+    it('should mark arrow functions with isArrowFunction metadata', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/__tests__/fixtures/arrow-functions.ts'],
+        exclude: fixtureExcludes,
+      });
+
+      const arrowFn = result.documents.find(
+        (d) => d.type === 'variable' && d.metadata.name === 'simpleArrow'
+      );
+      expect(arrowFn).toBeDefined();
+      expect(arrowFn?.metadata.isArrowFunction).toBe(true);
+    });
+
+    it('should detect React hooks by naming convention', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/__tests__/fixtures/arrow-functions.ts'],
+        exclude: fixtureExcludes,
+      });
+
+      const hook = result.documents.find(
+        (d) => d.type === 'variable' && d.metadata.name === 'useCustomHook'
+      );
+      expect(hook).toBeDefined();
+      expect(hook?.metadata.isHook).toBe(true);
+      expect(hook?.metadata.isArrowFunction).toBe(true);
+    });
+
+    it('should detect async arrow functions', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/__tests__/fixtures/arrow-functions.ts'],
+        exclude: fixtureExcludes,
+      });
+
+      const asyncFn = result.documents.find(
+        (d) => d.type === 'variable' && d.metadata.name === 'fetchData'
+      );
+      expect(asyncFn).toBeDefined();
+      expect(asyncFn?.metadata.isAsync).toBe(true);
+    });
+
+    it('should extract exported arrow functions', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/__tests__/fixtures/arrow-functions.ts'],
+        exclude: fixtureExcludes,
+      });
+
+      const exportedFn = result.documents.find(
+        (d) => d.type === 'variable' && d.metadata.name === 'exportedArrow'
+      );
+      expect(exportedFn).toBeDefined();
+      expect(exportedFn?.metadata.exported).toBe(true);
+    });
+
+    it('should extract non-exported arrow functions', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/__tests__/fixtures/arrow-functions.ts'],
+        exclude: fixtureExcludes,
+      });
+
+      const privateFn = result.documents.find(
+        (d) => d.type === 'variable' && d.metadata.name === 'privateHelper'
+      );
+      expect(privateFn).toBeDefined();
+      expect(privateFn?.metadata.exported).toBe(false);
+    });
+
+    it('should extract function expressions assigned to variables', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/__tests__/fixtures/arrow-functions.ts'],
+        exclude: fixtureExcludes,
+      });
+
+      const funcExpr = result.documents.find(
+        (d) => d.type === 'variable' && d.metadata.name === 'legacyFunction'
+      );
+      expect(funcExpr).toBeDefined();
+      expect(funcExpr?.metadata.isArrowFunction).toBe(false);
+    });
+
+    it('should include signature for arrow functions', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/__tests__/fixtures/arrow-functions.ts'],
+        exclude: fixtureExcludes,
+      });
+
+      const fn = result.documents.find(
+        (d) => d.type === 'variable' && d.metadata.name === 'typedArrow'
+      );
+      expect(fn).toBeDefined();
+      expect(fn?.metadata.signature).toContain('typedArrow');
+      expect(fn?.metadata.signature).toContain('=>');
+    });
+
+    it('should extract callees from arrow functions', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/__tests__/fixtures/arrow-functions.ts'],
+        exclude: fixtureExcludes,
+      });
+
+      const fn = result.documents.find(
+        (d) => d.type === 'variable' && d.metadata.name === 'composedFunction'
+      );
+      expect(fn).toBeDefined();
+      expect(fn?.metadata.callees).toBeDefined();
+      expect(fn?.metadata.callees?.length).toBeGreaterThan(0);
+    });
+
+    it('should extract JSDoc from arrow functions', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/__tests__/fixtures/arrow-functions.ts'],
+        exclude: fixtureExcludes,
+      });
+
+      const fn = result.documents.find(
+        (d) => d.type === 'variable' && d.metadata.name === 'documentedArrow'
+      );
+      expect(fn).toBeDefined();
+      expect(fn?.metadata.docstring).toBeDefined();
+      expect(fn?.metadata.docstring).toContain('documented');
+    });
+
+    it('should not extract variables without function initializers', async () => {
+      const result = await scanRepository({
+        repoRoot,
+        include: ['packages/core/src/scanner/__tests__/fixtures/arrow-functions.ts'],
+        exclude: fixtureExcludes,
+      });
+
+      // Should NOT find plain constants
+      const constant = result.documents.find(
+        (d) => d.type === 'variable' && d.metadata.name === 'plainConstant'
+      );
+      expect(constant).toBeUndefined();
+
+      const objectConst = result.documents.find(
+        (d) => d.type === 'variable' && d.metadata.name === 'configObject'
+      );
+      expect(objectConst).toBeUndefined();
+    });
+  });
 });
