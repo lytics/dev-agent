@@ -86,11 +86,13 @@ This surfaces test files without affecting semantic search rankings — tests ar
 
 dev_search indexes these code components:
 
-- **Functions** — Named functions and arrow functions
+- **Functions** — Named function declarations
+- **Arrow functions** — Arrow functions assigned to variables (e.g., `const handler = () => {}`) ✨ v0.5
+- **React hooks** — Automatically detected by `use*` naming pattern ✨ v0.5
 - **Classes** — Class declarations and their methods
 - **Interfaces** — TypeScript interfaces
 - **Types** — Type aliases
-- **Variables** — Exported constants and variables
+- **Exported constants** — Objects, arrays, and factory calls (e.g., `export const CONFIG = {}`) ✨ v0.5
 - **Markdown sections** — Headers and content blocks
 
 ## Tips
