@@ -62,6 +62,8 @@ export interface DocumentMetadata {
   isArrowFunction?: boolean; // True if variable initialized with arrow function
   isHook?: boolean; // True if name starts with 'use' (React convention)
   isAsync?: boolean; // True if async function/arrow function
+  isConstant?: boolean; // True if exported constant (object/array/call expression)
+  constantKind?: 'object' | 'array' | 'value'; // Kind of constant initializer
 
   // Extensible for future use
   custom?: Record<string, unknown>;
