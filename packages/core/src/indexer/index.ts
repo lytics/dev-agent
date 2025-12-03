@@ -188,9 +188,10 @@ export class RepositoryIndexer {
     const errors: IndexError[] = [];
 
     // Determine which files need reindexing
-    const filesToReindex = await this.detectChangedFiles(options.since);
+    const { changed, added, deleted } = await this.detectChangedFiles(options.since);
+    const filesToReindex = [...changed, ...added];
 
-    if (filesToReindex.length === 0) {
+    if (filesToReindex.length === 0 && deleted.length === 0) {
       // No changes, return empty stats
       return {
         filesScanned: 0,
@@ -205,21 +206,33 @@ export class RepositoryIndexer {
       };
     }
 
-    // Scan only changed files
-    const scanResult = await scanRepository({
-      repoRoot: this.config.repositoryPath,
-      include: filesToReindex,
-      exclude: this.config.excludePatterns,
-    });
-
-    // Remove old documents from these files
-    for (const file of filesToReindex) {
+    // Delete documents for deleted files
+    for (const file of deleted) {
       const oldMetadata = this.state.files[file];
       if (oldMetadata?.documentIds) {
         try {
           await this.vectorStorage.deleteDocuments(oldMetadata.documentIds);
         } catch (error) {
-          // Delete not implemented yet, just log
+          errors.push({
+            type: 'storage',
+            message: `Failed to delete documents for removed file ${file}`,
+            file,
+            error: error instanceof Error ? error : undefined,
+            timestamp: new Date(),
+          });
+        }
+      }
+      // Remove from state
+      delete this.state.files[file];
+    }
+
+    // Delete old documents for changed files (not added - they have no old docs)
+    for (const file of changed) {
+      const oldMetadata = this.state.files[file];
+      if (oldMetadata?.documentIds) {
+        try {
+          await this.vectorStorage.deleteDocuments(oldMetadata.documentIds);
+        } catch (error) {
           errors.push({
             type: 'storage',
             message: `Failed to delete old documents for ${file}`,
@@ -231,19 +244,37 @@ export class RepositoryIndexer {
       }
     }
 
-    // Index new documents
-    const embeddingDocuments = prepareDocumentsForEmbedding(scanResult.documents);
-    await this.vectorStorage.addDocuments(embeddingDocuments);
+    // Scan and index changed + added files
+    let documentsExtracted = 0;
+    let documentsIndexed = 0;
 
-    // Update state
-    await this.updateState(scanResult.documents);
+    if (filesToReindex.length > 0) {
+      const scanResult = await scanRepository({
+        repoRoot: this.config.repositoryPath,
+        include: filesToReindex,
+        exclude: this.config.excludePatterns,
+      });
+
+      documentsExtracted = scanResult.documents.length;
+
+      // Index new documents
+      const embeddingDocuments = prepareDocumentsForEmbedding(scanResult.documents);
+      await this.vectorStorage.addDocuments(embeddingDocuments);
+      documentsIndexed = embeddingDocuments.length;
+
+      // Update state with new documents
+      await this.updateState(scanResult.documents);
+    } else {
+      // Only deletions - still need to save state
+      await this.saveState();
+    }
 
     const endTime = new Date();
     return {
       filesScanned: filesToReindex.length,
-      documentsExtracted: scanResult.documents.length,
-      documentsIndexed: embeddingDocuments.length,
-      vectorsStored: embeddingDocuments.length,
+      documentsExtracted,
+      documentsIndexed,
+      vectorsStored: documentsIndexed,
       duration: endTime.getTime() - startTime.getTime(),
       errors,
       startTime,
@@ -396,15 +427,21 @@ export class RepositoryIndexer {
   }
 
   /**
-   * Detect files that have changed since last index
+   * Detect files that have changed, been added, or deleted since last index
    */
-  private async detectChangedFiles(since?: Date): Promise<string[]> {
+  private async detectChangedFiles(since?: Date): Promise<{
+    changed: string[];
+    added: string[];
+    deleted: string[];
+  }> {
     if (!this.state) {
-      return [];
+      return { changed: [], added: [], deleted: [] };
     }
 
-    const changedFiles: string[] = [];
+    const changed: string[] = [];
+    const deleted: string[] = [];
 
+    // Check existing tracked files for changes or deletion
     for (const [filePath, metadata] of Object.entries(this.state.files)) {
       const fullPath = path.join(this.config.repositoryPath, filePath);
 
@@ -421,15 +458,34 @@ export class RepositoryIndexer {
         const currentHash = crypto.createHash('sha256').update(content).digest('hex');
 
         if (currentHash !== metadata.hash) {
-          changedFiles.push(filePath);
+          changed.push(filePath);
         }
       } catch {
-        // File no longer exists or not readable
-        changedFiles.push(filePath);
+        // File no longer exists or not readable - mark as deleted
+        deleted.push(filePath);
       }
     }
 
-    return changedFiles;
+    // Scan for new files not in state
+    const scanResult = await scanRepository({
+      repoRoot: this.config.repositoryPath,
+      exclude: this.config.excludePatterns,
+    });
+
+    const trackedFiles = new Set(Object.keys(this.state.files));
+    const added: string[] = [];
+
+    for (const doc of scanResult.documents) {
+      const filePath = doc.metadata.file;
+      if (!trackedFiles.has(filePath)) {
+        added.push(filePath);
+      }
+    }
+
+    // Deduplicate added files (multiple docs per file)
+    const uniqueAdded = [...new Set(added)];
+
+    return { changed, added: uniqueAdded, deleted };
   }
 
   /**
