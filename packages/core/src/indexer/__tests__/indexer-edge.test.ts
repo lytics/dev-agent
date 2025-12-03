@@ -93,8 +93,72 @@ describe('RepositoryIndexer - Edge Case Coverage', () => {
 
     const stats = await indexer.update();
 
-    // Should handle gracefully
+    // Should handle gracefully - deleted files are cleaned up
     expect(stats.duration).toBeGreaterThanOrEqual(0);
+
+    await indexer.close();
+  });
+
+  it('should handle incremental update with new, changed, and deleted files', async () => {
+    const repoDir = path.join(testDir, 'incremental-full');
+    await fs.mkdir(repoDir, { recursive: true });
+
+    // Create tsconfig for scanner
+    await fs.writeFile(
+      path.join(repoDir, 'tsconfig.json'),
+      JSON.stringify({ compilerOptions: { target: 'es2020', module: 'commonjs' } }),
+      'utf-8'
+    );
+
+    // Create initial files with extractable content (functions, not primitive constants)
+    await fs.writeFile(
+      path.join(repoDir, 'keep.ts'),
+      'export function keep() { return 1; }',
+      'utf-8'
+    );
+    await fs.writeFile(
+      path.join(repoDir, 'modify.ts'),
+      'export function modify() { return 1; }',
+      'utf-8'
+    );
+    await fs.writeFile(
+      path.join(repoDir, 'delete.ts'),
+      'export function del() { return 1; }',
+      'utf-8'
+    );
+
+    const indexer = new RepositoryIndexer({
+      repositoryPath: repoDir,
+      vectorStorePath: path.join(testDir, 'incremental-full.lance'),
+    });
+
+    await indexer.initialize();
+    const initialStats = await indexer.index();
+    expect(initialStats.documentsExtracted).toBe(3);
+
+    // Make changes:
+    // 1. Add new file
+    await fs.writeFile(
+      path.join(repoDir, 'new.ts'),
+      'export function newFile() { return 1; }',
+      'utf-8'
+    );
+    // 2. Modify existing file
+    await fs.writeFile(
+      path.join(repoDir, 'modify.ts'),
+      'export function modify() { return 2; }',
+      'utf-8'
+    );
+    // 3. Delete a file
+    await fs.unlink(path.join(repoDir, 'delete.ts'));
+
+    // Update should detect all changes
+    const updateStats = await indexer.update();
+
+    // Should have processed: 1 new + 1 modified = 2 files
+    // (deleted files don't count as "scanned")
+    expect(updateStats.filesScanned).toBe(2);
+    expect(updateStats.documentsIndexed).toBeGreaterThanOrEqual(2);
 
     await indexer.close();
   });

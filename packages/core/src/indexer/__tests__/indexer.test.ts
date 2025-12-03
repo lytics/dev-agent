@@ -241,9 +241,16 @@ This is a test repository for indexing.`,
     const updateDir = path.join(testDir, 'update-test');
     await fs.mkdir(updateDir, { recursive: true });
 
+    // Create tsconfig for scanner
+    await fs.writeFile(
+      path.join(updateDir, 'tsconfig.json'),
+      JSON.stringify({ compilerOptions: { target: 'es2020', module: 'commonjs' } }),
+      'utf-8'
+    );
+
     await fs.writeFile(
       path.join(updateDir, 'original.ts'),
-      'export const original = true;',
+      'export function original() { return true; }',
       'utf-8'
     );
 
@@ -256,20 +263,23 @@ This is a test repository for indexing.`,
 
     // Initial index
     const initialStats = await indexer.index();
-    expect(initialStats.filesScanned).toBeGreaterThanOrEqual(0);
+    expect(initialStats.documentsExtracted).toBeGreaterThanOrEqual(1);
 
     // No changes - update should find nothing
     const updateStats1 = await indexer.update();
     expect(updateStats1.filesScanned).toBe(0);
 
     // Add a new file
-    await fs.writeFile(path.join(updateDir, 'new.ts'), 'export const newFile = true;', 'utf-8');
+    await fs.writeFile(
+      path.join(updateDir, 'new.ts'),
+      'export function newFile() { return true; }',
+      'utf-8'
+    );
 
-    // Update should detect new file
-    // Note: Current implementation does full scan, not true incremental
-    // This tests the update() method exists and works
+    // Update should detect and index new file
     const updateStats2 = await indexer.update();
-    expect(updateStats2.filesScanned).toBeGreaterThanOrEqual(0);
+    expect(updateStats2.filesScanned).toBe(1);
+    expect(updateStats2.documentsIndexed).toBeGreaterThanOrEqual(1);
 
     await indexer.close();
   });

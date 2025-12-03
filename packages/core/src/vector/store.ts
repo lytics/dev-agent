@@ -177,13 +177,11 @@ export class LanceDBVectorStore implements VectorStore {
     }
 
     try {
-      // LanceDB delete requires filtering by a predicate, not by ID list
-      // This would need a schema change to support proper deletion
-      // For now, we recommend using upsert (mergeInsert) instead of delete+insert
-      // See: https://lancedb.github.io/lancedb/guides/tables/#deleting-rows
-      throw new Error(
-        'Delete operation not supported. Use upsert via addDocuments() with existing IDs instead.'
-      );
+      // Delete using SQL IN predicate
+      // Escape single quotes in IDs to prevent SQL injection
+      const escapedIds = ids.map((id) => id.replace(/'/g, "''"));
+      const predicate = `id IN ('${escapedIds.join("', '")}')`;
+      await this.table.delete(predicate);
     } catch (error) {
       throw new Error(
         `Failed to delete documents: ${error instanceof Error ? error.message : String(error)}`

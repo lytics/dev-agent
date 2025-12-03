@@ -139,9 +139,22 @@ describe('Vector Storage', () => {
     expect(stats.totalDocuments).toBeGreaterThanOrEqual(50);
   });
 
-  it('should throw error on delete (not supported)', async () => {
-    // Delete is not supported - use upsert instead
-    await expect(vectorStorage.deleteDocuments(['any-id'])).rejects.toThrow('not supported');
+  it('should delete documents by ID', async () => {
+    // Add a document to delete
+    await vectorStorage.addDocuments([
+      { id: 'to-delete', text: 'This document will be deleted', metadata: { temp: true } },
+    ]);
+
+    // Verify it exists
+    const beforeDelete = await vectorStorage.getDocument('to-delete');
+    expect(beforeDelete).toBeDefined();
+
+    // Delete it
+    await vectorStorage.deleteDocuments(['to-delete']);
+
+    // Verify it's gone
+    const afterDelete = await vectorStorage.getDocument('to-delete');
+    expect(afterDelete).toBeNull();
   });
 
   it('should handle empty document array', async () => {
