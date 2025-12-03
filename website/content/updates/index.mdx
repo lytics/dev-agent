@@ -4,9 +4,39 @@ What's new in dev-agent. We ship improvements regularly to help AI assistants un
 
 ---
 
+## v0.5.1 — Incremental Indexing
+
+*December 3, 2025*
+
+**`dev update` now actually works.** Only re-index files that changed — no more waiting for full re-scans.
+
+### What's New
+
+**⚡ Fast Updates**
+
+```bash
+dev index .     # First run: full index
+dev update      # Fast! Only processes changes
+```
+
+**🔍 Smart Change Detection**
+
+- Detects modified files via content hash
+- Finds new files added since last index
+- Cleans up documents for deleted files
+- Removes orphaned symbols when code changes
+
+### Why This Matters
+
+Before: Every `dev index .` re-scanned your entire codebase. On a 10k file repo, that's 5+ minutes.
+
+Now: `dev update` detects what changed and only processes those files. Same result, fraction of the time.
+
+---
+
 ## v0.5.0 — Modern JavaScript Support
 
-*Coming soon*
+*December 2, 2025*
 
 **Better coverage for how developers actually write code today.**
 
@@ -48,7 +78,7 @@ Before v0.5.0, searching for "API configuration" wouldn't find `export const API
 
 ## v0.4.4 — Test File Discovery
 
-*Released November 2024*
+*December 1, 2025*
 
 **Search results now show related test files automatically.**
 
@@ -70,7 +100,7 @@ This helps AI assistants find both implementation *and* tests without extra sear
 
 ## v0.4.0 — Intelligent Git History
 
-*Released November 2024*
+*November 27, 2025*
 
 **Semantic search over your commit history.**
 
@@ -116,7 +146,7 @@ packages/
 
 ## v0.3.0 — Code Relationships
 
-*Released November 2024*
+*November 26, 2025*
 
 **Understand how your code connects.**
 
@@ -154,7 +184,7 @@ Hot Paths (most referenced):
 
 ## v0.1.0 — Initial Release
 
-*Released November 2024*
+*November 26, 2025*
 
 **The foundation: local-first code understanding for AI tools.**
 
@@ -191,7 +221,6 @@ dev mcp install --cursor
 
 We're working on:
 
-- **Incremental indexing** — Only re-index changed files
 - **More languages** — Better Go and Python support via tree-sitter
 - **Parallel search** — Query multiple repos simultaneously
 
