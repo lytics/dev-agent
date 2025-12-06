@@ -59,7 +59,8 @@ export function fetchIssues(options: GitHubIndexOptions = {}): GitHubAPIResponse
   const repo = options.repository || getCurrentRepository();
 
   // Build gh CLI command
-  let command = `gh issue list --repo ${repo} --limit ${options.limit || 1000} --json number,title,body,state,labels,author,createdAt,updatedAt,closedAt,url,comments`;
+  // Default limit reduced to 500 to prevent buffer overflow on large repos
+  let command = `gh issue list --repo ${repo} --limit ${options.limit || 500} --json number,title,body,state,labels,author,createdAt,updatedAt,closedAt,url,comments`;
 
   // Add state filter
   if (options.state && options.state.length > 0) {
@@ -97,7 +98,8 @@ export function fetchPullRequests(options: GitHubIndexOptions = {}): GitHubAPIRe
   const repo = options.repository || getCurrentRepository();
 
   // Build gh CLI command
-  let command = `gh pr list --repo ${repo} --limit ${options.limit || 1000} --json number,title,body,state,labels,author,createdAt,updatedAt,closedAt,mergedAt,url,comments,headRefName,baseRefName`;
+  // Default limit reduced to 500 to prevent buffer overflow on large repos
+  let command = `gh pr list --repo ${repo} --limit ${options.limit || 500} --json number,title,body,state,labels,author,createdAt,updatedAt,closedAt,mergedAt,url,comments,headRefName,baseRefName`;
 
   // Add state filter
   if (options.state && options.state.length > 0) {
