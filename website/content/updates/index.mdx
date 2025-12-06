@@ -4,6 +4,63 @@ What's new in dev-agent. We ship improvements regularly to help AI assistants un
 
 ---
 
+## v0.5.2 — GitHub Indexing for Large Repositories
+
+*December 6, 2024*
+
+**Fixed `ENOBUFS` errors when indexing repositories with many GitHub issues/PRs.** Large active repositories can now be fully indexed without buffer overflow issues.
+
+### What's Fixed
+
+**🐛 Buffer Overflow Resolution**
+
+The GitHub indexing phase would fail with `ENOBUFS` (No buffer space available) on repositories with extensive GitHub activity:
+
+```bash
+# This would fail before:
+dev index
+✖ Failed to index repository
+[03:09:07] ERROR Failed to fetch issues: spawnSync /bin/sh ENOBUFS
+```
+
+**Solution:**
+- Increased buffer capacity from 1MB to 50MB for GitHub API responses
+- Reduced default fetch limit from 1000 to 500 items (per type)
+- Added `--gh-limit` flag for custom limits
+
+### What's New
+
+**⚙️ Configurable Limits**
+
+```bash
+# Default (works for most repos)
+dev index
+
+# Large repos (200+ issues/PRs)
+dev index --gh-limit 200
+
+# Very active repos (500+ issues/PRs)  
+dev index --gh-limit 100
+```
+
+**💬 Better Error Messages**
+
+If buffer issues occur, you now get actionable guidance:
+```
+Failed to fetch issues: Output too large. 
+Try using --gh-limit with a lower value (e.g., --gh-limit 100)
+```
+
+### Why This Matters
+
+Many production repositories have hundreds or thousands of GitHub issues/PRs. Without this fix, `dev index` would fail completely on these repos, preventing AI tools from understanding project context.
+
+Now it just works — and if you hit limits, the CLI tells you exactly how to fix it.
+
+**Tested on:** 6,989 file repository with 1,000 GitHub issues/PRs ✅
+
+---
+
 ## v0.5.1 — Incremental Indexing
 
 *December 3, 2025*
