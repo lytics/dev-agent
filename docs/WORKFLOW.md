@@ -182,50 +182,86 @@ Issue: #<number>
 
 ## PR Description Format
 
+### Principles
+
+**Keep it concise and meaningful** - Context is important, but excessive noise makes PRs harder to parse. Focus on essential information that helps reviewers and provides future reference.
+
 ### Structure
 
 ```markdown
 ## Summary
-Brief overview of what this PR does.
+1-2 sentence overview of what this PR does and why.
 
-## Features
-✅ Feature 1
-✅ Feature 2
-✅ Feature 3
+## Problem (if fix)
+Brief description of the bug/issue being fixed.
+
+## Solution
+- Key change 1
+- Key change 2
+- Key change 3
+
+## Usage (if new feature)
+```bash
+# Example command or code snippet
+```
 
 ## Testing
-- ✅ X tests, all passing
-- ✅ Y% statement coverage (Z% function coverage)
-- ✅ Tested: scenarios covered
-- ⚠️ Uncovered: what's not covered and why
+- ✅ X tests passing (Y new tests)
+- ✅ Verified on: specific scenario/repository
+- ⚠️ Known limitations (if any)
 
-## Performance
-- Metric 1: value
-- Metric 2: value
-
-## Documentation
-- ✅ README with examples
-- ✅ API reference
-- ✅ Usage guide
-
-## Example Usage
-```typescript
-// Clear, runnable example
+## Changes
+- N commits: brief description of commit types
+- Packages affected: list relevant packages
 ```
+
+### Good Example
+
+```markdown
+## Summary
+Fixes ENOBUFS error when indexing repositories with many GitHub issues/PRs.
+
+## Problem
+\`dev index\` would fail with \`ENOBUFS\` on repositories with extensive GitHub 
+activity due to buffer overflow (default 1MB buffer, fetching 1000+ items).
+
+## Solution
+- Increased maxBuffer: 1MB → 50MB for issue/PR fetching
+- Lowered default limit: 1000 → 500 items per type
+- Added \`--gh-limit <number>\` CLI flag for customization
+- Improved error messages with actionable suggestions
+
+## Usage
+\`\`\`bash
+dev index                    # Default (500 items)
+dev index --gh-limit 200     # Large repos
+dev index --gh-limit 100     # Very active repos
 \`\`\`
 
-## Coverage Report
-\`\`\`
-Coverage table
-\`\`\`
+## Testing
+- ✅ All 1100+ tests passing
+- ✅ 23 new fetcher utility tests
+- ✅ Verified on 6,989 file repo with 1,000 issues/PRs
 
-## Known Limitations
-- ⚠️ Limitation 1
-- ⚠️ Limitation 2
-
-## Closes
-Closes #<issue-number>
+## Changes
+- 6 commits: fix implementation, tests, documentation, changeset, website
+- Patches: \`@lytics/dev-agent\`, \`@lytics/dev-agent-cli\`, \`@lytics/dev-agent-subagents\`
 ```
+
+### What to Exclude
+
+**Don't include:**
+- ❌ Verbose change logs (commits already document this)
+- ❌ Line-by-line code explanations
+- ❌ Coverage tables (CI provides this)
+- ❌ Full test lists (test files document this)
+- ❌ Obvious information that's in the code
+
+**Instead:**
+- ✅ Focus on the "why" and key decisions
+- ✅ Usage examples for new features
+- ✅ Verification details for bug fixes
+- ✅ Brief overview of what changed
 
 ## Testing Standards
 
