@@ -31,6 +31,15 @@ dev index .
 Options:
 - `-f, --force` - Force re-index even if unchanged
 - `-v, --verbose` - Show verbose output
+- `--no-git` - Skip git history indexing
+- `--no-github` - Skip GitHub issues/PRs indexing
+- `--git-limit <number>` - Max git commits to index (default: 500)
+- `--gh-limit <number>` - Max GitHub issues/PRs to fetch (default: 500)
+
+**GitHub Limit Guidance:**
+- Default (500): Works for most repositories
+- Large repos (200+ issues/PRs): Use `--gh-limit 100-200` to prevent buffer overflow
+- Very active repos: Start with `--gh-limit 50` and increase as needed
 
 ### Search
 

@@ -350,7 +350,10 @@ pnpm test packages/subagents/src/coordinator/github-coordinator.integration.test
 
 **Coverage:**
 - ✅ **Parser utilities:** 100% (47 tests)
+- ✅ **Fetcher utilities:** 100% (23 tests)
+- ✅ **Indexer:** 100% (9 tests)
 - ✅ **Coordinator integration:** 100% (14 tests)
+- ✅ **Total:** 79 tests, all passing
 
 ## Examples
 
@@ -429,10 +432,16 @@ interface GitHubIndexOptions {
   includePullRequests?: boolean;   // Default: true
   includeDiscussions?: boolean;    // Default: false
   state?: 'open' | 'closed' | 'all'; // Default: 'all'
-  limit?: number;                  // Default: 100
+  limit?: number;                  // Default: 500 (reduced from 1000 to prevent buffer overflow)
   repository?: string;             // Default: current repo
 }
 ```
+
+**Limit Recommendations:**
+- **Default (500):** Works for most repositories
+- **Large repos (200+ issues/PRs):** Use 100-200 to prevent ENOBUFS errors
+- **Very active repos (500+ issues/PRs):** Start with 50-100
+- **Small repos (<50 issues/PRs):** Can use higher limits (1000+)
 
 ## Error Handling
 
@@ -453,6 +462,13 @@ The agent handles errors gracefully and returns structured error responses:
   code: 'ISSUE_NOT_FOUND',
 }
 
+// Buffer overflow (ENOBUFS)
+{
+  action: 'index',
+  error: 'Failed to fetch issues: Output too large. Try using --gh-limit with a lower value (e.g., --gh-limit 100)',
+  code: 'BUFFER_OVERFLOW',
+}
+
 // Network/API errors
 {
   action: 'index',
@@ -462,13 +478,20 @@ The agent handles errors gracefully and returns structured error responses:
 }
 ```
 
+**Buffer Management:**
+- Uses 50MB maxBuffer for issue/PR fetching (up from default 1MB)
+- Uses 10MB maxBuffer for repository metadata
+- Provides helpful error messages suggesting --gh-limit flag on overflow
+- Default limit of 500 prevents most buffer issues
+
 ## Performance Considerations
 
 ### Indexing Performance
 
 - **Time:** ~1-2 seconds per 10 items (depends on API rate limits)
 - **Memory:** ~5KB per document (in-memory storage)
-- **Recommended batch size:** 100-500 items
+- **Recommended batch size:** 500 items (default)
+- **Buffer size:** 50MB for large payloads, 10MB for metadata
 
 ### Search Performance
 
@@ -480,6 +503,12 @@ The agent handles errors gracefully and returns structured error responses:
 1. **Incremental indexing:** Only fetch new/updated items
 2. **Filtering:** Use `state` and `types` to reduce dataset
 3. **Caching:** Store frequently accessed contexts
+4. **Batch processing:** For very large repos, index in batches with lower limits
+   ```bash
+   # Example: Index open items separately
+   dev gh index --state open --limit 500
+   dev gh index --state closed --limit 100
+   ```
 
 ## Future Enhancements
 
@@ -502,6 +531,25 @@ brew install gh  # macOS
 # Authenticate
 gh auth login
 ```
+
+### ENOBUFS error during indexing
+
+**Error:** `Failed to fetch issues: spawnSync /bin/sh ENOBUFS`
+
+**Solution:**
+```bash
+# Use lower limit
+dev gh index --limit 100
+
+# Or for very large repos
+dev gh index --limit 50
+
+# Alternative: Index by state separately
+dev gh index --state open --limit 500
+dev gh index --state closed --limit 100
+```
+
+**Cause:** Buffer overflow when fetching many issues/PRs with large bodies. Default limit of 500 works for most repos, but very active repositories may need lower limits.
 
 ### No results when searching
 
