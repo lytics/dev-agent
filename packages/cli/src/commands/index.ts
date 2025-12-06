@@ -58,6 +58,7 @@ export const indexCommand = new Command('index')
   .option('--no-git', 'Skip git history indexing')
   .option('--no-github', 'Skip GitHub issues/PRs indexing')
   .option('--git-limit <number>', 'Max git commits to index (default: 500)', Number.parseInt, 500)
+  .option('--gh-limit <number>', 'Max GitHub issues/PRs to fetch (default: 500)', Number.parseInt)
   .action(async (repositoryPath: string, options) => {
     const spinner = ora('Checking prerequisites...').start();
 
@@ -207,7 +208,9 @@ export const indexCommand = new Command('index')
         });
         await ghIndexer.initialize();
 
-        ghStats = await ghIndexer.index({});
+        ghStats = await ghIndexer.index({
+          limit: options.ghLimit,
+        });
         spinner.succeed(chalk.green('GitHub indexed!'));
         logger.log('');
         logger.log(chalk.bold('GitHub:'));
