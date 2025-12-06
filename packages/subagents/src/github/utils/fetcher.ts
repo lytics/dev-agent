@@ -44,6 +44,7 @@ export function getCurrentRepository(): string {
     const output = execSync('gh repo view --json nameWithOwner -q .nameWithOwner', {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
+      maxBuffer: 10 * 1024 * 1024, // 10MB buffer (repo name is small)
     });
     return output.trim();
   } catch {
@@ -74,11 +75,18 @@ export function fetchIssues(options: GitHubIndexOptions = {}): GitHubAPIResponse
     const output = execSync(command, {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
+      maxBuffer: 50 * 1024 * 1024, // 50MB buffer for large repositories
     });
 
     return JSON.parse(output);
   } catch (error) {
-    throw new Error(`Failed to fetch issues: ${(error as Error).message}`);
+    const errorMessage = (error as Error).message;
+    if (errorMessage.includes('ENOBUFS') || errorMessage.includes('maxBuffer')) {
+      throw new Error(
+        `Failed to fetch issues: Output too large. Try using --gh-limit with a lower value (e.g., --gh-limit 100)`
+      );
+    }
+    throw new Error(`Failed to fetch issues: ${errorMessage}`);
   }
 }
 
@@ -113,11 +121,18 @@ export function fetchPullRequests(options: GitHubIndexOptions = {}): GitHubAPIRe
     const output = execSync(command, {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
+      maxBuffer: 50 * 1024 * 1024, // 50MB buffer for large repositories
     });
 
     return JSON.parse(output);
   } catch (error) {
-    throw new Error(`Failed to fetch pull requests: ${(error as Error).message}`);
+    const errorMessage = (error as Error).message;
+    if (errorMessage.includes('ENOBUFS') || errorMessage.includes('maxBuffer')) {
+      throw new Error(
+        `Failed to fetch pull requests: Output too large. Try using --gh-limit with a lower value (e.g., --gh-limit 100)`
+      );
+    }
+    throw new Error(`Failed to fetch pull requests: ${errorMessage}`);
   }
 }
 
@@ -133,6 +148,7 @@ export function fetchIssue(issueNumber: number, repository?: string): GitHubAPIR
       {
         encoding: 'utf-8',
         stdio: ['pipe', 'pipe', 'pipe'],
+        maxBuffer: 50 * 1024 * 1024, // 50MB buffer for large repositories
       }
     );
 
@@ -157,6 +173,7 @@ export function fetchPullRequest(prNumber: number, repository?: string): GitHubA
       {
         encoding: 'utf-8',
         stdio: ['pipe', 'pipe', 'pipe'],
+        maxBuffer: 50 * 1024 * 1024, // 50MB buffer for large repositories
       }
     );
 
