@@ -369,6 +369,45 @@ dev index .
 3. **No issues/PRs:**
    Repository might not have any issues/PRs yet.
 
+### ENOBUFS error during GitHub indexing
+
+**Error message:**
+```
+Failed to fetch issues: spawnSync /bin/sh ENOBUFS
+```
+
+**Cause:** Buffer overflow when fetching large numbers of issues/PRs from repositories with extensive GitHub activity.
+
+**Solutions:**
+
+1. **Use lower limit (recommended):**
+   ```bash
+   # For main index command
+   dev index --gh-limit 100
+
+   # For dedicated GitHub indexing
+   dev gh index --limit 100
+   ```
+
+2. **Adjust limit based on repository size:**
+   - Small repos (<50 issues/PRs): Default (500) works fine
+   - Medium repos (50-200 issues/PRs): Use `--gh-limit 200`
+   - Large repos (200+ issues/PRs): Use `--gh-limit 100` or lower
+
+3. **Index in batches:**
+   ```bash
+   # Index open items only (usually smaller)
+   dev gh index --state open --limit 500
+   
+   # Then index closed items with lower limit
+   dev gh index --state closed --limit 100
+   ```
+
+**Technical details:**
+- Default limit reduced to 500 (from 1000) to prevent buffer overflow
+- Buffer size increased to 50MB for large payloads
+- Helpful error messages now guide users to use `--gh-limit` flag
+
 ### `dev_gh` tool not finding issues
 
 **Diagnosis:**
