@@ -1,8 +1,8 @@
 {
   "name": "@lytics/kero",
-  "version": "0.1.0",
-  "description": "Zero-dependency TypeScript logger",
-  "private": true,
+  "version": "1.0.0",
+  "description": "Zero-dependency TypeScript logger with structured logging, multiple transports, and beautiful output",
+  "private": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -14,6 +14,8 @@
   },
   "files": [
     "dist",
+    "README.md",
+    "LICENSE",
     "!dist/**/*.test.js",
     "!dist/**/*.test.d.ts",
     "!dist/**/*.test.d.ts.map",
@@ -31,11 +33,26 @@
   "keywords": [
     "logger",
     "logging",
+    "structured-logging",
     "typescript",
-    "zero-dependency"
+    "nodejs",
+    "zero-dependency",
+    "pino",
+    "winston",
+    "json-logging",
+    "pretty-logging"
   ],
   "author": "Lytics",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lytics/dev-agent.git",
+    "directory": "packages/logger"
+  },
+  "homepage": "https://github.com/lytics/dev-agent/tree/main/packages/logger#readme",
+  "bugs": {
+    "url": "https://github.com/lytics/dev-agent/issues"
+  },
   "engines": {
     "node": ">=22"
   },

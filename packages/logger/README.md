@@ -1,6 +1,21 @@
 # @lytics/kero
 
-Zero-dependency TypeScript logger inspired by Pino.
+Zero-dependency TypeScript logger with structured logging, multiple transports, and beautiful output.
+
+Inspired by [Pino](https://getpino.io/), built for modern TypeScript applications.
+
+## Features
+
+- 🚀 **Zero runtime dependencies** - Only uses Node.js built-ins
+- 📊 **Structured logging** - First-class support for objects and metadata
+- 🎨 **Beautiful output** - Pretty console output for development, JSON for production
+- ⚡ **Fast & lightweight** - Minimal overhead, maximum performance
+- 🔧 **TypeScript-first** - Full type safety out of the box
+- 🎯 **Child loggers** - Inherit configuration and add contextual data
+- ⏱️ **Built-in timers** - Measure operation duration easily
+- 🌈 **Icons support** - Visual scanning with Unicode or emoji icons
+- 📦 **ESM & CJS** - Works with both module systems
+- 🎭 **Multiple presets** - Development, production, and test configurations
 
 ## Installation
 
@@ -226,7 +241,27 @@ This package has zero runtime dependencies. It uses only Node.js built-ins:
 - `process.stdout` / `process.stderr` for output
 - `process.env` for color detection
 
+## Why Kero?
+
+**Kero** (ケロケロ) is the Japanese onomatopoeia for a frog's croak - the sound frogs make. Just like how a frog's call cuts through the noise to be heard clearly, kero helps your logs stand out with beautiful, structured output that's easy to read and understand.
+
+### Comparison with Other Loggers
+
+| Feature | Kero | Pino | Winston | Bunyan |
+|---------|------|------|---------|--------|
+| Zero dependencies | ✅ | ❌ | ❌ | ❌ |
+| TypeScript-first | ✅ | ❌ | ❌ | ❌ |
+| Pretty console output | ✅ | ⚠️ (separate package) | ✅ | ⚠️ (via CLI) |
+| Structured logging | ✅ | ✅ | ✅ | ✅ |
+| Child loggers | ✅ | ✅ | ✅ | ✅ |
+| Built-in timers | ✅ | ❌ | ✅ | ❌ |
+| Package size | ~15KB | ~100KB | ~300KB | ~200KB |
+
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](https://github.com/lytics/dev-agent/blob/main/CONTRIBUTING.md) for guidelines.
+
 ## License
 
-MIT
+MIT © [Lytics](https://github.com/lytics)
 
