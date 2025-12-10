@@ -109,12 +109,18 @@ importers:
       remark-stringify:
         specifier: ^11.0.0
         version: 11.0.0
+      tree-sitter-wasms:
+        specifier: ^0.1.13
+        version: 0.1.13
       ts-morph:
         specifier: ^27.0.2
         version: 27.0.2
       unified:
         specifier: ^11.0.5
         version: 11.0.5
+      web-tree-sitter:
+        specifier: ^0.25.10
+        version: 0.25.10
     devDependencies:
       '@types/mdast':
         specifier: ^4.0.4
@@ -4565,6 +4571,10 @@ packages:
     hasBin: true
     dev: true
 
+  /tree-sitter-wasms@0.1.13:
+    resolution: {integrity: sha512-wT+cR6DwaIz80/vho3AvSF0N4txuNx/5bcRKoXouOfClpxh/qqrF4URNLQXbbt8MaAxeksZcZd1j8gcGjc+QxQ==}
+    dev: false
+
   /trough@2.2.0:
     resolution: {integrity: sha512-tmMpK00BjZiUyVyvrBK7knerNgmgvcV/KLVyuma/SC+TQN167GrMRciANTz09+k3zW8L8t60jWO1GpfkZdjTaw==}
     dev: false
@@ -5154,6 +5164,15 @@ packages:
       - tsx
       - yaml
     dev: true
+
+  /web-tree-sitter@0.25.10:
+    resolution: {integrity: sha512-Y09sF44/13XvgVKgO2cNDw5rGk6s26MgoZPXLESvMXeefBf7i6/73eFurre0IsTW6E14Y0ArIzhUMmjoc7xyzA==}
+    peerDependencies:
+      '@types/emscripten': ^1.40.0
+    peerDependenciesMeta:
+      '@types/emscripten':
+        optional: true
+    dev: false
 
   /which@2.0.2:
     resolution: {integrity: sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA==}
