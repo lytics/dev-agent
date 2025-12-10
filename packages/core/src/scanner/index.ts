@@ -13,6 +13,7 @@ export type {
   Scanner,
   ScannerCapabilities,
   ScanOptions,
+  ScanProgress,
   ScanResult,
   ScanStats,
 } from './types';

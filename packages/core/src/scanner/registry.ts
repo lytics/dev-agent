@@ -1,5 +1,5 @@
 import { globby } from 'globby';
-import type { Document, Scanner, ScanOptions, ScanResult } from './types';
+import type { Document, Scanner, ScanOptions, ScanProgress, ScanResult } from './types';
 
 /**
  * Scanner registry manages multiple language scanners
@@ -60,6 +60,24 @@ export class ScannerRegistry {
   async scanRepository(options: ScanOptions): Promise<ScanResult> {
     const startTime = Date.now();
     const errors: Array<{ file: string; error: string }> = [];
+    const logger = options.logger?.child({ component: 'scanner' });
+    const onProgress = options.onProgress;
+
+    // Helper to emit progress
+    const emitProgress = (progress: Partial<ScanProgress>) => {
+      onProgress?.({
+        phase: 'discovery',
+        filesTotal: 0,
+        filesScanned: 0,
+        documentsExtracted: 0,
+        errors: errors.length,
+        ...progress,
+      });
+    };
+
+    // Phase 1: Discovery
+    logger?.info({ repoRoot: options.repoRoot }, 'Starting repository scan');
+    emitProgress({ phase: 'discovery' });
 
     // Build glob patterns
     const patterns = this.buildGlobPatterns(options);
@@ -70,6 +88,8 @@ export class ScannerRegistry {
       ignore: options.exclude || this.getDefaultExclusions(),
       absolute: false,
     });
+
+    logger?.info({ totalFiles: files.length }, 'File discovery complete');
 
     // Group files by scanner
     const filesByScanner = new Map<Scanner, string[]>();
@@ -83,22 +103,84 @@ export class ScannerRegistry {
       }
     }
 
-    // Scan files with appropriate scanners
+    // Log per-language breakdown
+    const languageBreakdown: Record<string, number> = {};
+    for (const [scanner, scannerFiles] of filesByScanner) {
+      languageBreakdown[scanner.language] = scannerFiles.length;
+      logger?.info(
+        { language: scanner.language, files: scannerFiles.length },
+        `Found ${scannerFiles.length} ${scanner.language} files`
+      );
+    }
+
+    // Phase 2: Scanning
     const allDocuments: Document[] = [];
+    let totalFilesScanned = 0;
 
     for (const [scanner, scannerFiles] of filesByScanner.entries()) {
+      logger?.debug(
+        { language: scanner.language, fileCount: scannerFiles.length },
+        `Scanning ${scanner.language}...`
+      );
+
+      emitProgress({
+        phase: 'scanning',
+        language: scanner.language,
+        filesTotal: files.length,
+        filesScanned: totalFilesScanned,
+        documentsExtracted: allDocuments.length,
+      });
+
       try {
         const documents = await scanner.scan(scannerFiles, options.repoRoot);
         allDocuments.push(...documents);
+        totalFilesScanned += scannerFiles.length;
+
+        logger?.info(
+          { language: scanner.language, files: scannerFiles.length, documents: documents.length },
+          `${scanner.language} scan complete`
+        );
+
+        emitProgress({
+          phase: 'scanning',
+          language: scanner.language,
+          filesTotal: files.length,
+          filesScanned: totalFilesScanned,
+          documentsExtracted: allDocuments.length,
+        });
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
         errors.push({
           file: `[${scanner.language}]`,
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessage,
         });
+        logger?.error(
+          { language: scanner.language, error: errorMessage },
+          `${scanner.language} scan failed`
+        );
       }
     }
 
+    // Phase 3: Complete
     const duration = Date.now() - startTime;
+
+    logger?.info(
+      {
+        totalFiles: files.length,
+        totalDocuments: allDocuments.length,
+        duration: `${duration}ms`,
+        byLanguage: languageBreakdown,
+        errors: errors.length,
+      },
+      'Repository scan complete'
+    );
+
+    emitProgress({
+      phase: 'complete',
+      filesTotal: files.length,
+      filesScanned: totalFilesScanned,
+      documentsExtracted: allDocuments.length,
+    });
 
     return {
       documents: allDocuments,
@@ -151,6 +233,15 @@ export class ScannerRegistry {
       '**/.next/**',
       '**/.turbo/**',
       '**/.nuxt/**',
+
+      // Go generated files
+      '**/*.pb.go', // Protobuf
+      '**/*.gen.go', // Code generators
+      '**/*_gen.go', // Alternative generator pattern
+      '**/*.pb.gw.go', // gRPC gateway
+      '**/mock_*.go', // Mockgen files
+      '**/mocks/**', // Mock directories
+      '**/testdata/**', // Test fixtures
 
       // Version control
       '**/.git/**',

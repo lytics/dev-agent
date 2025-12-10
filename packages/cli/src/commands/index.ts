@@ -17,7 +17,7 @@ import { Command } from 'commander';
 import ora from 'ora';
 import { getDefaultConfig, loadConfig } from '../utils/config.js';
 import { formatBytes, getDirectorySize } from '../utils/file.js';
-import { logger } from '../utils/logger.js';
+import { createIndexLogger, logger } from '../utils/logger.js';
 
 /**
  * Check if a command is available
@@ -129,18 +129,27 @@ export const indexCommand = new Command('index')
 
       spinner.text = 'Scanning repository...';
 
+      // Create logger for indexing (verbose mode shows debug logs)
+      const indexLogger = createIndexLogger(options.verbose);
+
       const startTime = Date.now();
       let lastUpdate = startTime;
 
       const stats = await indexer.index({
         force: options.force,
+        logger: indexLogger,
         onProgress: (progress) => {
           const now = Date.now();
           // Update spinner every 100ms to avoid flickering
           if (now - lastUpdate > 100) {
-            const percent = progress.percentComplete || 0;
-            const currentFile = progress.currentFile ? ` ${progress.currentFile}` : '';
-            spinner.text = `${progress.phase}:${currentFile} (${percent.toFixed(0)}%)`;
+            if (progress.phase === 'storing' && progress.totalDocuments) {
+              // Show document count with percentage
+              const pct = Math.round((progress.documentsIndexed / progress.totalDocuments) * 100);
+              spinner.text = `Embedding ${progress.documentsIndexed}/${progress.totalDocuments} documents (${pct}%)`;
+            } else {
+              const percent = progress.percentComplete || 0;
+              spinner.text = `${progress.phase} (${percent.toFixed(0)}%)`;
+            }
             lastUpdate = now;
           }
         },

@@ -2,6 +2,8 @@
  * Repository Indexer types
  */
 
+import type { Logger } from '@lytics/kero';
+
 /**
  * Options for indexing a repository
  */
@@ -20,6 +22,9 @@ export interface IndexOptions {
 
   /** Progress callback for tracking indexing */
   onProgress?: (progress: IndexProgress) => void;
+
+  /** Logger for progress and debug output */
+  logger?: Logger;
 }
 
 /**
@@ -45,6 +50,9 @@ export interface IndexProgress {
 
   /** Documents indexed so far */
   documentsIndexed: number;
+
+  /** Total documents to index (available during storing phase) */
+  totalDocuments?: number;
 
   /** Current file being processed */
   currentFile?: string;
