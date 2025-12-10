@@ -42,7 +42,9 @@
     "remark": "^15.0.1",
     "remark-parse": "^11.0.0",
     "remark-stringify": "^11.0.0",
+    "tree-sitter-wasms": "^0.1.13",
     "ts-morph": "^27.0.2",
-    "unified": "^11.0.5"
+    "unified": "^11.0.5",
+    "web-tree-sitter": "^0.25.10"
   }
 }

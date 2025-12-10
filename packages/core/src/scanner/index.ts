@@ -1,5 +1,6 @@
 // Export types
 
+export { GoScanner } from './go';
 export { MarkdownScanner } from './markdown';
 export { ScannerRegistry } from './registry';
 export type {
@@ -18,8 +19,9 @@ export type {
 // Export scanner implementations
 export { TypeScriptScanner } from './typescript';
 
+import { GoScanner } from './go';
 import { MarkdownScanner } from './markdown';
-// Create default scanner registry with TypeScript and Markdown
+// Create default scanner registry with TypeScript, Markdown, and Go
 import { ScannerRegistry } from './registry';
 import type { ScanOptions } from './types';
 import { TypeScriptScanner } from './typescript';
@@ -35,6 +37,9 @@ export function createDefaultRegistry(): ScannerRegistry {
 
   // Register Markdown scanner
   registry.register(new MarkdownScanner());
+
+  // Register Go scanner
+  registry.register(new GoScanner());
 
   return registry;
 }
