@@ -1,5 +1,7 @@
 // Core scanner types and interfaces
 
+import type { Logger } from '@lytics/kero';
+
 export type DocumentType =
   | 'function'
   | 'class'
@@ -109,9 +111,33 @@ export interface ScanError {
   line?: number;
 }
 
+/**
+ * Progress information during scanning
+ */
+export interface ScanProgress {
+  /** Current scanning phase */
+  phase: 'discovery' | 'scanning' | 'complete';
+  /** Language being scanned (during 'scanning' phase) */
+  language?: string;
+  /** Total files to scan */
+  filesTotal: number;
+  /** Files scanned so far */
+  filesScanned: number;
+  /** Documents extracted so far */
+  documentsExtracted: number;
+  /** Current file being processed */
+  currentFile?: string;
+  /** Number of errors encountered */
+  errors: number;
+}
+
 export interface ScanOptions {
   repoRoot: string;
   exclude?: string[]; // Glob patterns to exclude (default: see getDefaultExclusions() - deps, build, cache, IDE, etc.)
   include?: string[]; // Glob patterns to include (default: all supported extensions)
   languages?: string[]; // Limit to specific languages (default: all registered scanners)
+  /** Logger instance for progress and debug output */
+  logger?: Logger;
+  /** Callback for progress updates during scanning */
+  onProgress?: (progress: ScanProgress) => void;
 }

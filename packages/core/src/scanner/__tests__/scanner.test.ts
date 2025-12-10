@@ -511,8 +511,8 @@ describe('Scanner', () => {
       const scannerInterface = result.documents.find((d) => d.metadata.name === 'Scanner');
       expect(scannerInterface).toBeDefined();
       expect(scannerInterface?.metadata.imports).toBeDefined();
-      // types.ts has no imports, so should be empty array
-      expect(scannerInterface?.metadata.imports).toEqual([]);
+      // types.ts imports Logger from @lytics/kero
+      expect(scannerInterface?.metadata.imports).toContain('@lytics/kero');
     });
 
     it('should extract imports for methods', async () => {
@@ -581,8 +581,8 @@ describe('Scanner', () => {
       expect(docs.length >= 0).toBe(true);
     });
 
-    it('should return empty array for files with no imports', async () => {
-      // types.ts should have no imports
+    it('should capture type-only imports', async () => {
+      // types.ts imports Logger type from @lytics/kero
       const result = await scanRepository({
         repoRoot,
         include: ['packages/core/src/scanner/types.ts'],
@@ -591,7 +591,8 @@ describe('Scanner', () => {
       const docType = result.documents.find((d) => d.metadata.name === 'DocumentType');
       expect(docType).toBeDefined();
       expect(docType?.metadata.imports).toBeDefined();
-      expect(docType?.metadata.imports).toEqual([]);
+      // Type imports should be captured
+      expect(docType?.metadata.imports).toContain('@lytics/kero');
     });
   });
 

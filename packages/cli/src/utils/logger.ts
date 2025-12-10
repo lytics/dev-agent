@@ -2,7 +2,7 @@
  * CLI Logger using @lytics/kero
  */
 
-import { createLogger } from '@lytics/kero';
+import { createLogger, type Logger, type LogLevel } from '@lytics/kero';
 
 // Create a logger with pretty output and icons
 const keroLogger = createLogger({
@@ -36,3 +36,14 @@ export const logger = {
     keroLogger.debug(message);
   },
 };
+
+/**
+ * Create a logger for indexing operations with configurable verbosity
+ */
+export function createIndexLogger(verbose: boolean): Logger {
+  const level: LogLevel = verbose ? 'debug' : 'info';
+  return createLogger({
+    level,
+    format: 'pretty',
+  });
+}

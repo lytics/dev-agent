@@ -87,12 +87,16 @@ export class RepositoryIndexer {
         include: options.languages?.map((lang) => `**/*.${getExtensionForLanguage(lang)}`),
         exclude: [...this.config.excludePatterns, ...(options.excludePatterns || [])],
         languages: options.languages,
+        logger: options.logger,
       });
 
       filesScanned = scanResult.documents.length;
       documentsExtracted = scanResult.documents.length;
 
       // Phase 2: Prepare documents for embedding
+      const logger = options.logger?.child({ component: 'indexer' });
+      logger?.info({ documents: documentsExtracted }, 'Preparing documents for embedding');
+
       onProgress?.({
         phase: 'embedding',
         filesProcessed: filesScanned,
@@ -104,27 +108,49 @@ export class RepositoryIndexer {
       const embeddingDocuments = prepareDocumentsForEmbedding(scanResult.documents);
 
       // Phase 3: Batch embed and store
+      logger?.info(
+        {
+          documents: embeddingDocuments.length,
+          batchSize: options.batchSize || this.config.batchSize,
+        },
+        'Starting embedding and storage'
+      );
+
       onProgress?.({
         phase: 'storing',
         filesProcessed: filesScanned,
         totalFiles: filesScanned,
         documentsIndexed: 0,
+        totalDocuments: embeddingDocuments.length,
         percentComplete: 66,
       });
 
       const batchSize = options.batchSize || this.config.batchSize;
+      const totalBatches = Math.ceil(embeddingDocuments.length / batchSize);
+      let batchNum = 0;
+
       for (let i = 0; i < embeddingDocuments.length; i += batchSize) {
         const batch = embeddingDocuments.slice(i, i + batchSize);
+        batchNum++;
 
         try {
           await this.vectorStorage.addDocuments(batch);
           documentsIndexed += batch.length;
+
+          // Log progress every 10 batches or on last batch
+          if (batchNum % 10 === 0 || batchNum === totalBatches) {
+            logger?.info(
+              { batch: batchNum, totalBatches, documentsIndexed, total: embeddingDocuments.length },
+              `Embedded ${documentsIndexed}/${embeddingDocuments.length} documents`
+            );
+          }
 
           onProgress?.({
             phase: 'storing',
             filesProcessed: filesScanned,
             totalFiles: filesScanned,
             documentsIndexed,
+            totalDocuments: embeddingDocuments.length,
             percentComplete: 66 + (documentsIndexed / embeddingDocuments.length) * 33,
           });
         } catch (error) {
@@ -134,8 +160,14 @@ export class RepositoryIndexer {
             error: error instanceof Error ? error : undefined,
             timestamp: new Date(),
           });
+          logger?.error(
+            { batch: batchNum, error: error instanceof Error ? error.message : String(error) },
+            'Batch embedding failed'
+          );
         }
       }
+
+      logger?.info({ documentsIndexed, errors: errors.length }, 'Embedding complete');
 
       // Update state
       await this.updateState(scanResult.documents);
@@ -253,6 +285,7 @@ export class RepositoryIndexer {
         repoRoot: this.config.repositoryPath,
         include: filesToReindex,
         exclude: this.config.excludePatterns,
+        logger: options.logger,
       });
 
       documentsExtracted = scanResult.documents.length;
