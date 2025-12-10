@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **⚠️ IMPORTANT: Before starting any implementation work, read [`WORKFLOW.md`](./WORKFLOW.md) for the development workflow, including branch naming, commit format, PR process, and testing standards.**
+
 ## Project Overview
 
 Dev-Agent is a local-first repository context provider for AI tools like Claude Code. It helps AI tools understand codebases without hallucinations by providing semantic search, code analysis, and GitHub integration through a monorepo architecture.

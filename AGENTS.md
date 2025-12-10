@@ -2,6 +2,8 @@
 
 This file provides guidance to AI agents (Claude, Cursor, etc.) when working with the dev-agent codebase.
 
+> **⚠️ IMPORTANT: Before starting any implementation work, read [`WORKFLOW.md`](./WORKFLOW.md) for the development workflow, including branch naming, commit format, PR process, and testing standards.**
+
 ## Project Overview
 
 **Dev-Agent** is a local-first repository context provider for AI tools. It provides semantic code search, GitHub integration, and development planning capabilities through the Model Context Protocol (MCP).
@@ -360,7 +362,7 @@ pnpm build
 ## Resources
 
 - **Architecture:** See `ARCHITECTURE.md`
-- **Workflow:** See `docs/WORKFLOW.md`
+- **Workflow:** See `WORKFLOW.md`
 - **Examples:** See `examples/` directory
 - **Troubleshooting:** See `TROUBLESHOOTING.md` (coming soon)
 - **Contributing:** See `CONTRIBUTING.md`

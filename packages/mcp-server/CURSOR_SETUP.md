@@ -338,7 +338,7 @@ No need to reinstall MCP integration - it automatically uses the latest version.
 ## Next Steps
 
 - See [README.md](./README.md) for MCP server architecture
-- See [../../docs/WORKFLOW.md](../../docs/WORKFLOW.md) for development workflow
+- See [../../WORKFLOW.md](../../WORKFLOW.md) for development workflow
 - See [TROUBLESHOOTING.md](../../TROUBLESHOOTING.md) for detailed troubleshooting
 
 ## Need Help?
