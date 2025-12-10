@@ -4,6 +4,7 @@
  * Indexes git commits into the vector store for semantic search.
  */
 
+import type { Logger } from '@lytics/kero';
 import type { VectorStorage } from '../vector';
 import type { EmbeddingDocument } from '../vector/types';
 import type { GitExtractor } from './extractor';
@@ -39,6 +40,8 @@ export interface GitIndexOptions {
   noMerges?: boolean;
   /** Progress callback */
   onProgress?: (progress: GitIndexProgress) => void;
+  /** Logger instance */
+  logger?: Logger;
 }
 
 /**
@@ -81,6 +84,9 @@ export class GitIndexer {
 
     const limit = options.limit ?? this.commitLimit;
     const onProgress = options.onProgress;
+    const logger = options.logger?.child({ component: 'git-indexer' });
+
+    logger?.info({ limit }, 'Starting git commit extraction');
 
     // Phase 1: Extract commits
     onProgress?.({
@@ -101,9 +107,11 @@ export class GitIndexer {
     let commits: GitCommit[];
     try {
       commits = await this.extractor.getCommits(extractOptions);
+      logger?.info({ commits: commits.length }, 'Extracted commits');
     } catch (error) {
       const message = `Failed to extract commits: ${error instanceof Error ? error.message : String(error)}`;
       errors.push(message);
+      logger?.error({ error: message }, 'Failed to extract commits');
       return {
         commitsIndexed: 0,
         durationMs: Date.now() - startTime,
@@ -112,6 +120,7 @@ export class GitIndexer {
     }
 
     if (commits.length === 0) {
+      logger?.info('No commits to index');
       onProgress?.({
         phase: 'complete',
         commitsProcessed: 0,
@@ -126,6 +135,7 @@ export class GitIndexer {
     }
 
     // Phase 2: Prepare documents for embedding
+    logger?.debug({ commits: commits.length }, 'Preparing commit documents for embedding');
     onProgress?.({
       phase: 'embedding',
       commitsProcessed: 0,
@@ -136,6 +146,10 @@ export class GitIndexer {
     const documents = this.prepareCommitDocuments(commits);
 
     // Phase 3: Store in batches
+    logger?.info(
+      { documents: documents.length, batchSize: this.batchSize },
+      'Starting commit embedding'
+    );
     onProgress?.({
       phase: 'storing',
       commitsProcessed: 0,
@@ -144,12 +158,22 @@ export class GitIndexer {
     });
 
     let commitsIndexed = 0;
+    const totalBatches = Math.ceil(documents.length / this.batchSize);
     for (let i = 0; i < documents.length; i += this.batchSize) {
       const batch = documents.slice(i, i + this.batchSize);
+      const batchNum = Math.floor(i / this.batchSize) + 1;
 
       try {
         await this.vectorStorage.addDocuments(batch);
         commitsIndexed += batch.length;
+
+        // Log every 10 batches
+        if (batchNum % 10 === 0 || batchNum === totalBatches) {
+          logger?.info(
+            { batch: batchNum, totalBatches, commitsIndexed, total: commits.length },
+            `Embedded ${commitsIndexed}/${commits.length} commits`
+          );
+        }
 
         onProgress?.({
           phase: 'storing',
@@ -158,12 +182,19 @@ export class GitIndexer {
           percentComplete: 50 + (commitsIndexed / commits.length) * 50,
         });
       } catch (error) {
-        const message = `Failed to store batch ${i / this.batchSize}: ${error instanceof Error ? error.message : String(error)}`;
+        const message = `Failed to store batch ${batchNum}: ${error instanceof Error ? error.message : String(error)}`;
         errors.push(message);
+        logger?.error({ batch: batchNum, error: message }, 'Failed to store commit batch');
       }
     }
 
     // Phase 4: Complete
+    const durationMs = Date.now() - startTime;
+    logger?.info(
+      { commitsIndexed, duration: `${durationMs}ms`, errors: errors.length },
+      'Git indexing complete'
+    );
+
     onProgress?.({
       phase: 'complete',
       commitsProcessed: commitsIndexed,
@@ -173,7 +204,7 @@ export class GitIndexer {
 
     return {
       commitsIndexed,
-      durationMs: Date.now() - startTime,
+      durationMs,
       errors,
     };
   }
