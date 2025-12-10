@@ -354,4 +354,127 @@ describe('GoScanner', () => {
       });
     });
   });
+
+  describe('edge cases', () => {
+    let edgeCaseDocuments: Document[];
+
+    beforeAll(async () => {
+      edgeCaseDocuments = await scanner.scan(['edge_cases.go'], fixturesDir);
+    });
+
+    describe('init functions', () => {
+      it('should extract init functions', () => {
+        const initFuncs = edgeCaseDocuments.filter(
+          (d) => d.metadata.name === 'init' && d.type === 'function'
+        );
+        // Go allows multiple init functions
+        expect(initFuncs.length).toBeGreaterThanOrEqual(1);
+      });
+
+      it('should mark init as unexported', () => {
+        const initFunc = edgeCaseDocuments.find(
+          (d) => d.metadata.name === 'init' && d.type === 'function'
+        );
+        expect(initFunc?.metadata.exported).toBe(false);
+      });
+    });
+
+    describe('embedded structs', () => {
+      it('should extract struct with embedded field', () => {
+        const extended = edgeCaseDocuments.find(
+          (d) => d.metadata.name === 'Extended' && d.type === 'class'
+        );
+        expect(extended).toBeDefined();
+        expect(extended?.metadata.snippet).toContain('Base');
+      });
+    });
+
+    describe('multiple declarations', () => {
+      it('should extract multiple const declarations', () => {
+        const statusConsts = edgeCaseDocuments.filter(
+          (d) =>
+            d.type === 'variable' &&
+            d.metadata.custom?.isConstant &&
+            d.metadata.name?.startsWith('Status')
+        );
+        expect(statusConsts.length).toBeGreaterThanOrEqual(3);
+      });
+
+      it('should extract iota-based constants', () => {
+        const dayConsts = edgeCaseDocuments.filter(
+          (d) =>
+            d.type === 'variable' &&
+            d.metadata.custom?.isConstant &&
+            ['Sunday', 'Monday', 'Tuesday'].includes(d.metadata.name || '')
+        );
+        expect(dayConsts.length).toBeGreaterThanOrEqual(1);
+      });
+    });
+
+    describe('function variations', () => {
+      it('should extract variadic function', () => {
+        const sum = edgeCaseDocuments.find(
+          (d) => d.metadata.name === 'Sum' && d.type === 'function'
+        );
+        expect(sum).toBeDefined();
+        expect(sum?.metadata.signature).toContain('...');
+      });
+
+      it('should extract function with context parameter', () => {
+        const doWork = edgeCaseDocuments.find(
+          (d) => d.metadata.name === 'DoWork' && d.type === 'function'
+        );
+        expect(doWork).toBeDefined();
+        expect(doWork?.metadata.signature).toContain('context.Context');
+      });
+
+      it('should extract function with multiple return values', () => {
+        const divide = edgeCaseDocuments.find(
+          (d) => d.metadata.name === 'Divide' && d.type === 'function'
+        );
+        expect(divide).toBeDefined();
+        expect(divide?.metadata.signature).toContain('(int, int, error)');
+      });
+
+      it('should extract function with named return values', () => {
+        const parseConfig = edgeCaseDocuments.find(
+          (d) => d.metadata.name === 'ParseConfig' && d.type === 'function'
+        );
+        expect(parseConfig).toBeDefined();
+        expect(parseConfig?.metadata.signature).toContain('config');
+      });
+    });
+
+    describe('unexported items', () => {
+      it('should extract unexported struct', () => {
+        const unexported = edgeCaseDocuments.find(
+          (d) => d.metadata.name === 'unexportedType' && d.type === 'class'
+        );
+        expect(unexported).toBeDefined();
+        expect(unexported?.metadata.exported).toBe(false);
+      });
+
+      it('should extract unexported function', () => {
+        const unexported = edgeCaseDocuments.find(
+          (d) => d.metadata.name === 'unexportedFunc' && d.type === 'function'
+        );
+        expect(unexported).toBeDefined();
+        expect(unexported?.metadata.exported).toBe(false);
+      });
+    });
+
+    describe('interface implementations', () => {
+      it('should extract types that implement interfaces', () => {
+        const myReader = edgeCaseDocuments.find(
+          (d) => d.metadata.name === 'MyReader' && d.type === 'class'
+        );
+        expect(myReader).toBeDefined();
+
+        const readMethod = edgeCaseDocuments.find(
+          (d) => d.metadata.name === 'MyReader.Read' && d.type === 'method'
+        );
+        expect(readMethod).toBeDefined();
+      });
+    });
+  });
 });

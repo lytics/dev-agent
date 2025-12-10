@@ -230,6 +230,142 @@ import { MyClass } from './lib';
 ]
 ```
 
+### Example 3: Scanning Go Files
+
+**Input:** `server/handler.go`
+```go
+package server
+
+// Handler processes incoming requests.
+type Handler struct {
+    name string
+}
+
+// NewHandler creates a new Handler instance.
+func NewHandler(name string) *Handler {
+    return &Handler{name: name}
+}
+
+// Process handles a request and returns a response.
+func (h *Handler) Process(req Request) (Response, error) {
+    // processing logic
+    return Response{}, nil
+}
+
+// Stack is a generic stack data structure.
+type Stack[T any] struct {
+    items []T
+}
+
+// Push adds an item to the stack.
+func (s *Stack[T]) Push(item T) {
+    s.items = append(s.items, item)
+}
+```
+
+**Output:**
+```json
+[
+  {
+    "id": "server/handler.go:Handler:4",
+    "text": "struct Handler\ntype Handler struct\nHandler processes incoming requests.",
+    "type": "class",
+    "language": "go",
+    "metadata": {
+      "file": "server/handler.go",
+      "startLine": 4,
+      "endLine": 6,
+      "name": "Handler",
+      "signature": "type Handler struct",
+      "exported": true,
+      "docstring": "Handler processes incoming requests."
+    }
+  },
+  {
+    "id": "server/handler.go:NewHandler:9",
+    "text": "function NewHandler\nfunc NewHandler(name string) *Handler\nNewHandler creates a new Handler instance.",
+    "type": "function",
+    "language": "go",
+    "metadata": {
+      "file": "server/handler.go",
+      "startLine": 9,
+      "endLine": 11,
+      "name": "NewHandler",
+      "signature": "func NewHandler(name string) *Handler",
+      "exported": true,
+      "docstring": "NewHandler creates a new Handler instance."
+    }
+  },
+  {
+    "id": "server/handler.go:Handler.Process:14",
+    "text": "method Handler.Process\nfunc (h *Handler) Process(req Request) (Response, error)\nProcess handles a request and returns a response.",
+    "type": "method",
+    "language": "go",
+    "metadata": {
+      "file": "server/handler.go",
+      "startLine": 14,
+      "endLine": 17,
+      "name": "Handler.Process",
+      "signature": "func (h *Handler) Process(req Request) (Response, error)",
+      "exported": true,
+      "docstring": "Process handles a request and returns a response.",
+      "custom": {
+        "receiver": "Handler",
+        "receiverPointer": true
+      }
+    }
+  },
+  {
+    "id": "server/handler.go:Stack:20",
+    "text": "struct Stack\ntype Stack[T any] struct\nStack is a generic stack data structure.",
+    "type": "class",
+    "language": "go",
+    "metadata": {
+      "file": "server/handler.go",
+      "startLine": 20,
+      "endLine": 22,
+      "name": "Stack",
+      "signature": "type Stack[T any] struct",
+      "exported": true,
+      "docstring": "Stack is a generic stack data structure.",
+      "custom": {
+        "isGeneric": true,
+        "typeParameters": ["T any"]
+      }
+    }
+  },
+  {
+    "id": "server/handler.go:Stack.Push:25",
+    "text": "method Stack.Push\nfunc (s *Stack[T]) Push(item T)\nPush adds an item to the stack.",
+    "type": "method",
+    "language": "go",
+    "metadata": {
+      "file": "server/handler.go",
+      "startLine": 25,
+      "endLine": 27,
+      "name": "Stack.Push",
+      "signature": "func (s *Stack[T]) Push(item T)",
+      "exported": true,
+      "docstring": "Push adds an item to the stack.",
+      "custom": {
+        "receiver": "Stack",
+        "receiverPointer": true,
+        "isGeneric": true
+      }
+    }
+  }
+]
+```
+
+**Go Scanner Features:**
+- Functions, methods, structs, interfaces, type aliases
+- Doc comments (Go-style `//` comments preceding declarations)
+- Receiver method extraction with pointer/value distinction
+- Go generics (Go 1.18+) with type parameter tracking
+- Exported/unexported detection (capitalization)
+- Generated file skipping (`// Code generated` header)
+- Test file detection (`*_test.go` → `isTest: true`)
+
 ### Example 3: Full Repository Scan
 
 ```typescript
@@ -374,7 +510,7 @@ const utilDocs = result.documents.filter(
 | TypeScript | `TypeScriptScanner` | Functions, classes, methods, interfaces, types, arrow functions, exported constants, JSDoc | ✅ Implemented |
 | JavaScript | `TypeScriptScanner` | Functions, classes, methods, arrow functions, exported constants, JSDoc | ✅ Implemented (via .ts scanner) |
 | Markdown | `MarkdownScanner` | Documentation sections, code blocks | ✅ Implemented |
-| Go | - | Functions, structs, interfaces | 🔄 Planned (tree-sitter) |
+| Go | `GoScanner` | Functions, methods, structs, interfaces, types, constants, generics, doc comments | ✅ Implemented (tree-sitter) |
 | Python | - | Functions, classes, docstrings | 🔄 Planned (tree-sitter) |
 | Rust | - | Functions, structs, traits | 🔄 Planned (tree-sitter) |
 
@@ -490,7 +626,9 @@ registry.register(new GoScanner());
 - [x] TypeScript scanner with ts-morph
 - [x] Markdown scanner with remark
 - [x] Scanner registry and auto-detection
-- [ ] Tree-sitter integration for Go, Python, Rust
+- [x] Go scanner with tree-sitter (functions, methods, structs, interfaces, generics)
+- [ ] Python scanner with tree-sitter
+- [ ] Rust scanner with tree-sitter
 - [ ] Enhanced JavaScript support (JSX, Flow)
 - [ ] Configuration file support
 - [ ] Incremental scanning (hash-based)
