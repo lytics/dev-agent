@@ -4,9 +4,10 @@
  */
 
 export const latestVersion = {
-  version: '0.5.2',
-  title: 'GitHub Indexing for Large Repositories',
-  date: 'December 6, 2024',
-  summary: 'Fixed `ENOBUFS` errors when indexing repositories with many GitHub issues/PRs.',
-  link: '/updates#v052--github-indexing-for-large-repositories',
+  version: '0.6.0',
+  title: 'Go Language Support',
+  date: 'December 10, 2025',
+  summary:
+    'Full Go language support with tree-sitter — functions, methods, structs, interfaces, and generics.',
+  link: '/updates#v060--go-language-support',
 } as const;

@@ -16,12 +16,15 @@ This file provides guidance to AI agents (Claude, Cursor, etc.) when working wit
 - Package Manager: pnpm 8.15.4
 - Build System: Turborepo  
 - Linter/Formatter: Biome
-- Testing: Vitest (1100+ tests)
+- Testing: Vitest (1500+ tests)
 - Vector Storage: LanceDB
 - Embeddings: @xenova/transformers (all-MiniLM-L6-v2)
+- Parsers: ts-morph (TypeScript/JS), tree-sitter WASM (Go)
 - AI Integration: MCP (Model Context Protocol)
 - CI/CD: GitHub Actions
 - Node.js: >= 22 (LTS)
+
+**Supported Languages:** TypeScript, JavaScript, Go, Markdown
 
 ## Repository Structure
 
