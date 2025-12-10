@@ -21,7 +21,7 @@ const GO_QUERIES = {
       name: (identifier) @name) @definition
   `,
 
-  // Method declarations with receivers
+  // Method declarations with receivers (handles both regular and generic types)
   methods: `
     (method_declaration
       receiver: (parameter_list
@@ -29,7 +29,9 @@ const GO_QUERIES = {
           name: (identifier)? @receiver_name
           type: [
             (pointer_type (type_identifier) @receiver_type)
+            (pointer_type (generic_type (type_identifier) @receiver_type))
             (type_identifier) @receiver_type
+            (generic_type (type_identifier) @receiver_type)
           ])) @receiver
       name: (field_identifier) @name) @definition
   `,
@@ -196,6 +198,9 @@ export class GoScanner implements Scanner {
       const exported = this.isExported(name);
       const snippet = this.truncateSnippet(fullText);
 
+      // Check for generics
+      const { isGeneric, typeParameters } = this.extractTypeParameters(signature);
+
       documents.push({
         id: `${file}:${name}:${startLine}`,
         text: this.buildEmbeddingText('function', name, signature, docstring),
@@ -210,7 +215,10 @@ export class GoScanner implements Scanner {
           exported,
           docstring,
           snippet,
-          custom: isTestFile ? { isTest: true } : undefined,
+          custom: {
+            ...(isTestFile ? { isTest: true } : {}),
+            ...(isGeneric ? { isGeneric, typeParameters } : {}),
+          },
         },
       });
     }
@@ -240,7 +248,9 @@ export class GoScanner implements Scanner {
 
       const methodName = nameCapture.node.text;
       const receiverType = receiverTypeCapture?.node.text || 'Unknown';
-      const name = `${receiverType}.${methodName}`;
+      // Strip type parameters from receiver for cleaner name (Stack[T] -> Stack)
+      const baseReceiverType = receiverType.replace(/\[.*\]/, '');
+      const name = `${baseReceiverType}.${methodName}`;
       const startLine = defCapture.node.startPosition.row + 1;
       const endLine = defCapture.node.endPosition.row + 1;
       const fullText = defCapture.node.text;
@@ -252,6 +262,12 @@ export class GoScanner implements Scanner {
       // Check if receiver is a pointer
       const receiverText = receiverCapture?.node.text || '';
       const receiverPointer = receiverText.includes('*');
+
+      // Check for generics (receiver has type params like Stack[T])
+      const receiverHasGenerics = receiverType.includes('[');
+      const { isGeneric: signatureHasGenerics, typeParameters } =
+        this.extractTypeParameters(signature);
+      const isGeneric = receiverHasGenerics || signatureHasGenerics;
 
       documents.push({
         id: `${file}:${name}:${startLine}`,
@@ -268,9 +284,10 @@ export class GoScanner implements Scanner {
           docstring,
           snippet,
           custom: {
-            receiver: receiverType,
+            receiver: baseReceiverType,
             receiverPointer,
             ...(isTestFile ? { isTest: true } : {}),
+            ...(isGeneric ? { isGeneric, typeParameters } : {}),
           },
         },
       });
@@ -301,7 +318,13 @@ export class GoScanner implements Scanner {
       const startLine = defCapture.node.startPosition.row + 1;
       const endLine = defCapture.node.endPosition.row + 1;
       const fullText = defCapture.node.text;
-      const signature = `type ${name} struct`;
+
+      // Check for generics in the full declaration text
+      const { isGeneric, typeParameters } = this.extractTypeParameters(fullText);
+      const signature = isGeneric
+        ? `type ${name}[${typeParameters?.join(', ')}] struct`
+        : `type ${name} struct`;
+
       const docstring = extractGoDocComment(sourceText, startLine);
       const exported = this.isExported(name);
       const snippet = this.truncateSnippet(fullText);
@@ -320,7 +343,10 @@ export class GoScanner implements Scanner {
           exported,
           docstring,
           snippet,
-          custom: isTestFile ? { isTest: true } : undefined,
+          custom: {
+            ...(isTestFile ? { isTest: true } : {}),
+            ...(isGeneric ? { isGeneric, typeParameters } : {}),
+          },
         },
       });
     }
@@ -350,7 +376,13 @@ export class GoScanner implements Scanner {
       const startLine = defCapture.node.startPosition.row + 1;
       const endLine = defCapture.node.endPosition.row + 1;
       const fullText = defCapture.node.text;
-      const signature = `type ${name} interface`;
+
+      // Check for generics in the full declaration text
+      const { isGeneric, typeParameters } = this.extractTypeParameters(fullText);
+      const signature = isGeneric
+        ? `type ${name}[${typeParameters?.join(', ')}] interface`
+        : `type ${name} interface`;
+
       const docstring = extractGoDocComment(sourceText, startLine);
       const exported = this.isExported(name);
       const snippet = this.truncateSnippet(fullText);
@@ -369,7 +401,10 @@ export class GoScanner implements Scanner {
           exported,
           docstring,
           snippet,
-          custom: isTestFile ? { isTest: true } : undefined,
+          custom: {
+            ...(isTestFile ? { isTest: true } : {}),
+            ...(isGeneric ? { isGeneric, typeParameters } : {}),
+          },
         },
       });
     }
@@ -496,6 +531,34 @@ export class GoScanner implements Scanner {
     const braceIndex = fullText.indexOf('{');
     if (braceIndex === -1) return fullText.trim();
     return fullText.slice(0, braceIndex).trim();
+  }
+
+  /**
+   * Extract type parameters from a generic declaration.
+   * Returns { isGeneric, typeParameters } where typeParameters is an array like ["T any", "K comparable"]
+   */
+  private extractTypeParameters(signature: string): {
+    isGeneric: boolean;
+    typeParameters?: string[];
+  } {
+    // Match type parameters in brackets: func Name[T any, K comparable](...) or type Name[T any] struct
+    // Look for [ before ( for functions, or [ after type name for types
+    const typeParamMatch = signature.match(/\[([^\]]+)\]/);
+    if (!typeParamMatch) {
+      return { isGeneric: false };
+    }
+
+    const params = typeParamMatch[1];
+    // Split by comma, but handle constraints like "~int | ~string"
+    const typeParameters = params
+      .split(/,\s*/)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+
+    return {
+      isGeneric: true,
+      typeParameters,
+    };
   }
 
   /**

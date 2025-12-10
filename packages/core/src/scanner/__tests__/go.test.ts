@@ -255,4 +255,103 @@ describe('GoScanner', () => {
       });
     });
   });
+
+  describe('generics support', () => {
+    let genericsDocuments: Document[];
+
+    beforeAll(async () => {
+      genericsDocuments = await scanner.scan(['generics.go'], fixturesDir);
+    });
+
+    describe('generic structs', () => {
+      it('should extract generic struct Stack[T any]', () => {
+        const stack = genericsDocuments.find(
+          (d) => d.metadata.name === 'Stack' && d.type === 'class'
+        );
+        expect(stack).toBeDefined();
+        expect(stack?.metadata.custom?.isGeneric).toBe(true);
+        expect(stack?.metadata.custom?.typeParameters).toEqual(['T any']);
+        expect(stack?.metadata.signature).toContain('[T any]');
+      });
+
+      it('should extract generic struct with multiple type parameters', () => {
+        const pair = genericsDocuments.find(
+          (d) => d.metadata.name === 'Pair' && d.type === 'class'
+        );
+        expect(pair).toBeDefined();
+        expect(pair?.metadata.custom?.isGeneric).toBe(true);
+        expect(pair?.metadata.custom?.typeParameters).toEqual(['K comparable', 'V any']);
+      });
+    });
+
+    describe('generic functions', () => {
+      it('should extract generic function Map[T, U any]', () => {
+        const mapFn = genericsDocuments.find(
+          (d) => d.metadata.name === 'Map' && d.type === 'function'
+        );
+        expect(mapFn).toBeDefined();
+        expect(mapFn?.metadata.custom?.isGeneric).toBe(true);
+        expect(mapFn?.metadata.custom?.typeParameters).toEqual(['T', 'U any']);
+      });
+
+      it('should extract generic function with constraints', () => {
+        const minFn = genericsDocuments.find(
+          (d) => d.metadata.name === 'Min' && d.type === 'function'
+        );
+        expect(minFn).toBeDefined();
+        expect(minFn?.metadata.custom?.isGeneric).toBe(true);
+        expect(minFn?.metadata.custom?.typeParameters).toEqual(['T Ordered']);
+      });
+
+      it('should extract NewPair generic constructor', () => {
+        const newPair = genericsDocuments.find(
+          (d) => d.metadata.name === 'NewPair' && d.type === 'function'
+        );
+        expect(newPair).toBeDefined();
+        expect(newPair?.metadata.custom?.isGeneric).toBe(true);
+        expect(newPair?.metadata.custom?.typeParameters).toEqual(['K comparable', 'V any']);
+      });
+    });
+
+    describe('generic methods', () => {
+      it('should extract method on generic receiver Stack[T]', () => {
+        const push = genericsDocuments.find(
+          (d) => d.metadata.name === 'Stack.Push' && d.type === 'method'
+        );
+        expect(push).toBeDefined();
+        expect(push?.metadata.custom?.receiver).toBe('Stack');
+        expect(push?.metadata.custom?.isGeneric).toBe(true);
+      });
+
+      it('should extract Pop method on generic Stack', () => {
+        const pop = genericsDocuments.find(
+          (d) => d.metadata.name === 'Stack.Pop' && d.type === 'method'
+        );
+        expect(pop).toBeDefined();
+        expect(pop?.metadata.custom?.receiver).toBe('Stack');
+        expect(pop?.metadata.custom?.receiverPointer).toBe(true);
+      });
+    });
+
+    describe('generic interfaces', () => {
+      it('should extract generic interface Comparable[T any]', () => {
+        const comparable = genericsDocuments.find(
+          (d) => d.metadata.name === 'Comparable' && d.type === 'interface'
+        );
+        expect(comparable).toBeDefined();
+        expect(comparable?.metadata.custom?.isGeneric).toBe(true);
+        expect(comparable?.metadata.custom?.typeParameters).toEqual(['T any']);
+      });
+    });
+
+    describe('non-generic items in generic file', () => {
+      it('should not mark non-generic interface as generic', () => {
+        const ordered = genericsDocuments.find(
+          (d) => d.metadata.name === 'Ordered' && d.type === 'interface'
+        );
+        expect(ordered).toBeDefined();
+        expect(ordered?.metadata.custom?.isGeneric).toBeUndefined();
+      });
+    });
+  });
 });
