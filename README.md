@@ -262,15 +262,24 @@ dev-agent/
 └── website/            # Documentation website
 ```
 
+## Supported Languages
+
+| Language | Scanner | Features |
+|----------|---------|----------|
+| **TypeScript/JavaScript** | ts-morph | Functions, classes, interfaces, JSDoc |
+| **Go** | tree-sitter | Functions, methods, structs, interfaces, generics |
+| **Markdown** | remark | Documentation sections, code blocks |
+
 ## Technology Stack
 
 - **TypeScript** (strict mode)
-- **ts-morph** / TypeScript Compiler API (AST analysis)
+- **ts-morph** / TypeScript Compiler API (TypeScript/JS analysis)
+- **tree-sitter** WASM (Go analysis, extensible to Python/Rust)
 - **LanceDB** (embedded vector storage)
 - **@xenova/transformers** (local embeddings)
 - **MCP** (Model Context Protocol)
 - **Turborepo** (monorepo builds)
-- **Vitest** (1300+ tests)
+- **Vitest** (1500+ tests)
 
 ## Development
 
@@ -294,6 +303,11 @@ pnpm typecheck
 
 ## Version History
 
+- **v0.6.0** - Go Language Support
+  - Go scanner with tree-sitter WASM (functions, methods, structs, interfaces, generics)
+  - Indexer logging with `--verbose` flag and progress spinners
+  - Go-specific exclusions (*.pb.go, *.gen.go, mocks/, testdata/)
+  - Infrastructure for future Python/Rust support
 - **v0.4.0** - Intelligent Git History release
   - New `dev_history` tool for semantic commit search
   - Enhanced `dev_map` with change frequency indicators (🔥 hot, ✏️ active)

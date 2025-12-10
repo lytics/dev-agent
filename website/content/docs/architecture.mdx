@@ -48,7 +48,10 @@ dev-agent is built as a TypeScript monorepo with specialized packages for differ
 
 The foundation layer providing:
 
-- **Scanner** — Multi-language AST parsing using TypeScript Compiler API and ts-morph
+- **Scanner** — Multi-language AST parsing:
+  - TypeScript/JavaScript via ts-morph
+  - Go via tree-sitter WASM
+  - Markdown via remark
 - **Indexer** — Converts code components to vector embeddings
 - **Vector Storage** — LanceDB for fast similarity search
 - **GitHub Integration** — Fetches and indexes issues/PRs via GitHub CLI
@@ -91,18 +94,28 @@ Centralized logging:
 - JSON and pretty formatters
 - Structured metadata
 
+## Supported Languages
+
+| Language | Scanner | Features |
+|----------|---------|----------|
+| TypeScript/JavaScript | ts-morph | Functions, classes, interfaces, JSDoc |
+| Go | tree-sitter WASM | Functions, methods, structs, interfaces, generics |
+| Markdown | remark | Documentation sections, code blocks |
+
 ## Key Technologies
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
 | Language | TypeScript (strict) | Type safety |
 | Build | Turborepo | Monorepo orchestration |
-| Testing | Vitest | 1100+ tests |
+| Testing | Vitest | 1500+ tests |
 | Linting | Biome | Fast linting/formatting |
 | Vector DB | LanceDB | Embedded vector storage |
 | Embeddings | @xenova/transformers | Local ML inference |
 | Model | all-MiniLM-L6-v2 | Sentence embeddings |
 | Protocol | MCP | AI tool integration |
+| TS/JS Parser | ts-morph | TypeScript Compiler API |
+| Go Parser | tree-sitter WASM | Fast, portable parsing |
 
 ## Data Flow
 
