@@ -624,6 +624,9 @@ describe('ExplorerAgent', () => {
       // Close the indexer to cause an error
       await indexer.close();
 
+      // Mock the logger to suppress expected error output
+      const errorSpy = vi.spyOn(context.logger, 'error').mockImplementation(() => {});
+
       const message: Message = {
         id: 'msg-error-1',
         type: 'request',
@@ -642,8 +645,10 @@ describe('ExplorerAgent', () => {
       expect(response).toBeDefined();
       expect(response?.type).toBe('error');
       expect(response?.payload).toHaveProperty('error');
+      expect(errorSpy).toHaveBeenCalled();
 
-      // Reinitialize for other tests
+      // Restore logger and reinitialize for other tests
+      errorSpy.mockRestore();
       await indexer.initialize();
       await indexer.index();
     });
