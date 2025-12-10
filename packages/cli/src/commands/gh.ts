@@ -5,10 +5,11 @@
 
 import { getStorageFilePaths, getStoragePath } from '@lytics/dev-agent-core';
 import { GitHubIndexer } from '@lytics/dev-agent-subagents';
+import { createLogger } from '@lytics/kero';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
-import { logger } from '../utils/logger.js';
+import { keroLogger, logger } from '../utils/logger.js';
 
 /**
  * Create GitHub indexer with centralized storage
@@ -52,8 +53,14 @@ export const ghCommand = new Command('gh')
       .option('--prs-only', 'Index only pull requests')
       .option('--state <state>', 'Filter by state (open, closed, merged, all)', 'all')
       .option('--limit <number>', 'Limit number of items to fetch', Number.parseInt)
+      .option('-v, --verbose', 'Verbose output', false)
       .action(async (options) => {
         const spinner = ora('Loading configuration...').start();
+
+        // Create logger for indexing
+        const indexLogger = options.verbose
+          ? createLogger({ level: 'debug', format: 'pretty' })
+          : keroLogger.child({ command: 'gh-index' });
 
         try {
           spinner.text = 'Initializing indexers...';
@@ -82,6 +89,14 @@ export const ghCommand = new Command('gh')
             types: types as ('issue' | 'pull_request')[],
             state: state as ('open' | 'closed' | 'merged')[] | undefined,
             limit: options.limit,
+            logger: indexLogger,
+            onProgress: (progress) => {
+              if (progress.phase === 'fetching') {
+                spinner.text = 'Fetching GitHub issues/PRs...';
+              } else if (progress.phase === 'embedding') {
+                spinner.text = `Embedding ${progress.documentsProcessed}/${progress.totalDocuments} GitHub docs`;
+              }
+            },
           });
 
           spinner.succeed(chalk.green('GitHub data indexed!'));

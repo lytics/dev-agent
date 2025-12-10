@@ -10,10 +10,11 @@ import {
   LocalGitExtractor,
   VectorStorage,
 } from '@lytics/dev-agent-core';
+import { createLogger } from '@lytics/kero';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
-import { logger } from '../utils/logger.js';
+import { keroLogger, logger } from '../utils/logger.js';
 
 /**
  * Create Git indexer with centralized storage
@@ -51,8 +52,14 @@ export const gitCommand = new Command('git')
         '--since <date>',
         'Only index commits after this date (e.g., "2024-01-01", "6 months ago")'
       )
+      .option('-v, --verbose', 'Verbose output', false)
       .action(async (options) => {
         const spinner = ora('Loading configuration...').start();
+
+        // Create logger for indexing
+        const indexLogger = options.verbose
+          ? createLogger({ level: 'debug', format: 'pretty' })
+          : keroLogger.child({ command: 'git-index' });
 
         try {
           spinner.text = 'Initializing git indexer...';
@@ -64,6 +71,13 @@ export const gitCommand = new Command('git')
           const stats = await indexer.index({
             limit: options.limit,
             since: options.since,
+            logger: indexLogger,
+            onProgress: (progress) => {
+              if (progress.phase === 'storing' && progress.totalCommits > 0) {
+                const pct = Math.round((progress.commitsProcessed / progress.totalCommits) * 100);
+                spinner.text = `Embedding ${progress.commitsProcessed}/${progress.totalCommits} commits (${pct}%)`;
+              }
+            },
           });
 
           spinner.succeed(chalk.green('Git history indexed!'));

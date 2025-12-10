@@ -5,7 +5,7 @@
 import { createLogger, type Logger, type LogLevel } from '@lytics/kero';
 
 // Create a logger with pretty output and icons
-const keroLogger = createLogger({
+export const keroLogger = createLogger({
   preset: 'development',
   format: 'pretty',
 });

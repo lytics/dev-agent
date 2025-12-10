@@ -193,7 +193,16 @@ export const indexCommand = new Command('index')
           vectorStorage: gitVectorStore,
         });
 
-        gitStats = await gitIndexer.index({ limit: options.gitLimit });
+        gitStats = await gitIndexer.index({
+          limit: options.gitLimit,
+          logger: indexLogger,
+          onProgress: (progress) => {
+            if (progress.phase === 'storing' && progress.totalCommits > 0) {
+              const pct = Math.round((progress.commitsProcessed / progress.totalCommits) * 100);
+              spinner.text = `Embedding ${progress.commitsProcessed}/${progress.totalCommits} commits (${pct}%)`;
+            }
+          },
+        });
         await gitVectorStore.close();
 
         spinner.succeed(chalk.green('Git history indexed!'));
@@ -219,6 +228,14 @@ export const indexCommand = new Command('index')
 
         ghStats = await ghIndexer.index({
           limit: options.ghLimit,
+          logger: indexLogger,
+          onProgress: (progress) => {
+            if (progress.phase === 'fetching') {
+              spinner.text = 'Fetching GitHub issues/PRs...';
+            } else if (progress.phase === 'embedding') {
+              spinner.text = `Embedding ${progress.documentsProcessed}/${progress.totalDocuments} GitHub docs`;
+            }
+          },
         });
         spinner.succeed(chalk.green('GitHub indexed!'));
         logger.log('');

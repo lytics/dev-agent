@@ -3,6 +3,8 @@
  * Type definitions for GitHub data indexing and context provision
  */
 
+import type { Logger } from '@lytics/kero';
+
 /**
  * Type of GitHub document
  */
@@ -107,6 +109,16 @@ export interface GitHubIndexerState {
 }
 
 /**
+ * Progress information for GitHub indexing
+ */
+export interface GitHubIndexProgress {
+  phase: 'fetching' | 'enriching' | 'embedding' | 'complete';
+  documentsProcessed: number;
+  totalDocuments: number;
+  percentComplete: number;
+}
+
+/**
  * GitHub indexing options
  */
 export interface GitHubIndexOptions {
@@ -115,6 +127,10 @@ export interface GitHubIndexOptions {
   state?: GitHubState[];
   since?: string; // ISO date - only index items updated after this
   limit?: number; // Max items to fetch (for testing)
+  /** Progress callback */
+  onProgress?: (progress: GitHubIndexProgress) => void;
+  /** Logger instance */
+  logger?: Logger;
 }
 
 /**

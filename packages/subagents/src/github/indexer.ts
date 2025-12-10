@@ -79,15 +79,63 @@ export class GitHubIndexer {
    */
   async index(options: GitHubIndexOptions = {}): Promise<GitHubIndexStats> {
     const startTime = Date.now();
+    const onProgress = options.onProgress;
+    const logger = options.logger?.child({ component: 'github-indexer' });
 
-    // Fetch all documents from GitHub
+    logger?.info(
+      { repository: options.repository || this.repository },
+      'Starting GitHub data fetch'
+    );
+
+    // Phase 1: Fetch all documents from GitHub
+    onProgress?.({
+      phase: 'fetching',
+      documentsProcessed: 0,
+      totalDocuments: 0,
+      percentComplete: 0,
+    });
+
     const documents = fetchAllDocuments({
       ...options,
       repository: options.repository || this.repository,
     });
 
-    // Enrich with relationships
+    logger?.info({ documents: documents.length }, 'Fetched GitHub documents');
+
+    // Phase 2: Enrich with relationships
+    onProgress?.({
+      phase: 'enriching',
+      documentsProcessed: 0,
+      totalDocuments: documents.length,
+      percentComplete: 25,
+    });
+
+    logger?.debug({ documents: documents.length }, 'Enriching documents with relationships');
     const enrichedDocs = documents.map((doc) => enrichDocument(doc));
+
+    // Calculate stats by type
+    const byType = enrichedDocs.reduce(
+      (acc, doc) => {
+        acc[doc.type] = (acc[doc.type] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    logger?.info(
+      { issues: byType.issue || 0, prs: byType.pull_request || 0 },
+      'Document breakdown'
+    );
+
+    // Phase 3: Convert and embed
+    onProgress?.({
+      phase: 'embedding',
+      documentsProcessed: 0,
+      totalDocuments: enrichedDocs.length,
+      percentComplete: 50,
+    });
+
+    logger?.info({ documents: enrichedDocs.length }, 'Starting GitHub embedding');
 
     // Convert to vector storage format
     const vectorDocs = enrichedDocs.map((doc) => ({
@@ -114,14 +162,13 @@ export class GitHubIndexer {
     // Duplicates are handled by ID (overwrites existing)
     await this.vectorStorage.addDocuments(vectorDocs);
 
-    // Calculate stats
-    const byType = enrichedDocs.reduce(
-      (acc, doc) => {
-        acc[doc.type] = (acc[doc.type] || 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>
-    );
+    // Phase 4: Complete
+    onProgress?.({
+      phase: 'complete',
+      documentsProcessed: enrichedDocs.length,
+      totalDocuments: enrichedDocs.length,
+      percentComplete: 100,
+    });
 
     const byState = enrichedDocs.reduce(
       (acc, doc) => {
@@ -144,13 +191,19 @@ export class GitHubIndexer {
     // Save state to disk
     await this.saveState();
 
+    const durationMs = Date.now() - startTime;
+    logger?.info(
+      { documents: enrichedDocs.length, duration: `${durationMs}ms` },
+      'GitHub indexing complete'
+    );
+
     return {
       repository: this.repository,
       totalDocuments: enrichedDocs.length,
       byType: byType as Record<'issue' | 'pull_request' | 'discussion', number>,
       byState: byState as Record<'open' | 'closed' | 'merged', number>,
       lastIndexed: this.state.lastIndexed,
-      indexDuration: Date.now() - startTime,
+      indexDuration: durationMs,
     };
   }
 
