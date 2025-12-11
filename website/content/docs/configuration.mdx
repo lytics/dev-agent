@@ -91,6 +91,43 @@ Configuration values can reference environment variables using `${VAR_NAME}` syn
 | `WORKSPACE_FOLDER_PATHS` | Cursor workspace paths | MCP server |
 | `REPOSITORY_PATH` | Explicit repository path | MCP server |
 
+## Performance Tuning
+
+Control scanning and indexing performance using environment variables:
+
+| Variable | Description | Default | Recommended Range |
+|----------|-------------|---------|-------------------|
+| `DEV_AGENT_CONCURRENCY` | Global concurrency setting (applies to all operations) | Auto-detected | 5-30 |
+| `DEV_AGENT_TYPESCRIPT_CONCURRENCY` | TypeScript file processing concurrency | Auto-detected | 5-40 |
+| `DEV_AGENT_INDEXER_CONCURRENCY` | Vector embedding batch concurrency | Auto-detected | 2-10 |
+| `DEV_AGENT_GO_CONCURRENCY` | Go file processing concurrency | Auto-detected | 5-30 |
+
+**Auto-detection:** If no environment variables are set, dev-agent automatically detects optimal concurrency based on your system's CPU and memory.
+
+### Performance Recommendations
+
+| System Type | Global | TypeScript | Indexer | Notes |
+|-------------|--------|------------|---------|-------|
+| Low memory (<4GB) | 5 | 5 | 2 | Prevents OOM errors |
+| Standard (4-8GB) | 15 | 15 | 3 | Balanced performance |
+| High-end (8GB+, 8+ cores) | 30 | 30 | 5 | Maximum speed |
+
+### Usage Examples
+
+**High-performance settings:**
+```bash
+export DEV_AGENT_TYPESCRIPT_CONCURRENCY=30
+export DEV_AGENT_INDEXER_CONCURRENCY=8
+dev index .
+```
+
+**Memory-conservative settings:**
+```bash
+export DEV_AGENT_CONCURRENCY=5
+export DEV_AGENT_INDEXER_CONCURRENCY=2
+dev index .
+```
+
 ## Storage Locations
 
 Dev-agent stores index data in `~/.dev-agent/indexes/`:

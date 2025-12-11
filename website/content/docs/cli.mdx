@@ -24,6 +24,8 @@ Creates a `.dev-agent.json` configuration file with default settings.
 
 Index your repository for semantic search. Indexes code, git history, and GitHub issues/PRs.
 
+*Note: Initial indexing can take 5-10 minutes for large codebases (4k+ files).*
+
 ```bash
 dev index .
 dev index /path/to/repo
@@ -153,16 +155,17 @@ dev git stats
 
 ### `dev update`
 
-Incrementally update the index with changed files.
+Incrementally update the index with changed files. Much faster than full indexing - typically completes in seconds.
 
 ```bash
 dev update
+dev update -v  # Show what files changed
 ```
 
 **Options:**
 | Flag | Description |
 |------|-------------|
-| `-v, --verbose` | Show verbose output |
+| `-v, --verbose` | Show verbose output and which files changed |
 
 ### `dev stats`
 

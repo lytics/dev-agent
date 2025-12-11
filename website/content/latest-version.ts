@@ -4,10 +4,10 @@
  */
 
 export const latestVersion = {
-  version: '0.6.0',
-  title: 'Go Language Support',
-  date: 'December 10, 2025',
+  version: '0.6.1',
+  title: 'Reliability & Performance Improvements',
+  date: 'December 11, 2025',
   summary:
-    'Full Go language support with tree-sitter — functions, methods, structs, interfaces, and generics.',
-  link: '/updates#v060--go-language-support',
+    'Enhanced reliability, performance configuration, and better documentation for Go support.',
+  link: '/updates#v061--reliability--performance-improvements',
 } as const;

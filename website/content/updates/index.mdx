@@ -9,6 +9,66 @@ What's new in dev-agent. We ship improvements regularly to help AI assistants un
 
 ---
 
+## v0.6.1 — Reliability & Performance Improvements
+
+*December 11, 2025*
+
+**Enhanced reliability, performance configuration, and better documentation for the Go support released in v0.6.0.**
+
+### What's New
+
+**⚡ Performance Configuration**
+
+Fine-tune scanning and indexing performance with environment variables:
+
+```bash
+# High-performance systems (8GB+ RAM, 8+ cores)
+export DEV_AGENT_TYPESCRIPT_CONCURRENCY=30
+export DEV_AGENT_INDEXER_CONCURRENCY=8
+
+# Memory-conservative systems (<4GB RAM)
+export DEV_AGENT_CONCURRENCY=5
+export DEV_AGENT_INDEXER_CONCURRENCY=2
+
+dev index .  # Uses your custom settings
+```
+
+**Auto-detection:** If no variables are set, dev-agent automatically detects optimal settings based on your CPU and memory.
+
+**🛠️ Enhanced Reliability**
+
+- **Runtime WASM validation** — Go scanner now validates tree-sitter WASM availability before parsing
+- **Build script improvements** — Prevent silent failures that could break Go support
+- **Better error handling** — Clearer error messages and proper logging levels across all scanners
+
+**📚 Documentation Improvements**
+
+- Document missing `dev update` command for fast incremental indexing
+- Add timing expectations: initial indexing takes 5-10 minutes for large codebases (4k+ files)
+- Enhanced troubleshooting guide with performance tuning recommendations
+- New performance tuning section in configuration docs
+
+**🧪 Testing & Architecture**
+
+- 57 new tests covering utility functions and edge cases
+- Dependency injection for testable file system operations
+- Extracted reusable modules for WASM resolution, concurrency calculation, and file validation
+
+### Migration
+
+No breaking changes. All improvements are backward compatible.
+
+### Environment Variables
+
+| Variable | Description | Auto-Detected Default |
+|----------|-------------|----------------------|
+| `DEV_AGENT_CONCURRENCY` | Global concurrency setting | Based on CPU/memory |
+| `DEV_AGENT_TYPESCRIPT_CONCURRENCY` | TypeScript file processing | Based on system resources |
+| `DEV_AGENT_INDEXER_CONCURRENCY` | Vector embedding batches | Based on available memory |
+| `DEV_AGENT_GO_CONCURRENCY` | Go file processing | Based on system resources |
+
+---
+
 ## v0.6.0 — Go Language Support
 
 *December 10, 2025*
