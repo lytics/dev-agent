@@ -9,6 +9,77 @@ What's new in dev-agent. We ship improvements regularly to help AI assistants un
 
 ---
 
+## v0.6.2 — UX & TypeScript Performance Improvements
+
+*December 11, 2025*
+
+**Enhanced user experience and configurable TypeScript performance optimizations.**
+
+### What's New
+
+**🎯 Improved User Experience**
+
+- **Idempotent MCP install** — `dev mcp install` now shows positive messaging when server already exists instead of erroring
+- **Seamless workflow** — `dev index` automatically uses sensible defaults when no config exists (no manual `dev init` required)
+
+**⚡ TypeScript Performance Optimization**
+
+New default exclusions provide **10-15% indexing performance improvement** for TypeScript projects:
+
+```json
+{
+  "repository": {
+    "excludePatterns": [
+      // Standard exclusions
+      "**/node_modules/**", "**/dist/**", "**/.git/**", "**/coverage/**",
+      // TypeScript performance exclusions (new!)
+      "**/*.mock.ts", "**/*.mock.tsx", "**/mocks/**",
+      "**/*.d.ts", "**/test-utils/**", "**/testing/**"
+    ]
+  }
+}
+```
+
+**🛠️ Full Configurability**
+
+- **Smart defaults** — New users get performance benefits automatically
+- **Complete control** — Fully customizable via `.dev-agent/config.json`
+- **Semantic value preserved** — Stories files kept (contain valuable component documentation)
+
+### Customization Examples
+
+**Include type definition files:**
+```json
+{
+  "repository": {
+    "excludePatterns": [
+      "**/node_modules/**", "**/dist/**", "**/.git/**", "**/coverage/**",
+      "**/*.mock.ts", "**/*.mock.tsx", "**/mocks/**",
+      "**/test-utils/**", "**/testing/**"
+      // Removed "**/*.d.ts" to include type definitions in search
+    ]
+  }
+}
+```
+
+**Add project-specific patterns:**
+```json
+{
+  "repository": {
+    "excludePatterns": [
+      // Default patterns...
+      "**/vendor/**", "**/*.generated.ts", "**/legacy/**"
+    ]
+  }
+}
+```
+
+### Migration
+
+No breaking changes. All improvements are backward compatible.
+
+---
+
 ## v0.6.1 — Reliability & Performance Improvements
 
 *December 11, 2025*

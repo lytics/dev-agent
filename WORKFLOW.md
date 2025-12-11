@@ -134,6 +134,47 @@ gh pr create \
   --base main
 ```
 
+### 7. Changesets & Package Dependencies
+
+**Important: Always create changesets for user-facing changes.**
+
+```bash
+# Create changeset for the changes
+pnpm changeset
+
+# Or create manually in .changeset/ directory
+```
+
+**Package Dependency Rules:**
+- **CLI changes** (`@lytics/dev-agent-cli`) → **ALWAYS bump `@lytics/dev-agent`** (the main wrapper package)
+- **Core changes** (`@lytics/dev-agent-core`) → Usually bump CLI and wrapper
+- **MCP changes** (`@lytics/dev-agent-mcp`) → Usually bump wrapper if user-facing
+- **Documentation only** → No package bumps needed
+
+**Changeset Examples:**
+```bash
+# For CLI improvements that affect end users
+echo '---
+"@lytics/dev-agent-cli": minor
+"@lytics/dev-agent": minor
+---
+
+Add TypeScript performance optimizations' > .changeset/feature-name.md
+
+# For bug fixes
+echo '---
+"@lytics/dev-agent-cli": patch
+"@lytics/dev-agent": patch
+---
+
+Fix MCP install error handling' > .changeset/fix-name.md
+```
+
+**Why the wrapper bump matters:**
+- Users install `dev-agent` globally via npm
+- The wrapper package needs to pull in the latest CLI changes
+- Ensures `npm install -g dev-agent` gets all improvements
+
 ## Commit Message Format
 
 ### Structure
