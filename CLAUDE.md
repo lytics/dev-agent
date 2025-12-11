@@ -232,3 +232,12 @@ For advanced users or development, you can manually configure the MCP server:
    - Graceful shutdown (proper event listener cleanup)
    - Health monitoring (`dev_health` tool)
    - Comprehensive logging with @lytics/kero
+
+5. **Performance Configuration**:
+   - Configurable concurrency via environment variables
+   - Auto-detection based on system resources (CPU/memory)
+   - Environment variables:
+     - `DEV_AGENT_CONCURRENCY` - global concurrency setting
+     - `DEV_AGENT_TYPESCRIPT_CONCURRENCY` - TypeScript file processing
+     - `DEV_AGENT_INDEXER_CONCURRENCY` - vector embedding batches
+   - Example: `export DEV_AGENT_CONCURRENCY=10` before running `dev index .`

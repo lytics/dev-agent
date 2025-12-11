@@ -7,8 +7,9 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { scanRepository } from '../scanner';
 import type { Document } from '../scanner/types';
+import { getCurrentSystemResources, getOptimalConcurrency } from '../utils/concurrency';
 import { VectorStorage } from '../vector';
-import type { SearchOptions, SearchResult } from '../vector/types';
+import type { EmbeddingDocument, SearchOptions, SearchResult } from '../vector/types';
 import type {
   FileMetadata,
   IndexError,
@@ -69,7 +70,7 @@ export class RepositoryIndexer {
     const errors: IndexError[] = [];
     let filesScanned = 0;
     let documentsExtracted = 0;
-    let documentsIndexed = 0;
+    const _documentsIndexed = 0;
 
     try {
       // Phase 1: Scan repository
@@ -90,7 +91,7 @@ export class RepositoryIndexer {
         logger: options.logger,
       });
 
-      filesScanned = scanResult.documents.length;
+      filesScanned = scanResult.stats.filesScanned;
       documentsExtracted = scanResult.documents.length;
 
       // Phase 2: Prepare documents for embedding
@@ -127,44 +128,90 @@ export class RepositoryIndexer {
 
       const batchSize = options.batchSize || this.config.batchSize;
       const totalBatches = Math.ceil(embeddingDocuments.length / batchSize);
-      let batchNum = 0;
 
+      // Process batches in parallel for better performance
+      // Similar to TypeScript scanner: process multiple batches concurrently
+      const CONCURRENCY = this.getOptimalConcurrency('indexer'); // Configurable concurrency
+
+      // Create batches
+      const batches: EmbeddingDocument[][] = [];
       for (let i = 0; i < embeddingDocuments.length; i += batchSize) {
-        const batch = embeddingDocuments.slice(i, i + batchSize);
-        batchNum++;
+        batches.push(embeddingDocuments.slice(i, i + batchSize));
+      }
 
-        try {
-          await this.vectorStorage.addDocuments(batch);
-          documentsIndexed += batch.length;
+      // Process batches in parallel groups
+      let documentsIndexed = 0;
+      const batchGroups: EmbeddingDocument[][][] = [];
+      for (let i = 0; i < batches.length; i += CONCURRENCY) {
+        batchGroups.push(batches.slice(i, i + CONCURRENCY));
+      }
 
-          // Log progress every 10 batches or on last batch
-          if (batchNum % 10 === 0 || batchNum === totalBatches) {
-            logger?.info(
-              { batch: batchNum, totalBatches, documentsIndexed, total: embeddingDocuments.length },
-              `Embedded ${documentsIndexed}/${embeddingDocuments.length} documents`
-            );
+      for (let groupIndex = 0; groupIndex < batchGroups.length; groupIndex++) {
+        const batchGroup = batchGroups[groupIndex];
+
+        // Process all batches in this group concurrently
+        const results = await Promise.allSettled(
+          batchGroup.map(async (batch, batchIndexInGroup) => {
+            const batchNum = groupIndex * CONCURRENCY + batchIndexInGroup + 1;
+            try {
+              await this.vectorStorage.addDocuments(batch);
+              return { success: true, count: batch.length, batchNum };
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : String(error);
+              errors.push({
+                type: 'storage',
+                message: `Failed to store batch ${batchNum}: ${errorMessage}`,
+                error: error instanceof Error ? error : undefined,
+                timestamp: new Date(),
+              });
+              logger?.error({ batch: batchNum, error: errorMessage }, 'Batch embedding failed');
+              return { success: false, count: 0, batchNum };
+            }
+          })
+        );
+
+        // Update progress after each group
+        for (const result of results) {
+          if (result.status === 'fulfilled' && result.value.success) {
+            documentsIndexed += result.value.count;
           }
+        }
 
-          onProgress?.({
-            phase: 'storing',
-            filesProcessed: filesScanned,
-            totalFiles: filesScanned,
-            documentsIndexed,
-            totalDocuments: embeddingDocuments.length,
-            percentComplete: 66 + (documentsIndexed / embeddingDocuments.length) * 33,
-          });
-        } catch (error) {
-          errors.push({
-            type: 'storage',
-            message: `Failed to store batch: ${error instanceof Error ? error.message : String(error)}`,
-            error: error instanceof Error ? error : undefined,
-            timestamp: new Date(),
-          });
-          logger?.error(
-            { batch: batchNum, error: error instanceof Error ? error.message : String(error) },
-            'Batch embedding failed'
+        // Log progress with time estimates every 5 batches or on last group
+        const currentBatchNum = (groupIndex + 1) * CONCURRENCY;
+        if (currentBatchNum % 5 === 0 || groupIndex === batchGroups.length - 1) {
+          const elapsed = Date.now() - startTime.getTime();
+          const docsPerSecond = documentsIndexed / (elapsed / 1000);
+          const remainingDocs = embeddingDocuments.length - documentsIndexed;
+          const etaSeconds = Math.ceil(remainingDocs / docsPerSecond);
+          const etaMinutes = Math.floor(etaSeconds / 60);
+          const etaSecondsRemainder = etaSeconds % 60;
+
+          const etaText =
+            etaMinutes > 0 ? `${etaMinutes}m ${etaSecondsRemainder}s` : `${etaSecondsRemainder}s`;
+
+          logger?.info(
+            {
+              batch: Math.min(currentBatchNum, totalBatches),
+              totalBatches,
+              documentsIndexed,
+              total: embeddingDocuments.length,
+              docsPerSecond: Math.round(docsPerSecond * 10) / 10,
+              eta: etaText,
+            },
+            `Embedded ${documentsIndexed}/${embeddingDocuments.length} documents (${Math.round(docsPerSecond)} docs/sec, ETA: ${etaText})`
           );
         }
+
+        // Update progress callback
+        onProgress?.({
+          phase: 'storing',
+          filesProcessed: filesScanned,
+          totalFiles: filesScanned,
+          documentsIndexed,
+          totalDocuments: embeddingDocuments.length,
+          percentComplete: 66 + (documentsIndexed / embeddingDocuments.length) * 33,
+        });
       }
 
       logger?.info({ documentsIndexed, errors: errors.length }, 'Embedding complete');
@@ -519,6 +566,17 @@ export class RepositoryIndexer {
     const uniqueAdded = [...new Set(added)];
 
     return { changed, added: uniqueAdded, deleted };
+  }
+
+  /**
+   * Get optimal concurrency level based on system resources and environment variables
+   */
+  private getOptimalConcurrency(context: string): number {
+    return getOptimalConcurrency({
+      context,
+      systemResources: getCurrentSystemResources(),
+      environmentVariables: process.env,
+    });
   }
 
   /**

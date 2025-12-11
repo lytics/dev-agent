@@ -16,6 +16,7 @@ import {
   type VariableDeclaration,
   type VariableStatement,
 } from 'ts-morph';
+import { getCurrentSystemResources, getOptimalConcurrency } from '../utils/concurrency';
 import type { CalleeInfo, Document, Scanner, ScannerCapabilities } from './types';
 
 /**
@@ -48,6 +49,17 @@ export class TypeScriptScanner implements Scanner {
     );
   }
 
+  /**
+   * Get optimal concurrency level for TypeScript processing
+   */
+  private getOptimalConcurrency(context: string): number {
+    return getOptimalConcurrency({
+      context,
+      systemResources: getCurrentSystemResources(),
+      environmentVariables: process.env,
+    });
+  }
+
   async scan(files: string[], repoRoot: string, logger?: Logger): Promise<Document[]> {
     // Initialize project with lenient type checking enabled
     // - Allows cross-file symbol resolution for better callee extraction
@@ -77,104 +89,180 @@ export class TypeScriptScanner implements Scanner {
       stack?: string;
     }> = [];
     const total = files.length;
+    let processedCount = 0;
     let successCount = 0;
     let failureCount = 0;
+    const startTime = Date.now();
 
-    // Process each file with error handling - one try-catch per file
-    for (let i = 0; i < total; i++) {
-      const file = files[i];
+    // Process files in parallel batches for better performance
+    // Strategy: Add files to project sequentially (ts-morph state management), then extract in parallel
+    // Promise.all allows the event loop to interleave CPU-bound work, providing 2-3x speedup
+    const CONCURRENCY = this.getOptimalConcurrency('typescript'); // Configurable concurrency
+
+    // Step 1: Add all files to project sequentially (required for ts-morph state management)
+    const sourceFiles = new Map<string, SourceFile>();
+    for (const file of files) {
+      const absolutePath = path.join(repoRoot, file);
+      try {
+        const sourceFile = this.project.addSourceFileAtPath(absolutePath);
+        if (sourceFile) {
+          sourceFiles.set(file, sourceFile);
+        }
+      } catch (_error) {
+        // File failed to add - will be handled in extraction phase
+      }
+    }
+
+    // Step 2: Process files in parallel batches for extraction
+    const fileEntries = Array.from(sourceFiles.entries());
+    const batches: Array<[string, SourceFile][]> = [];
+    for (let i = 0; i < fileEntries.length; i += CONCURRENCY) {
+      batches.push(fileEntries.slice(i, i + CONCURRENCY));
+    }
+
+    // Helper to extract from a single file
+    const extractFile = async (
+      file: string,
+      sourceFile: SourceFile
+    ): Promise<{
+      documents: Document[];
+      error?: { file: string; absolutePath: string; error: string; phase: string; stack?: string };
+    }> => {
       const absolutePath = path.join(repoRoot, file);
 
-      // Log progress every 100 files
-      if (logger && i > 0 && i % 100 === 0) {
-        const percent = Math.round((i / total) * 100);
+      try {
+        const fileDocs = this.extractFromSourceFile(sourceFile, file, repoRoot);
+        return { documents: fileDocs };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+
+        return {
+          documents: [],
+          error: {
+            file,
+            absolutePath,
+            error: errorMessage,
+            phase: 'extractFromSourceFile',
+            stack: errorStack,
+          },
+        };
+      }
+    };
+
+    // Process batches sequentially, files within batch in parallel
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+      const batch = batches[batchIndex];
+      const results = await Promise.all(
+        batch.map(([file, sourceFile]) => extractFile(file, sourceFile))
+      );
+
+      // Collect results
+      for (const result of results) {
+        processedCount++;
+        if (result.error) {
+          errors.push(result.error);
+          failureCount++;
+
+          // Log first 10 errors at INFO level, rest at DEBUG
+          if (errors.length <= 10) {
+            logger?.info(
+              {
+                file: result.error.file,
+                absolutePath: result.error.absolutePath,
+                error: result.error.error,
+                phase: result.error.phase,
+                errorNumber: errors.length,
+              },
+              `[${errors.length}] Skipped file (${result.error.phase}): ${result.error.file}`
+            );
+          } else {
+            logger?.debug(
+              { file: result.error.file, error: result.error.error, phase: result.error.phase },
+              `Skipped file (${result.error.phase})`
+            );
+          }
+        } else {
+          documents.push(...result.documents);
+          successCount++;
+        }
+      }
+
+      // Log progress after each batch (or every 50 files)
+      if (logger && (processedCount % 50 === 0 || batchIndex === batches.length - 1)) {
+        const elapsed = Date.now() - startTime;
+        const filesPerSecond = processedCount / (elapsed / 1000);
+        const remainingFiles = total - processedCount;
+        const etaSeconds = Math.ceil(remainingFiles / filesPerSecond);
+        const etaMinutes = Math.floor(etaSeconds / 60);
+        const etaSecondsRemainder = etaSeconds % 60;
+
+        const etaText =
+          etaMinutes > 0 ? `${etaMinutes}m ${etaSecondsRemainder}s` : `${etaSecondsRemainder}s`;
+
+        const percent = Math.round((processedCount / total) * 100);
         logger.info(
           {
-            filesProcessed: i,
+            filesProcessed: processedCount,
             total,
             percent,
             documents: documents.length,
             successCount,
             failureCount,
-            currentFile: file,
+            batch: `${batchIndex + 1}/${batches.length}`,
+            concurrency: CONCURRENCY,
+            filesPerSecond: Math.round(filesPerSecond * 10) / 10,
+            eta: etaText,
           },
-          `typescript ${i}/${total} (${percent}%) - ${documents.length} docs, ${successCount} succeeded, ${failureCount} failed`
+          `typescript ${processedCount}/${total} (${percent}%) - ${documents.length} docs, ${Math.round(filesPerSecond)} files/sec, ETA: ${etaText} [batch ${batchIndex + 1}/${batches.length}]`
         );
       }
+    }
 
-      try {
-        // addSourceFileAtPath can throw during parsing/symbol resolution
-        const sourceFile = this.project.addSourceFileAtPath(absolutePath);
-        if (!sourceFile) {
-          failureCount++;
-          continue;
-        }
-
-        const fileDocs = this.extractFromSourceFile(sourceFile, file, repoRoot);
-        documents.push(...fileDocs);
-        successCount++;
-      } catch (error) {
-        // Catch and log errors for this file, continue with next file
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const errorStack = error instanceof Error ? error.stack : undefined;
-
-        // Determine phase based on error message or default to 'unknown'
-        let phase = 'unknown';
-        if (
-          errorMessage.includes('addSourceFileAtPath') ||
-          errorMessage.includes('Failed to add file')
-        ) {
-          phase = 'addSourceFileAtPath';
-        } else {
-          phase = 'extractFromSourceFile';
-        }
-
-        errors.push({
-          file,
-          absolutePath,
-          error: errorMessage,
-          phase,
-          stack: errorStack,
-        });
-        failureCount++;
-
-        // Log first 10 errors at INFO level, rest at DEBUG
-        if (errors.length <= 10) {
-          logger?.info(
-            { file, absolutePath, error: errorMessage, phase, errorNumber: errors.length },
-            `[${errors.length}] Skipped file (${phase}): ${file}`
-          );
-        } else {
-          logger?.debug({ file, error: errorMessage, phase }, `Skipped file (${phase})`);
+    // Handle files that failed to add to project
+    const failedToAdd = files.length - sourceFiles.size;
+    if (failedToAdd > 0) {
+      failureCount += failedToAdd;
+      for (const file of files) {
+        if (!sourceFiles.has(file)) {
+          errors.push({
+            file,
+            absolutePath: path.join(repoRoot, file),
+            error: 'Failed to add file to project',
+            phase: 'addSourceFileAtPath',
+          });
         }
       }
     }
 
-    // Log summary
+    // Log summary with grouped error context
     if (errors.length > 0) {
-      const errorRate = Math.round((failureCount / total) * 100);
-      logger?.warn(
-        {
-          totalFiles: total,
-          successCount,
-          failureCount,
-          documentsExtracted: documents.length,
-          errorRate: `${errorRate}%`,
-        },
-        `TypeScript scan completed: ${successCount} succeeded, ${failureCount} failed, ${documents.length} documents extracted`
+      // Group errors by type for summary
+      const errorsByPhase = new Map<string, number>();
+      for (const err of errors) {
+        errorsByPhase.set(err.phase, (errorsByPhase.get(err.phase) || 0) + 1);
+      }
+
+      const errorSummary = Array.from(errorsByPhase.entries())
+        .map(([phase, count]) => `${count} ${phase}`)
+        .join(', ');
+
+      logger?.info(
+        { successCount, failureCount, total, errorSummary, documentsExtracted: documents.length },
+        `TypeScript scan complete: ${successCount}/${total} files processed successfully. Skipped: ${errorSummary}`
       );
 
-      // Log first error for debugging
-      if (errors.length > 0) {
-        logger?.error(
-          { file: errors[0].file, phase: errors[0].phase, error: errors[0].error },
-          `First error: ${errors[0].file} (${errors[0].phase})`
+      // Provide helpful suggestions for common errors
+      const addSourceFileErrors = errorsByPhase.get('addSourceFileAtPath');
+      if (addSourceFileErrors && addSourceFileErrors > 10) {
+        logger?.info(
+          'Many files failed to parse. Consider checking for syntax errors or incompatible TypeScript versions.'
         );
       }
     } else {
       logger?.info(
-        { totalFiles: total, documentsExtracted: documents.length },
-        `TypeScript scan completed successfully: ${documents.length} documents extracted from ${total} files`
+        { successCount, total, documentsExtracted: documents.length },
+        `TypeScript scan complete: ${successCount}/${total} files processed successfully`
       );
     }
 

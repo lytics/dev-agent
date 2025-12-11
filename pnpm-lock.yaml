@@ -140,6 +140,9 @@ importers:
       '@xenova/transformers':
         specifier: ^2.17.2
         version: 2.17.2
+      tree-sitter-wasms:
+        specifier: ^0.1.13
+        version: 0.1.13
       ts-morph:
         specifier: ^27.0.2
         version: 27.0.2

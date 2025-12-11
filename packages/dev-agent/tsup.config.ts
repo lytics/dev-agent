@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'tsup';
 
 // Read version from package.json at build time
@@ -18,6 +18,7 @@ const external = [
   // These have native bindings or complex loading
   'ts-morph',
   'typescript',
+  'web-tree-sitter',
 ];
 
 export default defineConfig([

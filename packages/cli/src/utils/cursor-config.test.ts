@@ -264,7 +264,7 @@ describe('Cursor Config Utilities', () => {
     it('should handle HTTP servers', async () => {
       // Add an HTTP server (like Figma) (type assertion for test data)
       const config = await cursorConfig.readCursorConfig();
-      (config.mcpServers as any)['figma'] = {
+      (config.mcpServers as any).figma = {
         url: 'https://mcp.figma.com/mcp',
         headers: {},
       };
