@@ -9,9 +9,73 @@ What's new in dev-agent. We ship improvements regularly to help AI assistants un
 
 ---
 
+## v0.6.0 — Go Language Support
+
+*December 10, 2025*
+
+**Full Go language support with tree-sitter.** Index Go codebases with the same quality as TypeScript — functions, methods, structs, interfaces, and generics.
+
+### What's New
+
+**🐹 Go Scanner**
+
+dev-agent now fully supports Go codebases:
+
+```go
+// All of these are now indexed and searchable:
+func NewServer(cfg Config) *Server { ... }
+func (s *Server) Start(ctx context.Context) error { ... }
+type Config struct { Host string; Port int }
+type Handler interface { Handle(ctx context.Context) error }
+type Stack[T any] struct { items []T }  // Generics!
+```
+
+**Features:**
+- Functions and methods with receiver information
+- Structs, interfaces, and type aliases
+- Go 1.18+ generics support
+- Go doc comment extraction
+- Exported symbol detection (capital letter convention)
+
+**📋 Progress Logging**
+
+New `--verbose` flag shows detailed progress:
+
+```bash
+dev index . --verbose
+[scanner] Found 4338 go files {language: "go", files: 4338}
+⠧ Embedding 4480/49151 documents (9%)
+[indexer] Embedding complete {documentsIndexed: 49151}
+```
+
+**🚫 Smart Exclusions**
+
+Generated files are automatically skipped:
+- `*.pb.go` — Protobuf
+- `*.gen.go`, `*_gen.go` — Code generators
+- `*.pb.gw.go` — gRPC gateway
+- `mock_*.go`, `mocks/` — Mock files
+- `testdata/` — Test fixtures
+
+### Why This Matters
+
+Go teams can now use dev-agent for semantic code search across their entire codebase. Search for "authentication middleware" and find your Go handlers, not just TypeScript files.
+
+**Tested on:** Large Go codebase (~4k files, 49k documents) ✅
+
+### Technical Details
+
+Go parsing uses **tree-sitter WASM** — the same parser used by GitHub, Neovim, and other tools. This provides:
+- Fast, incremental parsing
+- No Go installation required
+- Portable across platforms
+- Foundation for future Python/Rust support
+
+---
+
 ## v0.5.2 — GitHub Indexing for Large Repositories
 
-*December 6, 2024*
+*December 6, 2025*
 
 **Fixed `ENOBUFS` errors when indexing repositories with many GitHub issues/PRs.** Large active repositories can now be fully indexed without buffer overflow issues.
 
@@ -283,7 +347,8 @@ dev mcp install --cursor
 
 We're working on:
 
-- **More languages** — Better Go and Python support via tree-sitter
+- **Python support** — Using tree-sitter infrastructure from Go scanner
+- **Rust support** — Structs, traits, impl blocks
 - **Parallel search** — Query multiple repos simultaneously
 
 Have ideas? [Open an issue](https://github.com/lytics/dev-agent/issues) or join the discussion.

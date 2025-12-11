@@ -62,20 +62,23 @@ pnpm -F "@lytics/dev-agent-core" dev
 - **packages/mcp-server**: MCP (Model Context Protocol) server implementation
 
 ### Key Technologies
-- TypeScript Compiler API & ts-morph for repository analysis
+- TypeScript Compiler API & ts-morph for TypeScript/JS analysis
+- tree-sitter WASM for Go analysis (extensible to Python/Rust)
 - LanceDB for vector storage (replaced Chroma DB for better performance)
 - @xenova/transformers for local embeddings (all-MiniLM-L6-v2)
 - remark for Markdown parsing
 - GitHub CLI for metadata integration
 - Turborepo for build orchestration
 - Biome for linting/formatting
-- Vitest for testing (1100+ tests)
+- Vitest for testing (1500+ tests)
 - MCP (Model Context Protocol) for AI tool integration
 - Token Bucket algorithm for rate limiting
 - Exponential backoff for retry logic
 
+**Supported Languages:** TypeScript, JavaScript, Go, Markdown
+
 ### Core Components
-- **Scanner**: Uses TypeScript Compiler API and ts-morph to extract components and relationships
+- **Scanner**: Uses ts-morph (TS/JS) and tree-sitter (Go) to extract components and relationships
 - **Vector Storage**: Semantic search with LanceDB and @xenova/transformers embeddings
 - **GitHub Integration**: Metadata extraction and semantic search for issues/PRs using GitHub CLI
 - **Subagent System**: Specialized agents for planning, exploration, and PR management

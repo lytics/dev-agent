@@ -324,15 +324,24 @@ dev-agent/
 └── website/            # Documentation website
 ```
 
+## Supported Languages
+
+| Language | Scanner | Features |
+|----------|---------|----------|
+| **TypeScript/JavaScript** | ts-morph | Functions, classes, interfaces, JSDoc |
+| **Go** | tree-sitter | Functions, methods, structs, interfaces, generics |
+| **Markdown** | remark | Documentation sections, code blocks |
+
 ## Technology Stack
 
 - **TypeScript** (strict mode)
-- **ts-morph** / TypeScript Compiler API (AST analysis)
+- **ts-morph** / TypeScript Compiler API (TypeScript/JS analysis)
+- **tree-sitter** WASM (Go analysis, extensible to Python/Rust)
 - **LanceDB** (embedded vector storage)
 - **@xenova/transformers** (local embeddings)
 - **MCP** (Model Context Protocol)
 - **Turborepo** (monorepo builds)
-- **Vitest** (1300+ tests)
+- **Vitest** (1500+ tests)
 
 ## Development
 
@@ -356,14 +365,18 @@ pnpm typecheck
 
 ## Version History
 
-- **v0.5.0** - Performance & Reliability release
-  - Configurable concurrency via environment variables (`DEV_AGENT_CONCURRENCY`)
+- **v0.6.0** - Go Language Support & Performance Improvements
+  - Go scanner with tree-sitter WASM (functions, methods, structs, interfaces, generics)
+  - Configurable concurrency via environment variables (`DEV_AGENT_*_CONCURRENCY`)
   - Auto-detection of optimal performance settings based on system resources
   - Enhanced error handling and user feedback across all scanners
   - Improved Go scanner with runtime WASM validation and better error messages
   - Parallel processing optimizations for TypeScript scanning and indexing
+  - Indexer logging with `--verbose` flag and progress spinners
+  - Go-specific exclusions (*.pb.go, *.gen.go, mocks/, testdata/)
   - Comprehensive language support documentation (`LANGUAGE_SUPPORT.md`)
   - Build-time validation to prevent silent WASM dependency failures
+  - Infrastructure for future Python/Rust support
 - **v0.4.0** - Intelligent Git History release
   - New `dev_history` tool for semantic commit search
   - Enhanced `dev_map` with change frequency indicators (🔥 hot, ✏️ active)
