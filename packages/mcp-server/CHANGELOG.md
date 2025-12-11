@@ -1,5 +1,13 @@
 # @lytics/dev-agent-mcp
 
+## 0.4.9
+
+### Patch Changes
+
+- Updated dependencies [c13b24f]
+  - @lytics/dev-agent-core@0.7.0
+  - @lytics/dev-agent-subagents@0.4.2
+
 ## 0.4.8
 
 ### Patch Changes

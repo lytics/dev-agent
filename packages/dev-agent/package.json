@@ -1,6 +1,6 @@
 {
   "name": "@lytics/dev-agent",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "private": false,
   "description": "Deep code intelligence + AI subagents via MCP. Local-first semantic code search, GitHub integration, and development planning for AI tools like Cursor and Claude Code.",
   "keywords": [
