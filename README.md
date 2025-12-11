@@ -50,13 +50,16 @@ We benchmarked dev-agent against baseline Claude Code across 5 task types:
 # Install globally
 npm install -g dev-agent
 
-# Index your repository
+# Index your repository (initial indexing can take 5-10 minutes for large codebases)
 cd /path/to/your/repo
 dev index .
 
 # Install MCP integration
 dev mcp install --cursor  # For Cursor IDE
 dev mcp install           # For Claude Code
+
+# Keep index up to date (fast incremental updates)
+dev update
 
 # That's it! AI tools now have access to dev-agent capabilities.
 ```
@@ -186,6 +189,7 @@ Check MCP server and component health.
 ### Production Ready
 - 🛡️ Rate limiting (100 req/min burst)
 - 🔄 Retry logic with exponential backoff
+- ⚡ Incremental indexing (only processes changed files)
 - 💚 Health monitoring
 - 🧹 Memory-safe (circular buffers)
 - ✅ 1300+ tests
@@ -223,9 +227,13 @@ npm link
 ## CLI Commands
 
 ```bash
-# Index everything (code, git history, GitHub)
+# Index everything (code, git history, GitHub) - can take 5-10 min for large codebases
 dev index .
 dev index . --no-github               # Skip GitHub indexing
+
+# Incremental updates (only changed files) - much faster, typically seconds
+dev update                            # Fast incremental reindexing
+dev update -v                         # Verbose output showing what changed
 
 # Semantic search
 dev search "how do agents communicate"
@@ -289,6 +297,7 @@ To add new languages, see [LANGUAGE_SUPPORT.md](LANGUAGE_SUPPORT.md).
 
 **Indexing too slow:**
 ```bash
+# Note: Initial indexing can take 5-10 minutes for mature codebases (4k+ files)
 # Try increasing concurrency (if you have enough memory)
 export DEV_AGENT_CONCURRENCY=20
 dev index .
@@ -300,6 +309,14 @@ dev index .
 export DEV_AGENT_CONCURRENCY=5
 export DEV_AGENT_TYPESCRIPT_CONCURRENCY=5
 export DEV_AGENT_INDEXER_CONCURRENCY=2
+dev index .
+```
+
+**Search results are outdated:**
+```bash
+# Update index with recent file changes
+dev update
+# Or do a full reindex if needed
 dev index .
 ```
 
