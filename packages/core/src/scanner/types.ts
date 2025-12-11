@@ -84,8 +84,11 @@ export interface Scanner {
 
   /**
    * Scan files and extract documents
+   * @param files - List of files to scan (relative paths)
+   * @param repoRoot - Repository root path
+   * @param logger - Optional logger for progress output
    */
-  scan(files: string[], repoRoot: string): Promise<Document[]>;
+  scan(files: string[], repoRoot: string, logger?: Logger): Promise<Document[]>;
 
   /**
    * Check if this scanner can handle a file

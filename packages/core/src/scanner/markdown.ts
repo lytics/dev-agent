@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { Logger } from '@lytics/kero';
 import type { Code, Heading, Paragraph, Root } from 'mdast';
 import remarkParse from 'remark-parse';
 import { unified } from 'unified';
@@ -21,7 +22,7 @@ export class MarkdownScanner implements Scanner {
     return ext === '.md' || ext === '.mdx';
   }
 
-  async scan(files: string[], repoRoot: string): Promise<Document[]> {
+  async scan(files: string[], repoRoot: string, _logger?: Logger): Promise<Document[]> {
     const documents: Document[] = [];
 
     for (const file of files) {

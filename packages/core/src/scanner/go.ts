@@ -5,9 +5,20 @@
  * Uses tree-sitter queries for declarative pattern matching (similar to Aider's approach).
  */
 
-import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { extractGoDocComment, type ParsedTree, parseCode } from './tree-sitter';
+import type { Logger } from '@lytics/kero';
+import {
+  type FileSystemValidator,
+  NodeFileSystemValidator,
+  validateFile,
+} from '../utils/file-validator';
+import {
+  extractGoDocComment,
+  initTreeSitter,
+  loadLanguage,
+  type ParsedTree,
+  parseCode,
+} from './tree-sitter';
 import type { Document, Scanner, ScannerCapabilities } from './types';
 
 /**
@@ -105,18 +116,110 @@ export class GoScanner implements Scanner {
   /** Maximum lines for code snippets */
   private static readonly MAX_SNIPPET_LINES = 50;
 
+  /** File validator (injected for testability) */
+  private fileValidator: FileSystemValidator;
+
+  constructor(fileValidator: FileSystemValidator = new NodeFileSystemValidator()) {
+    this.fileValidator = fileValidator;
+  }
+
   canHandle(filePath: string): boolean {
     const ext = path.extname(filePath).toLowerCase();
     return ext === '.go';
   }
 
-  async scan(files: string[], repoRoot: string): Promise<Document[]> {
-    const documents: Document[] = [];
+  /**
+   * Validate that Go scanning support is available
+   */
+  private async validateGoSupport(): Promise<void> {
+    try {
+      // Try to initialize tree-sitter and load Go language
+      await initTreeSitter();
+      await loadLanguage('go');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('tree-sitter WASM') || errorMessage.includes('Failed to locate')) {
+        throw new Error(
+          'Go tree-sitter WASM files not found. ' +
+            'tree-sitter-go.wasm is required for Go code parsing.'
+        );
+      }
+      throw error;
+    }
+  }
 
-    for (const file of files) {
+  async scan(files: string[], repoRoot: string, logger?: Logger): Promise<Document[]> {
+    const documents: Document[] = [];
+    const total = files.length;
+    const errors: Array<{
+      file: string;
+      absolutePath: string;
+      error: string;
+      phase: string;
+      stack?: string;
+    }> = [];
+
+    // Runtime check: Ensure Go support is available
+    try {
+      await this.validateGoSupport();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger?.error({ error: errorMessage }, 'Go scanner initialization failed');
+      throw new Error(
+        `Go scanner cannot function: ${errorMessage}\n` +
+          'This usually means tree-sitter WASM files are missing.\n' +
+          'If you installed dev-agent from source, run: pnpm build\n' +
+          'If you installed via npm, try reinstalling: npm install -g dev-agent'
+      );
+    }
+
+    const startTime = Date.now();
+
+    for (let i = 0; i < total; i++) {
+      const file = files[i];
+
+      // Log progress every 50 files (more frequent feedback)
+      if (logger && i > 0 && i % 50 === 0) {
+        const elapsed = Date.now() - startTime;
+        const filesPerSecond = i / (elapsed / 1000);
+        const remainingFiles = total - i;
+        const etaSeconds = Math.ceil(remainingFiles / filesPerSecond);
+        const etaMinutes = Math.floor(etaSeconds / 60);
+        const etaSecondsRemainder = etaSeconds % 60;
+
+        const etaText =
+          etaMinutes > 0 ? `${etaMinutes}m ${etaSecondsRemainder}s` : `${etaSecondsRemainder}s`;
+
+        const percent = Math.round((i / total) * 100);
+        logger.info(
+          {
+            filesProcessed: i,
+            total,
+            percent,
+            documents: documents.length,
+            filesPerSecond: Math.round(filesPerSecond * 10) / 10,
+            eta: etaText,
+          },
+          `go ${i}/${total} (${percent}%) - ${documents.length} docs extracted, ${Math.round(filesPerSecond)} files/sec, ETA: ${etaText}`
+        );
+      }
+
       try {
         const absolutePath = path.join(repoRoot, file);
-        const sourceText = fs.readFileSync(absolutePath, 'utf-8');
+
+        // Validate file using testable utility
+        const validation = validateFile(file, absolutePath, this.fileValidator);
+        if (!validation.isValid) {
+          errors.push({
+            file,
+            absolutePath,
+            error: validation.error || 'Unknown validation error',
+            phase: validation.phase || 'fileValidation',
+          });
+          continue;
+        }
+
+        const sourceText = this.fileValidator.readText(absolutePath);
 
         // Skip generated files
         if (this.isGeneratedFile(sourceText)) {
@@ -126,9 +229,63 @@ export class GoScanner implements Scanner {
         const fileDocs = await this.extractFromFile(sourceText, file);
         documents.push(...fileDocs);
       } catch (error) {
-        // Log error but continue with other files
-        console.error(`Error scanning ${file}:`, error);
+        // Collect detailed error information
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+
+        errors.push({
+          file,
+          absolutePath: path.join(repoRoot, file),
+          error: errorMessage,
+          phase: 'extractFromFile',
+          stack: errorStack,
+        });
+
+        // Log first 10 errors at INFO level, rest at DEBUG
+        if (errors.length <= 10) {
+          logger?.info(
+            {
+              file,
+              absolutePath: path.join(repoRoot, file),
+              error: errorMessage,
+              phase: 'extractFromFile',
+              errorNumber: errors.length,
+            },
+            `[${errors.length}] Skipped Go file (extractFromFile): ${file}`
+          );
+        } else {
+          logger?.debug(
+            { file, error: errorMessage, phase: 'extractFromFile' },
+            `Skipped Go file (extractFromFile): ${file}`
+          );
+        }
       }
+    }
+
+    // Log final summary
+    const successCount = documents.length;
+    const failureCount = errors.length;
+
+    if (failureCount > 0) {
+      // Group errors by type for summary
+      const errorsByPhase = new Map<string, number>();
+      for (const err of errors) {
+        errorsByPhase.set(err.phase, (errorsByPhase.get(err.phase) || 0) + 1);
+      }
+
+      const errorSummary = Array.from(errorsByPhase.entries())
+        .map(([phase, count]) => `${count} ${phase}`)
+        .join(', ');
+
+      logger?.info(
+        { successCount, failureCount, total, errorSummary },
+        `Go scan complete: ${successCount}/${total} files processed successfully. Skipped: ${errorSummary}`
+      );
+    } else {
+      logger?.info(
+        { successCount, total },
+        `Go scan complete: ${successCount}/${total} files processed successfully`
+      );
     }
 
     return documents;

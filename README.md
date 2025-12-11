@@ -248,6 +248,68 @@ dev mcp install                       # Install for Claude Code
 dev mcp list                          # List configured servers
 ```
 
+## Configuration
+
+### Performance Tuning
+
+Control scanning and indexing performance using environment variables:
+
+```bash
+# Global concurrency setting (applies to all operations)
+export DEV_AGENT_CONCURRENCY=10
+
+# Language-specific concurrency settings
+export DEV_AGENT_TYPESCRIPT_CONCURRENCY=20  # TypeScript file processing
+export DEV_AGENT_INDEXER_CONCURRENCY=5      # Vector embedding batches
+
+# Index with custom settings
+dev index .
+```
+
+**Auto-detection:** If no environment variables are set, dev-agent automatically detects optimal concurrency based on your system's CPU and memory.
+
+**Recommended settings:**
+
+| System Type | Global | TypeScript | Indexer | Notes |
+|-------------|--------|------------|---------|-------|
+| Low memory (<4GB) | 5 | 5 | 2 | Prevents OOM errors |
+| Standard (4-8GB) | 15 | 15 | 3 | Balanced performance |
+| High-end (8GB+, 8+ cores) | 30 | 30 | 5 | Maximum speed |
+
+### Language Support
+
+Current language support:
+
+- **TypeScript/JavaScript**: Full support (`.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`)
+- **Go**: Full support (`.go`)
+
+To add new languages, see [LANGUAGE_SUPPORT.md](LANGUAGE_SUPPORT.md).
+
+### Troubleshooting
+
+**Indexing too slow:**
+```bash
+# Try increasing concurrency (if you have enough memory)
+export DEV_AGENT_CONCURRENCY=20
+dev index .
+```
+
+**Out of memory errors:**
+```bash
+# Reduce concurrency
+export DEV_AGENT_CONCURRENCY=5
+export DEV_AGENT_TYPESCRIPT_CONCURRENCY=5
+export DEV_AGENT_INDEXER_CONCURRENCY=2
+dev index .
+```
+
+**Go scanner not working:**
+```bash
+# Check if WASM files are bundled (after installation/build)
+ls -la ~/.local/share/dev-agent/dist/wasm/tree-sitter-go.wasm
+# If missing, try reinstalling or rebuilding from source
+```
+
 ## Project Structure
 
 ```
@@ -303,10 +365,17 @@ pnpm typecheck
 
 ## Version History
 
-- **v0.6.0** - Go Language Support
+- **v0.6.0** - Go Language Support & Performance Improvements
   - Go scanner with tree-sitter WASM (functions, methods, structs, interfaces, generics)
+  - Configurable concurrency via environment variables (`DEV_AGENT_*_CONCURRENCY`)
+  - Auto-detection of optimal performance settings based on system resources
+  - Enhanced error handling and user feedback across all scanners
+  - Improved Go scanner with runtime WASM validation and better error messages
+  - Parallel processing optimizations for TypeScript scanning and indexing
   - Indexer logging with `--verbose` flag and progress spinners
   - Go-specific exclusions (*.pb.go, *.gen.go, mocks/, testdata/)
+  - Comprehensive language support documentation (`LANGUAGE_SUPPORT.md`)
+  - Build-time validation to prevent silent WASM dependency failures
   - Infrastructure for future Python/Rust support
 - **v0.4.0** - Intelligent Git History release
   - New `dev_history` tool for semantic commit search

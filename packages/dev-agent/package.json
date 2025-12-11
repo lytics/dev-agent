@@ -39,15 +39,17 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node scripts/copy-wasm.js",
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
     "@lancedb/lancedb": "^0.22.3",
     "@xenova/transformers": "^2.17.2",
-    "ts-morph": "^27.0.2"
+    "ts-morph": "^27.0.2",
+    "web-tree-sitter": "^0.25.10"
   },
   "devDependencies": {
+    "tree-sitter-wasms": "^0.1.13",
     "@lytics/dev-agent-cli": "workspace:*",
     "@lytics/dev-agent-mcp": "workspace:*",
     "@types/node": "^22.0.0",

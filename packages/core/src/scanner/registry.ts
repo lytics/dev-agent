@@ -132,7 +132,7 @@ export class ScannerRegistry {
       });
 
       try {
-        const documents = await scanner.scan(scannerFiles, options.repoRoot);
+        const documents = await scanner.scan(scannerFiles, options.repoRoot, logger);
         allDocuments.push(...documents);
         totalFilesScanned += scannerFiles.length;
 

@@ -1,11 +1,8 @@
 /**
- * Core utility functions
+ * Utility modules for dev-agent core
  */
 
-export {
-  RetryError,
-  type RetryOptions,
-  RetryPredicates,
-  retryWithDelays,
-  withRetry,
-} from './retry';
+export * from './concurrency';
+export * from './file-validator';
+export * from './retry';
+export * from './wasm-resolver';

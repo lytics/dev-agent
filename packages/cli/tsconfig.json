@@ -6,7 +6,12 @@
     "composite": true,
     "types": ["node", "vitest/globals"]
   },
-  "references": [{ "path": "../core" }, { "path": "../mcp-server" }, { "path": "../subagents" }, { "path": "../logger" }],
+  "references": [
+    { "path": "../core" },
+    { "path": "../mcp-server" },
+    { "path": "../subagents" },
+    { "path": "../logger" }
+  ],
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
