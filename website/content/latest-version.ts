@@ -4,10 +4,9 @@
  */
 
 export const latestVersion = {
-  version: '0.6.1',
-  title: 'Reliability & Performance Improvements',
+  version: '0.6.2',
+  title: 'UX & TypeScript Performance Improvements',
   date: 'December 11, 2025',
-  summary:
-    'Enhanced reliability, performance configuration, and better documentation for Go support.',
-  link: '/updates#v061--reliability--performance-improvements',
+  summary: 'Enhanced user experience and configurable TypeScript performance optimizations.',
+  link: '/updates#v062--ux--typescript-performance-improvements',
 } as const;

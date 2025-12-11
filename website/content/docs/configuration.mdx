@@ -42,10 +42,21 @@ Run `dev init` to create a configuration file at `.dev-agent/config.json`:
 | `repository.languages` | string[] | `["typescript", "javascript", "markdown"]` | Languages to index |
 
 **Default Exclude Patterns:**
-- `**/node_modules/**`
-- `**/dist/**`
-- `**/.git/**`
-- `**/coverage/**`
+
+*Standard exclusions (all languages):*
+- `**/node_modules/**` - Dependencies
+- `**/dist/**`, `**/build/**` - Build outputs
+- `**/.git/**` - Version control
+- `**/coverage/**` - Test coverage reports
+
+*TypeScript performance exclusions (configurable):*
+- `**/*.mock.ts`, `**/*.mock.tsx`, `**/mocks/**` - Mock files (no business logic)
+- `**/*.d.ts` - Type definition files (verbose, auto-generated)
+- `**/test-utils/**`, `**/testing/**` - Test infrastructure (framework code)
+
+*Go-specific exclusions:*
+- `**/*.pb.go`, `**/*.gen.go` - Generated code (protobuf, codegen)
+- `**/testdata/**` - Test fixtures
 
 ### MCP Adapter Settings
 
@@ -213,19 +224,49 @@ The model is downloaded on first run (~23MB) and cached locally.
 
 ## Advanced: Custom Exclude Patterns
 
-Add project-specific patterns:
+### Default Patterns
+Running `dev init` creates a config with these default exclusions:
 
 ```json
 {
   "repository": {
     "excludePatterns": [
-      "**/node_modules/**",
-      "**/dist/**",
-      "**/.git/**",
-      "**/coverage/**",
-      "**/vendor/**",
-      "**/*.generated.ts",
-      "**/legacy/**"
+      // Standard exclusions
+      "**/node_modules/**", "**/dist/**", "**/.git/**", "**/coverage/**",
+      // TypeScript performance exclusions
+      "**/*.mock.ts", "**/*.mock.tsx", "**/mocks/**",
+      "**/*.d.ts", "**/test-utils/**", "**/testing/**"
+    ]
+  }
+}
+```
+
+### Customization Options
+
+**Add project-specific patterns:**
+```json
+{
+  "repository": {
+    "excludePatterns": [
+      "**/node_modules/**", "**/dist/**", "**/.git/**", "**/coverage/**",
+      "**/*.mock.ts", "**/*.mock.tsx", "**/mocks/**", "**/*.d.ts",
+      "**/test-utils/**", "**/testing/**",
+      // Your custom patterns
+      "**/vendor/**", "**/*.generated.ts", "**/legacy/**"
+    ]
+  }
+}
+```
+
+**Include TypeScript definition files (if desired):**
+```json
+{
+  "repository": {
+    "excludePatterns": [
+      "**/node_modules/**", "**/dist/**", "**/.git/**", "**/coverage/**",
+      "**/*.mock.ts", "**/*.mock.tsx", "**/mocks/**",
+      "**/test-utils/**", "**/testing/**"
+      // Removed "**/*.d.ts" to include type definitions in search
     ]
   }
 }

@@ -350,14 +350,28 @@ export const mcpCommand = new Command('mcp')
                 logger.log(`Repository: ${chalk.yellow(repositoryPath)}`);
                 logger.log(`Storage: ${chalk.yellow(storagePath)}`);
               } else {
-                spinner.fail('Failed to install MCP server in Claude Code');
-                if (error) {
-                  logger.error(error);
+                // Check if error is due to server already existing
+                const errorText = error.toLowerCase();
+                if (
+                  errorText.includes('already exists') ||
+                  errorText.includes('dev-agent already exists')
+                ) {
+                  spinner.info(chalk.yellow('MCP server already installed in Claude Code!'));
+                  logger.log('');
+                  logger.log(`Server name: ${chalk.cyan('dev-agent')}`);
+                  logger.log(`Repository: ${chalk.gray(repositoryPath)}`);
+                  logger.log('');
+                  logger.log(`Run ${chalk.cyan('claude mcp list')} to see all servers`);
+                } else {
+                  spinner.fail('Failed to install MCP server in Claude Code');
+                  if (error) {
+                    logger.error(error);
+                  }
+                  if (output) {
+                    logger.log(output);
+                  }
+                  process.exit(1);
                 }
-                if (output) {
-                  logger.log(output);
-                }
-                process.exit(1);
               }
             });
           }

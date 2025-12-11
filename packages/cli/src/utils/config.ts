@@ -199,7 +199,20 @@ export function getDefaultConfig(repositoryPath: string = process.cwd()): DevAge
     version: DEFAULT_VERSION,
     repository: {
       path: '.',
-      excludePatterns: ['**/node_modules/**', '**/dist/**', '**/.git/**', '**/coverage/**'],
+      excludePatterns: [
+        // Standard exclusions
+        '**/node_modules/**',
+        '**/dist/**',
+        '**/.git/**',
+        '**/coverage/**',
+        // TypeScript performance exclusions
+        '**/*.mock.ts',
+        '**/*.mock.tsx',
+        '**/mocks/**',
+        '**/*.d.ts',
+        '**/test-utils/**',
+        '**/testing/**',
+      ],
       languages: ['typescript', 'javascript', 'markdown'],
     },
     mcp: {
@@ -217,7 +230,20 @@ export function getDefaultConfig(repositoryPath: string = process.cwd()): DevAge
     },
     // Legacy fields for backward compatibility
     repositoryPath: resolvedPath,
-    excludePatterns: ['**/node_modules/**', '**/dist/**', '**/.git/**', '**/coverage/**'],
+    excludePatterns: [
+      // Standard exclusions
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/.git/**',
+      '**/coverage/**',
+      // TypeScript performance exclusions
+      '**/*.mock.ts',
+      '**/*.mock.tsx',
+      '**/mocks/**',
+      '**/*.d.ts',
+      '**/test-utils/**',
+      '**/testing/**',
+    ],
     languages: ['typescript', 'javascript', 'markdown'],
     embeddingModel: 'Xenova/all-MiniLM-L6-v2',
     dimension: 384,
