@@ -1,5 +1,12 @@
 # @lytics/dev-agent-subagents
 
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies [b675fc9]
+  - @lytics/dev-agent-core@0.6.1
+
 ## 0.4.0
 
 ### Minor Changes
