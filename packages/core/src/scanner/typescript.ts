@@ -1,4 +1,5 @@
 import * as path from 'node:path';
+import type { Logger } from '@lytics/kero';
 import {
   type ArrowFunction,
   type CallExpression,
@@ -47,27 +48,139 @@ export class TypeScriptScanner implements Scanner {
     );
   }
 
-  async scan(files: string[], repoRoot: string): Promise<Document[]> {
-    // Initialize project
+  async scan(files: string[], repoRoot: string, logger?: Logger): Promise<Document[]> {
+    // Initialize project with lenient type checking enabled
+    // - Allows cross-file symbol resolution for better callee extraction
+    // - Keeps strict checks disabled to avoid blocking on type errors
     this.project = new Project({
-      tsConfigFilePath: path.join(repoRoot, 'tsconfig.json'),
       skipAddingFilesFromTsConfig: true,
+      skipFileDependencyResolution: false, // Enable dependency resolution for type checking
+      compilerOptions: {
+        allowJs: true,
+        checkJs: false, // Don't type-check JS files (too noisy)
+        noEmit: true,
+        skipLibCheck: true, // Skip checking .d.ts files for speed
+        noResolve: false, // Enable module resolution for type checking
+        // Lenient type checking - don't fail on errors
+        noImplicitAny: false,
+        strictNullChecks: false,
+        strict: false,
+      },
     });
 
-    // Add files to project
-    const absoluteFiles = files.map((f) => path.join(repoRoot, f));
-    this.project.addSourceFilesAtPaths(absoluteFiles);
-
     const documents: Document[] = [];
+    const errors: Array<{
+      file: string;
+      absolutePath: string;
+      error: string;
+      phase: string;
+      stack?: string;
+    }> = [];
+    const total = files.length;
+    let successCount = 0;
+    let failureCount = 0;
 
-    // Extract documents from each file
-    for (const file of files) {
+    // Process each file with error handling - one try-catch per file
+    for (let i = 0; i < total; i++) {
+      const file = files[i];
       const absolutePath = path.join(repoRoot, file);
-      const sourceFile = this.project.getSourceFile(absolutePath);
 
-      if (!sourceFile) continue;
+      // Log progress every 100 files
+      if (logger && i > 0 && i % 100 === 0) {
+        const percent = Math.round((i / total) * 100);
+        logger.info(
+          {
+            filesProcessed: i,
+            total,
+            percent,
+            documents: documents.length,
+            successCount,
+            failureCount,
+            currentFile: file,
+          },
+          `typescript ${i}/${total} (${percent}%) - ${documents.length} docs, ${successCount} succeeded, ${failureCount} failed`
+        );
+      }
 
-      documents.push(...this.extractFromSourceFile(sourceFile, file, repoRoot));
+      try {
+        // addSourceFileAtPath can throw during parsing/symbol resolution
+        const sourceFile = this.project.addSourceFileAtPath(absolutePath);
+        if (!sourceFile) {
+          failureCount++;
+          continue;
+        }
+
+        const fileDocs = this.extractFromSourceFile(sourceFile, file, repoRoot);
+        documents.push(...fileDocs);
+        successCount++;
+      } catch (error) {
+        // Catch and log errors for this file, continue with next file
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+
+        // Determine phase based on error message or default to 'unknown'
+        let phase = 'unknown';
+        if (
+          errorMessage.includes('addSourceFileAtPath') ||
+          errorMessage.includes('Failed to add file')
+        ) {
+          phase = 'addSourceFileAtPath';
+        } else {
+          phase = 'extractFromSourceFile';
+        }
+
+        errors.push({
+          file,
+          absolutePath,
+          error: errorMessage,
+          phase,
+          stack: errorStack,
+        });
+        failureCount++;
+
+        // Log first 10 errors at INFO level, rest at DEBUG
+        if (errors.length <= 10) {
+          logger?.info(
+            { file, absolutePath, error: errorMessage, phase, errorNumber: errors.length },
+            `[${errors.length}] Skipped file (${phase}): ${file}`
+          );
+        } else {
+          logger?.debug({ file, error: errorMessage, phase }, `Skipped file (${phase})`);
+        }
+      }
+    }
+
+    // Log summary
+    if (errors.length > 0) {
+      const errorRate = Math.round((failureCount / total) * 100);
+      logger?.warn(
+        {
+          totalFiles: total,
+          successCount,
+          failureCount,
+          documentsExtracted: documents.length,
+          errorRate: `${errorRate}%`,
+        },
+        `TypeScript scan completed: ${successCount} succeeded, ${failureCount} failed, ${documents.length} documents extracted`
+      );
+
+      // Log first error for debugging
+      if (errors.length > 0) {
+        logger?.error(
+          { file: errors[0].file, phase: errors[0].phase, error: errors[0].error },
+          `First error: ${errors[0].file} (${errors[0].phase})`
+        );
+      }
+    } else {
+      logger?.info(
+        { totalFiles: total, documentsExtracted: documents.length },
+        `TypeScript scan completed successfully: ${documents.length} documents extracted from ${total} files`
+      );
+    }
+
+    // Partial success is acceptable - only fail if zero documents extracted
+    if (errors.length > 0 && documents.length === 0) {
+      throw new Error(`TypeScript scan failed: ${errors[0].error} (in ${errors[0].file})`);
     }
 
     return documents;
@@ -81,75 +194,118 @@ export class TypeScriptScanner implements Scanner {
     const documents: Document[] = [];
 
     // Extract file-level imports once (shared by all components in this file)
-    const imports = this.extractImports(sourceFile);
+    let imports: string[] = [];
+    try {
+      imports = this.extractImports(sourceFile);
+    } catch {
+      // Continue with empty imports if extraction fails
+    }
+
+    // Helper to safely iterate and extract - ts-morph can throw on complex/malformed code
+    const safeIterate = <T>(getter: () => T[], processor: (item: T) => void): void => {
+      try {
+        const items = getter();
+        for (const item of items) {
+          try {
+            processor(item);
+          } catch {
+            // Skip this item if processing fails
+          }
+        }
+      } catch {
+        // Skip this category if iteration fails
+      }
+    };
 
     // Extract functions
-    for (const fn of sourceFile.getFunctions()) {
-      const doc = this.extractFunction(fn, relativeFile, imports, sourceFile);
-      if (doc) documents.push(doc);
-    }
-
-    // Extract classes
-    for (const cls of sourceFile.getClasses()) {
-      const doc = this.extractClass(cls, relativeFile, imports);
-      if (doc) documents.push(doc);
-
-      // Extract methods
-      for (const method of cls.getMethods()) {
-        const methodDoc = this.extractMethod(
-          method,
-          cls.getName() || 'Anonymous',
-          relativeFile,
-          imports,
-          sourceFile
-        );
-        if (methodDoc) documents.push(methodDoc);
+    safeIterate(
+      () => sourceFile.getFunctions(),
+      (fn) => {
+        const doc = this.extractFunction(fn, relativeFile, imports, sourceFile);
+        if (doc) documents.push(doc);
       }
-    }
+    );
+
+    // Extract classes and their methods
+    safeIterate(
+      () => sourceFile.getClasses(),
+      (cls) => {
+        const doc = this.extractClass(cls, relativeFile, imports);
+        if (doc) documents.push(doc);
+
+        // Extract methods
+        safeIterate(
+          () => cls.getMethods(),
+          (method) => {
+            const methodDoc = this.extractMethod(
+              method,
+              cls.getName() || 'Anonymous',
+              relativeFile,
+              imports,
+              sourceFile
+            );
+            if (methodDoc) documents.push(methodDoc);
+          }
+        );
+      }
+    );
 
     // Extract interfaces
-    for (const iface of sourceFile.getInterfaces()) {
-      const doc = this.extractInterface(iface, relativeFile, imports);
-      if (doc) documents.push(doc);
-    }
+    safeIterate(
+      () => sourceFile.getInterfaces(),
+      (iface) => {
+        const doc = this.extractInterface(iface, relativeFile, imports);
+        if (doc) documents.push(doc);
+      }
+    );
 
     // Extract type aliases
-    for (const typeAlias of sourceFile.getTypeAliases()) {
-      const doc = this.extractTypeAlias(typeAlias, relativeFile, imports);
-      if (doc) documents.push(doc);
-    }
+    safeIterate(
+      () => sourceFile.getTypeAliases(),
+      (typeAlias) => {
+        const doc = this.extractTypeAlias(typeAlias, relativeFile, imports);
+        if (doc) documents.push(doc);
+      }
+    );
 
     // Extract variables with arrow functions, function expressions, or exported constants
-    for (const varStmt of sourceFile.getVariableStatements()) {
-      for (const decl of varStmt.getDeclarations()) {
-        const initializer = decl.getInitializer();
-        if (!initializer) continue;
+    safeIterate(
+      () => sourceFile.getVariableStatements(),
+      (varStmt) => {
+        for (const decl of varStmt.getDeclarations()) {
+          try {
+            const initializer = decl.getInitializer();
+            if (!initializer) continue;
 
-        const kind = initializer.getKind();
+            const kind = initializer.getKind();
 
-        // Arrow functions and function expressions (any export status)
-        if (kind === SyntaxKind.ArrowFunction || kind === SyntaxKind.FunctionExpression) {
-          const doc = this.extractVariableWithFunction(
-            decl,
-            varStmt,
-            relativeFile,
-            imports,
-            sourceFile
-          );
-          if (doc) documents.push(doc);
-        }
-        // Exported constants with object/array/call expression initializers
-        else if (
-          varStmt.isExported() &&
-          (kind === SyntaxKind.ObjectLiteralExpression ||
-            kind === SyntaxKind.ArrayLiteralExpression ||
-            kind === SyntaxKind.CallExpression)
-        ) {
-          const doc = this.extractExportedConstant(decl, varStmt, relativeFile, imports);
-          if (doc) documents.push(doc);
+            // Arrow functions and function expressions (any export status)
+            if (kind === SyntaxKind.ArrowFunction || kind === SyntaxKind.FunctionExpression) {
+              const doc = this.extractVariableWithFunction(
+                decl,
+                varStmt,
+                relativeFile,
+                imports,
+                sourceFile
+              );
+              if (doc) documents.push(doc);
+            }
+            // Exported constants with object/array/call expression initializers
+            else if (
+              varStmt.isExported() &&
+              (kind === SyntaxKind.ObjectLiteralExpression ||
+                kind === SyntaxKind.ArrayLiteralExpression ||
+                kind === SyntaxKind.CallExpression)
+            ) {
+              const doc = this.extractExportedConstant(decl, varStmt, relativeFile, imports);
+              if (doc) documents.push(doc);
+            }
+          } catch {
+            // Skip this declaration if processing fails
+          }
         }
       }
-    }
+    );
 
     return documents;
   }
@@ -605,36 +761,49 @@ export class TypeScriptScanner implements Scanner {
     const callees: CalleeInfo[] = [];
     const seenCalls = new Set<string>(); // Deduplicate by name+line
 
-    // Get all call expressions within this node
-    const callExpressions = node.getDescendantsOfKind(SyntaxKind.CallExpression);
+    try {
+      // Get all call expressions within this node
+      const callExpressions = node.getDescendantsOfKind(SyntaxKind.CallExpression);
 
-    for (const callExpr of callExpressions) {
-      const calleeInfo = this.extractCalleeFromExpression(callExpr, sourceFile);
-      if (calleeInfo) {
-        const key = `${calleeInfo.name}:${calleeInfo.line}`;
-        if (!seenCalls.has(key)) {
-          seenCalls.add(key);
-          callees.push(calleeInfo);
+      for (const callExpr of callExpressions) {
+        try {
+          const calleeInfo = this.extractCalleeFromExpression(callExpr, sourceFile);
+          if (calleeInfo) {
+            const key = `${calleeInfo.name}:${calleeInfo.line}`;
+            if (!seenCalls.has(key)) {
+              seenCalls.add(key);
+              callees.push(calleeInfo);
+            }
+          }
+        } catch {
+          // Skip this call expression if it fails
         }
       }
-    }
 
-    // Also handle new expressions (constructor calls)
-    const newExpressions = node.getDescendantsOfKind(SyntaxKind.NewExpression);
-    for (const newExpr of newExpressions) {
-      const expression = newExpr.getExpression();
-      const name = expression.getText();
-      const line = newExpr.getStartLineNumber();
-      const key = `new ${name}:${line}`;
+      // Also handle new expressions (constructor calls)
+      const newExpressions = node.getDescendantsOfKind(SyntaxKind.NewExpression);
+      for (const newExpr of newExpressions) {
+        try {
+          const expression = newExpr.getExpression();
+          const name = expression.getText();
+          const line = newExpr.getStartLineNumber();
+          const key = `new ${name}:${line}`;
 
-      if (!seenCalls.has(key)) {
-        seenCalls.add(key);
-        callees.push({
-          name: `new ${name}`,
-          line,
-          file: undefined, // Could resolve via type checker if needed
-        });
+          if (!seenCalls.has(key)) {
+            seenCalls.add(key);
+            callees.push({
+              name: `new ${name}`,
+              line,
+              file: undefined, // Could resolve via type checker if needed
+            });
+          }
+        } catch {
+          // Skip this new expression if it fails
+        }
       }
+    } catch {
+      // If callee extraction fails entirely, return empty array
+      // This is better than crashing the entire scan
     }
 
     return callees;
@@ -667,15 +836,21 @@ export class TypeScriptScanner implements Scanner {
     let file: string | undefined;
     try {
       // Get the symbol and find its declaration
+      // Note: getSymbol() can throw internally when accessing escapedName on undefined nodes
       const symbol = expression.getSymbol();
       if (symbol) {
         const declarations = symbol.getDeclarations();
-        if (declarations.length > 0) {
-          const declSourceFile = declarations[0].getSourceFile();
-          const filePath = declSourceFile.getFilePath();
-          // Only include if it's within the project (not node_modules)
-          if (!filePath.includes('node_modules')) {
-            file = filePath;
+        if (declarations && declarations.length > 0) {
+          const firstDecl = declarations[0];
+          if (firstDecl) {
+            const declSourceFile = firstDecl.getSourceFile();
+            if (declSourceFile) {
+              const filePath = declSourceFile.getFilePath();
+              // Only include if it's within the project (not node_modules)
+              if (filePath && !filePath.includes('node_modules')) {
+                file = filePath;
+              }
+            }
           }
         }
       }

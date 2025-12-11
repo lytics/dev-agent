@@ -7,6 +7,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import type { Logger } from '@lytics/kero';
 import { extractGoDocComment, type ParsedTree, parseCode } from './tree-sitter';
 import type { Document, Scanner, ScannerCapabilities } from './types';
 
@@ -110,10 +111,22 @@ export class GoScanner implements Scanner {
     return ext === '.go';
   }
 
-  async scan(files: string[], repoRoot: string): Promise<Document[]> {
+  async scan(files: string[], repoRoot: string, logger?: Logger): Promise<Document[]> {
     const documents: Document[] = [];
+    const total = files.length;
 
-    for (const file of files) {
+    for (let i = 0; i < total; i++) {
+      const file = files[i];
+
+      // Log progress every 100 files
+      if (logger && i > 0 && i % 100 === 0) {
+        const percent = Math.round((i / total) * 100);
+        logger.info(
+          { filesProcessed: i, total, percent, documents: documents.length, currentFile: file },
+          `go ${i}/${total} (${percent}%) - ${documents.length} docs`
+        );
+      }
+
       try {
         const absolutePath = path.join(repoRoot, file);
         const sourceText = fs.readFileSync(absolutePath, 'utf-8');
@@ -127,7 +140,7 @@ export class GoScanner implements Scanner {
         documents.push(...fileDocs);
       } catch (error) {
         // Log error but continue with other files
-        console.error(`Error scanning ${file}:`, error);
+        logger?.error({ file, error }, `Error scanning ${file}`);
       }
     }
 
