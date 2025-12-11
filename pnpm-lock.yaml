@@ -109,9 +109,6 @@ importers:
       remark-stringify:
         specifier: ^11.0.0
         version: 11.0.0
-      tree-sitter-wasms:
-        specifier: ^0.1.13
-        version: 0.1.13
       ts-morph:
         specifier: ^27.0.2
         version: 27.0.2
@@ -128,6 +125,9 @@ importers:
       '@types/node':
         specifier: ^24.10.1
         version: 24.10.1
+      tree-sitter-wasms:
+        specifier: ^0.1.13
+        version: 0.1.13
       typescript:
         specifier: ^5.3.3
         version: 5.9.3
@@ -140,12 +140,12 @@ importers:
       '@xenova/transformers':
         specifier: ^2.17.2
         version: 2.17.2
-      tree-sitter-wasms:
-        specifier: ^0.1.13
-        version: 0.1.13
       ts-morph:
         specifier: ^27.0.2
         version: 27.0.2
+      web-tree-sitter:
+        specifier: ^0.25.10
+        version: 0.25.10
     devDependencies:
       '@lytics/dev-agent-cli':
         specifier: workspace:*
@@ -156,6 +156,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.1
+      tree-sitter-wasms:
+        specifier: ^0.1.13
+        version: 0.1.13
       tsup:
         specifier: ^8.3.0
         version: 8.5.1(typescript@5.9.3)
@@ -4576,7 +4579,7 @@ packages:
 
   /tree-sitter-wasms@0.1.13:
     resolution: {integrity: sha512-wT+cR6DwaIz80/vho3AvSF0N4txuNx/5bcRKoXouOfClpxh/qqrF4URNLQXbbt8MaAxeksZcZd1j8gcGjc+QxQ==}
-    dev: false
+    dev: true
 
   /trough@2.2.0:
     resolution: {integrity: sha512-tmMpK00BjZiUyVyvrBK7knerNgmgvcV/KLVyuma/SC+TQN167GrMRciANTz09+k3zW8L8t60jWO1GpfkZdjTaw==}
