@@ -114,6 +114,60 @@ export interface IndexError {
 }
 
 /**
+ * Supported languages for detailed statistics
+ */
+export type SupportedLanguage = 'typescript' | 'javascript' | 'go' | 'markdown';
+
+/**
+ * Statistics for a specific language
+ */
+export interface LanguageStats {
+  /** Number of files in this language */
+  files: number;
+
+  /** Number of components extracted from this language */
+  components: number;
+
+  /** Total lines of code (approximate from component ranges) */
+  lines: number;
+}
+
+/**
+ * Statistics for a package/module in a monorepo
+ */
+export interface PackageStats {
+  /** Package name (from package.json or go.mod) */
+  name: string;
+
+  /** Package path relative to repository root */
+  path: string;
+
+  /** Number of files in this package */
+  files: number;
+
+  /** Number of components in this package */
+  components: number;
+
+  /** Language breakdown within this package */
+  languages: Partial<Record<SupportedLanguage, number>>;
+}
+
+/**
+ * Detailed statistics with language, component type, and package breakdowns
+ * Extends IndexStats with optional detailed information for backward compatibility
+ */
+export interface DetailedIndexStats extends IndexStats {
+  /** Statistics broken down by language */
+  byLanguage?: Record<SupportedLanguage, LanguageStats>;
+
+  /** Statistics broken down by component type */
+  byComponentType?: Partial<Record<string, number>>;
+
+  /** Statistics broken down by package (for monorepos) */
+  byPackage?: Record<string, PackageStats>;
+}
+
+/**
  * Metadata tracked for each indexed file
  */
 export interface FileMetadata {

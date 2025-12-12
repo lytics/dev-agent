@@ -50,6 +50,16 @@ export class TypeScriptScanner implements Scanner {
   }
 
   /**
+   * Detect actual language based on file extension
+   * TypeScript files: .ts, .tsx
+   * JavaScript files: .js, .jsx, .mjs, .cjs
+   */
+  private detectLanguage(filePath: string): 'typescript' | 'javascript' {
+    const ext = path.extname(filePath).toLowerCase();
+    return ext === '.ts' || ext === '.tsx' ? 'typescript' : 'javascript';
+  }
+
+  /**
    * Get optimal concurrency level for TypeScript processing
    */
   private getOptimalConcurrency(context: string): number {
@@ -439,6 +449,7 @@ export class TypeScriptScanner implements Scanner {
     const isExported = fn.isExported();
     const snippet = this.truncateSnippet(fullText);
     const callees = this.extractCallees(fn, sourceFile);
+    const language = this.detectLanguage(file);
 
     // Build text for embedding
     const text = this.buildEmbeddingText({
@@ -446,14 +457,14 @@ export class TypeScriptScanner implements Scanner {
       name,
       signature,
       docComment,
-      language: 'typescript',
+      language,
     });
 
     return {
       id: `${file}:${name}:${startLine}`,
       text,
       type: 'function',
-      language: 'typescript',
+      language,
       metadata: {
         file,
         startLine,
@@ -479,6 +490,7 @@ export class TypeScriptScanner implements Scanner {
     const docComment = this.getDocComment(cls);
     const isExported = cls.isExported();
     const snippet = this.truncateSnippet(fullText);
+    const language = this.detectLanguage(file);
 
     // Get class signature (class name + extends + implements)
     const extendsClause = cls.getExtends()?.getText() || '';
@@ -493,14 +505,14 @@ export class TypeScriptScanner implements Scanner {
       name,
       signature,
       docComment,
-      language: 'typescript',
+      language,
     });
 
     return {
       id: `${file}:${name}:${startLine}`,
       text,
       type: 'class',
-      language: 'typescript',
+      language,
       metadata: {
         file,
         startLine,
@@ -533,20 +545,21 @@ export class TypeScriptScanner implements Scanner {
     const isPublic = !method.hasModifier(SyntaxKind.PrivateKeyword);
     const snippet = this.truncateSnippet(fullText);
     const callees = this.extractCallees(method, sourceFile);
+    const language = this.detectLanguage(file);
 
     const text = this.buildEmbeddingText({
       type: 'method',
       name: `${className}.${name}`,
       signature,
       docComment,
-      language: 'typescript',
+      language,
     });
 
     return {
       id: `${file}:${className}.${name}:${startLine}`,
       text,
       type: 'method',
-      language: 'typescript',
+      language,
       metadata: {
         file,
         startLine,
@@ -574,6 +587,7 @@ export class TypeScriptScanner implements Scanner {
     const docComment = this.getDocComment(iface);
     const isExported = iface.isExported();
     const snippet = this.truncateSnippet(fullText);
+    const language = this.detectLanguage(file);
 
     // Get interface signature
     const extendsClause = iface
@@ -587,14 +601,14 @@ export class TypeScriptScanner implements Scanner {
       name,
       signature,
       docComment,
-      language: 'typescript',
+      language,
     });
 
     return {
       id: `${file}:${name}:${startLine}`,
       text,
       type: 'interface',
-      language: 'typescript',
+      language,
       metadata: {
         file,
         startLine,
@@ -623,20 +637,21 @@ export class TypeScriptScanner implements Scanner {
     // For type aliases, the full text IS the signature (no body)
     const signature = fullText;
     const snippet = this.truncateSnippet(fullText);
+    const language = this.detectLanguage(file);
 
     const text = this.buildEmbeddingText({
       type: 'type',
       name,
       signature,
       docComment,
-      language: 'typescript',
+      language,
     });
 
     return {
       id: `${file}:${name}:${startLine}`,
       text,
       type: 'type',
-      language: 'typescript',
+      language,
       metadata: {
         file,
         startLine,
@@ -678,6 +693,7 @@ export class TypeScriptScanner implements Scanner {
     const isExported = varStmt.isExported();
     const snippet = this.truncateSnippet(fullText);
     const callees = this.extractCallees(funcNode, sourceFile);
+    const language = this.detectLanguage(file);
 
     // Check if async
     const isAsync = funcNode.isAsync?.() ?? false;
@@ -701,14 +717,14 @@ export class TypeScriptScanner implements Scanner {
       name,
       signature,
       docComment,
-      language: 'typescript',
+      language,
     });
 
     return {
       id: `${file}:${name}:${startLine}`,
       text,
       type: 'variable',
-      language: 'typescript',
+      language,
       metadata: {
         file,
         startLine,
@@ -765,20 +781,21 @@ export class TypeScriptScanner implements Scanner {
     const signature = typeAnnotation
       ? `export const ${name}: ${typeAnnotation}`
       : `export const ${name}`;
+    const language = this.detectLanguage(file);
 
     const text = this.buildEmbeddingText({
       type: 'constant',
       name,
       signature,
       docComment,
-      language: 'typescript',
+      language,
     });
 
     return {
       id: `${file}:${name}:${startLine}`,
       text,
       type: 'variable',
-      language: 'typescript',
+      language,
       metadata: {
         file,
         startLine,
