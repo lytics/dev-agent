@@ -124,6 +124,9 @@ importers:
       web-tree-sitter:
         specifier: ^0.25.10
         version: 0.25.10
+      zod:
+        specifier: ^4.1.13
+        version: 4.1.13
     devDependencies:
       '@types/mdast':
         specifier: ^4.0.4
