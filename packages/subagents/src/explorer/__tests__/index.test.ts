@@ -579,10 +579,11 @@ describe('ExplorerAgent', () => {
       const response = await explorer.handleMessage(message);
 
       expect(response).toBeDefined();
-      expect(response?.type).toBe('response');
+      expect(response?.type).toBe('error');
 
       const result = response?.payload as { error?: string };
       expect(result.error).toBeDefined();
+      expect(result.error).toContain('Invalid exploration request');
     });
 
     it('should return error response on failure', async () => {

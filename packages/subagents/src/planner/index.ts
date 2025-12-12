@@ -3,6 +3,7 @@
  * Analyzes GitHub issues and creates actionable development plans
  */
 
+import { validatePlanningRequest } from '../schemas/messages.js';
 import type { Agent, AgentContext, Message } from '../types';
 import type { Plan, PlanningError, PlanningRequest, PlanningResult } from './types';
 
@@ -33,7 +34,7 @@ export class PlannerAgent implements Agent {
     }
 
     try {
-      const request = message.payload as unknown as PlanningRequest;
+      const request = validatePlanningRequest(message.payload);
       logger.debug('Processing planning request', { action: request.action });
 
       let result: PlanningResult | PlanningError;

@@ -3,6 +3,7 @@
  * Provides rich context from GitHub issues, PRs, and discussions
  */
 
+import { validateGitHubContextRequest } from '../schemas/messages.js';
 import type { Agent, AgentContext, Message } from '../types';
 import { GitHubIndexer } from './indexer';
 import type {
@@ -67,7 +68,7 @@ export class GitHubAgent implements Agent {
     }
 
     try {
-      const request = message.payload as unknown as GitHubContextRequest;
+      const request = validateGitHubContextRequest(message.payload);
       logger.debug('Processing GitHub request', { action: request.action });
 
       let result: GitHubContextResult | GitHubContextError;
