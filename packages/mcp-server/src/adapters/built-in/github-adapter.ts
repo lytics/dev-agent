@@ -10,8 +10,10 @@ import {
   type GitHubSearchResult,
 } from '@lytics/dev-agent-subagents';
 import { estimateTokensForText } from '../../formatters/utils';
+import { GitHubArgsSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
+import { validateArgs } from '../validation.js';
 
 export interface GitHubAdapterConfig {
   repositoryPath: string;
@@ -226,71 +228,13 @@ export class GitHubAdapter extends ToolAdapter {
   }
 
   async execute(args: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {
-    const {
-      action,
-      query,
-      number,
-      type,
-      state,
-      labels,
-      author,
-      limit = this.defaultLimit,
-      format = this.defaultFormat,
-    } = args;
-
-    // Validate action
-    if (action !== 'search' && action !== 'context' && action !== 'related') {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_ACTION',
-          message: 'Action must be "search", "context", or "related"',
-        },
-      };
+    // Validate args with Zod
+    const validation = validateArgs(GitHubArgsSchema, args);
+    if (!validation.success) {
+      return validation.error;
     }
 
-    // Validate action-specific requirements
-    if (action === 'search' && (typeof query !== 'string' || query.trim().length === 0)) {
-      return {
-        success: false,
-        error: {
-          code: 'MISSING_QUERY',
-          message: 'Search action requires a query parameter',
-        },
-      };
-    }
-
-    if ((action === 'context' || action === 'related') && typeof number !== 'number') {
-      return {
-        success: false,
-        error: {
-          code: 'MISSING_NUMBER',
-          message: `${action} action requires a number parameter`,
-        },
-      };
-    }
-
-    // Validate limit
-    if (typeof limit !== 'number' || limit < 1 || limit > 100) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_LIMIT',
-          message: 'Limit must be between 1 and 100',
-        },
-      };
-    }
-
-    // Validate format
-    if (format !== 'compact' && format !== 'verbose') {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_FORMAT',
-          message: 'Format must be either "compact" or "verbose"',
-        },
-      };
-    }
+    const { action, query, number, type, state, labels, author, limit, format } = validation.data;
 
     try {
       const startTime = Date.now();

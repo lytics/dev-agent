@@ -5,8 +5,10 @@
 
 import type { GitCommit, GitIndexer, LocalGitExtractor } from '@lytics/dev-agent-core';
 import { estimateTokensForText, startTimer } from '../../formatters/utils';
+import { HistoryArgsSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
+import { validateArgs } from '../validation.js';
 
 /**
  * History adapter configuration
@@ -117,42 +119,13 @@ export class HistoryAdapter extends ToolAdapter {
   }
 
   async execute(args: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {
-    const {
-      query,
-      file,
-      limit = this.config.defaultLimit,
-      since,
-      author,
-      tokenBudget = this.config.defaultTokenBudget,
-    } = args as {
-      query?: string;
-      file?: string;
-      limit?: number;
-      since?: string;
-      author?: string;
-      tokenBudget?: number;
-    };
-
-    // Validate inputs
-    if (!query && !file) {
-      return {
-        success: false,
-        error: {
-          code: 'MISSING_INPUT',
-          message: 'Either "query" or "file" must be provided',
-        },
-      };
+    // Validate args with Zod
+    const validation = validateArgs(HistoryArgsSchema, args);
+    if (!validation.success) {
+      return validation.error;
     }
 
-    if (typeof limit !== 'number' || limit < 1 || limit > 50) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_LIMIT',
-          message: 'Limit must be a number between 1 and 50',
-        },
-      };
-    }
+    const { query, file, limit, since, author, tokenBudget } = validation.data;
 
     try {
       const timer = startTimer();

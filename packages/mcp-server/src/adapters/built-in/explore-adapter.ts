@@ -13,8 +13,10 @@ import type {
   RelationshipResult,
   SimilarCodeResult,
 } from '@lytics/dev-agent-subagents';
+import { ExploreArgsSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
+import { validateArgs } from '../validation.js';
 
 export interface ExploreAdapterConfig {
   repositoryPath: string;
@@ -119,69 +121,13 @@ export class ExploreAdapter extends ToolAdapter {
   }
 
   async execute(args: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {
-    const {
-      action,
-      query,
-      limit = this.defaultLimit,
-      threshold = this.defaultThreshold,
-      fileTypes,
-      format = this.defaultFormat,
-    } = args;
-
-    // Validate action
-    if (action !== 'pattern' && action !== 'similar' && action !== 'relationships') {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_ACTION',
-          message: 'Action must be "pattern", "similar", or "relationships"',
-        },
-      };
+    // Validate args with Zod
+    const validation = validateArgs(ExploreArgsSchema, args);
+    if (!validation.success) {
+      return validation.error;
     }
 
-    // Validate query
-    if (typeof query !== 'string' || query.trim().length === 0) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_QUERY',
-          message: 'Query must be a non-empty string',
-        },
-      };
-    }
-
-    // Validate limit
-    if (typeof limit !== 'number' || limit < 1 || limit > 100) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_LIMIT',
-          message: 'Limit must be between 1 and 100',
-        },
-      };
-    }
-
-    // Validate threshold
-    if (typeof threshold !== 'number' || threshold < 0 || threshold > 1) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_THRESHOLD',
-          message: 'Threshold must be between 0 and 1',
-        },
-      };
-    }
-
-    // Validate format
-    if (format !== 'compact' && format !== 'verbose') {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_FORMAT',
-          message: 'Format must be either "compact" or "verbose"',
-        },
-      };
-    }
+    const { action, query, limit, threshold, fileTypes, format } = validation.data;
 
     try {
       context.logger.debug('Executing exploration', {
