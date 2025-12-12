@@ -9,8 +9,10 @@ import type { GitIndexer, RepositoryIndexer } from '@lytics/dev-agent-core';
 import type { ContextAssemblyOptions } from '@lytics/dev-agent-subagents';
 import { assembleContext, formatContextPackage } from '@lytics/dev-agent-subagents';
 import { estimateTokensForText, startTimer } from '../../formatters/utils';
+import { PlanArgsSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
+import { validateArgs } from '../validation.js';
 
 /**
  * Plan adapter configuration
@@ -125,36 +127,14 @@ export class PlanAdapter extends ToolAdapter {
   }
 
   async execute(args: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {
-    const {
-      issue,
-      format = this.defaultFormat,
-      includeCode = true,
-      includePatterns = true,
-      tokenBudget = 4000,
-      includeGitHistory = true,
-    } = args;
-
-    // Validate issue number
-    if (typeof issue !== 'number' || issue < 1) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_ISSUE',
-          message: 'Issue must be a positive number',
-        },
-      };
+    // Validate args with Zod
+    const validation = validateArgs(PlanArgsSchema, args);
+    if (!validation.success) {
+      return validation.error;
     }
 
-    // Validate format
-    if (format !== 'compact' && format !== 'verbose') {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_FORMAT',
-          message: 'Format must be either "compact" or "verbose"',
-        },
-      };
-    }
+    const { issue, format, includeCode, includePatterns, tokenBudget, includeGitHistory } =
+      validation.data;
 
     try {
       const timer = startTimer();
