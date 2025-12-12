@@ -257,6 +257,92 @@ describe('AsyncEventBus', () => {
       consoleErrorSpy.mockRestore();
     });
   });
+
+  describe('logger integration', () => {
+    it('should use kero logger when provided', async () => {
+      const mockLogger = {
+        trace: vi.fn(),
+        debug: vi.fn(),
+        info: vi.fn(),
+        success: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        fatal: vi.fn(),
+        child: vi.fn(),
+        startTimer: vi.fn(() => vi.fn()),
+        isLevelEnabled: vi.fn(() => true),
+        level: 'debug' as const,
+      };
+
+      const busWithLogger = new AsyncEventBus({ debug: true, logger: mockLogger });
+
+      // Test debug logging for subscription
+      busWithLogger.on('test.event', vi.fn());
+      expect(mockLogger.debug).toHaveBeenCalledWith('Subscribed to "test.event" (priority: 0)');
+
+      // Test debug logging for emit
+      await busWithLogger.emit('test.event', { data: 'test' });
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        expect.objectContaining({ payload: { data: 'test' } }),
+        'Emitting "test.event"'
+      );
+
+      busWithLogger.removeAllListeners();
+    });
+
+    it('should use kero logger for error handling', async () => {
+      const mockLogger = {
+        trace: vi.fn(),
+        debug: vi.fn(),
+        info: vi.fn(),
+        success: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        fatal: vi.fn(),
+        child: vi.fn(),
+        startTimer: vi.fn(() => vi.fn()),
+        isLevelEnabled: vi.fn(() => true),
+        level: 'debug' as const,
+      };
+
+      const busWithLogger = new AsyncEventBus({ logger: mockLogger });
+
+      const error = new Error('Test error');
+      const errorHandler = vi.fn().mockRejectedValue(error);
+      busWithLogger.on('error.event', errorHandler);
+
+      await busWithLogger.emit('error.event', {});
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(mockLogger.error).toHaveBeenCalledWith(error, 'Handler error for "error.event"');
+
+      busWithLogger.removeAllListeners();
+    });
+
+    it('should fallback to console when no logger provided', async () => {
+      const consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const busWithoutLogger = new AsyncEventBus({ debug: true });
+
+      busWithoutLogger.on('test.event', vi.fn());
+      expect(consoleDebugSpy).toHaveBeenCalledWith(
+        '[EventBus] Subscribed to "test.event" (priority: 0)'
+      );
+
+      const errorHandler = vi.fn().mockRejectedValue(new Error('Test error'));
+      busWithoutLogger.on('error.event', errorHandler);
+
+      await busWithoutLogger.emit('error.event', {});
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(consoleErrorSpy).toHaveBeenCalled();
+
+      consoleDebugSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+      busWithoutLogger.removeAllListeners();
+    });
+  });
 });
 
 describe('createTypedEventBus', () => {
