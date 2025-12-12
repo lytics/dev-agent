@@ -3,6 +3,9 @@
  *
  * Following TypeScript Standards Rule #2: No Type Assertions Without Validation
  * State files (JSON) must be validated at runtime to handle corruption/format changes
+ *
+ * Note: IndexerState validation has been moved to packages/core/src/indexer/schemas/
+ * This file now only contains RepositoryMetadata validation
  */
 
 import { z } from 'zod';
