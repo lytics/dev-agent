@@ -7,6 +7,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
+import type { Logger } from '@lytics/kero';
 import type {
   EmitOptions,
   EventBus,
@@ -37,6 +38,8 @@ export interface AsyncEventBusOptions {
   source?: string;
   /** Enable debug logging */
   debug?: boolean;
+  /** Optional kero logger for structured logging */
+  logger?: Logger;
 }
 
 /**
@@ -52,7 +55,8 @@ export interface AsyncEventBusOptions {
 export class AsyncEventBus implements EventBus {
   private emitter: EventEmitter;
   private handlers: Map<string, HandlerEntry[]> = new Map();
-  private options: Required<AsyncEventBusOptions>;
+  private options: Required<Omit<AsyncEventBusOptions, 'logger'>>;
+  private logger?: Logger;
 
   constructor(options: AsyncEventBusOptions = {}) {
     this.options = {
@@ -61,6 +65,7 @@ export class AsyncEventBus implements EventBus {
       source: options.source ?? 'event-bus',
       debug: options.debug ?? false,
     };
+    this.logger = options.logger;
 
     this.emitter = new EventEmitter();
     this.emitter.setMaxListeners(this.options.maxListeners);
@@ -103,7 +108,11 @@ export class AsyncEventBus implements EventBus {
     (entry as HandlerEntry & { _wrapped: typeof wrappedHandler })._wrapped = wrappedHandler;
 
     if (this.options.debug) {
-      console.debug(`[EventBus] Subscribed to "${eventName}" (priority: ${entry.priority})`);
+      if (this.logger) {
+        this.logger.debug(`Subscribed to "${eventName}" (priority: ${entry.priority})`);
+      } else {
+        console.debug(`[EventBus] Subscribed to "${eventName}" (priority: ${entry.priority})`);
+      }
     }
 
     // Return unsubscribe function
@@ -135,7 +144,11 @@ export class AsyncEventBus implements EventBus {
       handlerList.splice(index, 1);
 
       if (this.options.debug) {
-        console.debug(`[EventBus] Unsubscribed from "${eventName}"`);
+        if (this.logger) {
+          this.logger.debug(`Unsubscribed from "${eventName}"`);
+        } else {
+          console.debug(`[EventBus] Unsubscribed from "${eventName}"`);
+        }
       }
     }
   }
@@ -151,7 +164,11 @@ export class AsyncEventBus implements EventBus {
     };
 
     if (this.options.debug) {
-      console.debug(`[EventBus] Emitting "${eventName}"`, { payload, meta });
+      if (this.logger) {
+        this.logger.debug({ payload, meta }, `Emitting "${eventName}"`);
+      } else {
+        console.debug(`[EventBus] Emitting "${eventName}"`, { payload, meta });
+      }
     }
 
     if (options.waitForHandlers) {
@@ -211,7 +228,12 @@ export class AsyncEventBus implements EventBus {
     }
 
     if (this.options.debug) {
-      console.debug(`[EventBus] Removed all listeners${eventName ? ` for "${eventName}"` : ''}`);
+      const message = `Removed all listeners${eventName ? ` for "${eventName}"` : ''}`;
+      if (this.logger) {
+        this.logger.debug(message);
+      } else {
+        console.debug(`[EventBus] ${message}`);
+      }
     }
   }
 
@@ -233,7 +255,15 @@ export class AsyncEventBus implements EventBus {
       // Handle promise rejection
       if (result instanceof Promise) {
         result.catch((error) => {
-          console.error(`[EventBus] Handler error for "${eventName}":`, error);
+          if (this.logger) {
+            if (error instanceof Error) {
+              this.logger.error(error, `Handler error for "${eventName}"`);
+            } else {
+              this.logger.error({ error }, `Handler error for "${eventName}"`);
+            }
+          } else {
+            console.error(`[EventBus] Handler error for "${eventName}":`, error);
+          }
         });
       }
     };
@@ -260,7 +290,15 @@ export class AsyncEventBus implements EventBus {
       try {
         await entry.handler(payload);
       } catch (error) {
-        console.error(`[EventBus] Handler error for "${eventName}":`, error);
+        if (this.logger) {
+          if (error instanceof Error) {
+            this.logger.error(error, `Handler error for "${eventName}"`);
+          } else {
+            this.logger.error({ error }, `Handler error for "${eventName}"`);
+          }
+        } else {
+          console.error(`[EventBus] Handler error for "${eventName}":`, error);
+        }
       }
     });
 
