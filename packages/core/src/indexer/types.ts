@@ -156,6 +156,12 @@ export interface LanguageStats {
 
   /** Total lines of code (approximate from component ranges) */
   lines: number;
+
+  /** Average commits per file (change frequency) */
+  avgCommitsPerFile?: number;
+
+  /** Most recently modified file timestamp */
+  lastModified?: Date;
 }
 
 /**
@@ -176,6 +182,12 @@ export interface PackageStats {
 
   /** Language breakdown within this package */
   languages: Partial<Record<SupportedLanguage, number>>;
+
+  /** Total commits affecting this package */
+  totalCommits?: number;
+
+  /** Most recently modified file timestamp */
+  lastModified?: Date;
 }
 
 /**

@@ -6,6 +6,13 @@
  * @module indexer/utils
  */
 
+// Change frequency tracking
+export {
+  aggregateChangeFrequency,
+  type ChangeFrequencyOptions,
+  calculateChangeFrequency,
+  type FileChangeFrequency,
+} from './change-frequency';
 // Document preparation
 export {
   filterDocumentsByExport,
@@ -14,7 +21,6 @@ export {
   prepareDocumentForEmbedding,
   prepareDocumentsForEmbedding,
 } from './documents';
-
 // Text formatting
 export {
   cleanDocumentText,
@@ -22,7 +28,6 @@ export {
   formatDocumentTextWithSignature,
   truncateText,
 } from './formatting';
-
 // Language mapping
 export {
   getExtensionForLanguage,

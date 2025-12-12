@@ -10,6 +10,7 @@ import type { Document } from '../scanner/types';
 import { getCurrentSystemResources, getOptimalConcurrency } from '../utils/concurrency';
 import { VectorStorage } from '../vector';
 import type { EmbeddingDocument, SearchOptions, SearchResult } from '../vector/types';
+import { validateDetailedIndexStats, validateIndexerState } from './schemas/validation.js';
 import { StatsAggregator } from './stats-aggregator';
 import { mergeStats } from './stats-merger';
 import type {
@@ -450,7 +451,7 @@ export class RepositoryIndexer {
     const incrementalUpdatesSince = this.state.incrementalUpdatesSince || 0;
     const warning = this.getStatsWarning(incrementalUpdatesSince);
 
-    return {
+    const stats = {
       filesScanned: this.state.stats.totalFiles,
       documentsExtracted: this.state.stats.totalDocuments,
       documentsIndexed: this.state.stats.totalDocuments,
@@ -471,6 +472,15 @@ export class RepositoryIndexer {
         warning,
       },
     };
+
+    // Validate stats before returning (ensures API contract)
+    const validation = validateDetailedIndexStats(stats);
+    if (!validation.success) {
+      console.warn(`Invalid stats detected: ${validation.error}`);
+      return null;
+    }
+
+    return validation.data;
   }
 
   /**
@@ -548,10 +558,20 @@ export class RepositoryIndexer {
   private async loadState(): Promise<void> {
     try {
       const stateContent = await fs.readFile(this.config.statePath, 'utf-8');
-      this.state = JSON.parse(stateContent);
+      const data = JSON.parse(stateContent);
+
+      // Validate state with Zod schema
+      const validation = validateIndexerState(data);
+      if (!validation.success) {
+        console.warn(`Invalid indexer state (will start fresh): ${validation.error}`);
+        this.state = null;
+        return;
+      }
+
+      this.state = validation.data;
 
       // Validate state compatibility
-      if (this.state && this.state.version !== INDEXER_VERSION) {
+      if (this.state.version !== INDEXER_VERSION) {
         console.warn(
           `Indexer state version mismatch: ${this.state.version} vs ${INDEXER_VERSION}. May need re-indexing.`
         );
@@ -568,6 +588,13 @@ export class RepositoryIndexer {
   private async saveState(): Promise<void> {
     if (!this.state) {
       return;
+    }
+
+    // Validate state before saving (defensive check)
+    const validation = validateIndexerState(this.state);
+    if (!validation.success) {
+      // Log warning but don't block saving - state was valid when created
+      console.warn(`Indexer state validation warning: ${validation.error}`);
     }
 
     // Ensure directory exists
