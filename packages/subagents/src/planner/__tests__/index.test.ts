@@ -162,8 +162,8 @@ describe('PlannerAgent', () => {
       const response = await planner.handleMessage(message);
 
       expect(response).toBeTruthy();
-      expect(response?.type).toBe('response');
-      expect((response?.payload as { error?: string }).error).toContain('Unknown action');
+      expect(response?.type).toBe('error');
+      expect((response?.payload as { error?: string }).error).toContain('Invalid planning request');
     });
 
     it('should generate correct response message structure', async () => {

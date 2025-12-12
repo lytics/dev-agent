@@ -3,6 +3,7 @@
  * Explores and analyzes code patterns using semantic search
  */
 
+import { validateExplorationRequest } from '../schemas/messages.js';
 import type { Agent, AgentContext, Message } from '../types';
 import type {
   CodeInsights,
@@ -53,7 +54,7 @@ export class ExplorerAgent implements Agent {
     }
 
     try {
-      const request = message.payload as unknown as ExplorationRequest;
+      const request = validateExplorationRequest(message.payload);
       logger.debug('Processing exploration request', { action: request.action });
 
       let result: ExplorationResult | ExplorationError;

@@ -186,11 +186,11 @@ describe('Coordinator → Explorer Integration', () => {
       });
 
       expect(response).toBeDefined();
-      expect(response?.type).toBe('response');
+      expect(response?.type).toBe('error');
 
       const result = response?.payload as { error?: string };
       expect(result.error).toBeDefined();
-      expect(result.error).toContain('Unknown action');
+      expect(result.error).toContain('Invalid exploration request');
     });
 
     it('should handle non-existent agent gracefully', async () => {
