@@ -12,12 +12,20 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
 import { loadConfig } from '../utils/config.js';
-import { formatDetailedStats } from '../utils/formatters.js';
 import { logger } from '../utils/logger.js';
+import {
+  formatCompactSummary,
+  formatComponentTypes,
+  formatDetailedLanguageTable,
+  formatGitHubSummary,
+  formatLanguageBreakdown,
+  output,
+} from '../utils/output.js';
 
 export const statsCommand = new Command('stats')
   .description('Show indexing statistics')
   .option('--json', 'Output stats as JSON', false)
+  .option('-v, --verbose', 'Show detailed breakdown with tables', false)
   .action(async (options) => {
     const spinner = ora('Loading statistics...').start();
 
@@ -85,8 +93,9 @@ export const statsCommand = new Command('stats')
       spinner.stop();
 
       if (!stats) {
-        logger.warn('No indexing statistics available');
-        logger.log(`Run ${chalk.yellow('dev index')} to index your repository first`);
+        output.warn('No indexing statistics available');
+        output.log(`Run ${chalk.cyan('dev index')} to index your repository first`);
+        output.log('');
         return;
       }
 
@@ -105,45 +114,41 @@ export const statsCommand = new Command('stats')
         return;
       }
 
-      // Detect if monorepo (check for package stats)
-      const showPackages = !!(stats.byPackage && Object.keys(stats.byPackage).length > 0);
+      // Get repository name from path
+      const repoName = resolvedRepoPath.split('/').pop() || 'repository';
 
-      // Pretty print stats with enhanced formatting
-      logger.log('');
-      logger.log(formatDetailedStats(stats, resolvedRepoPath, { showPackages }));
-      logger.log('');
+      output.log('');
 
-      // Display GitHub stats if available
-      if (githubStats) {
-        logger.log('');
-        logger.log(chalk.bold.cyan('🔗 GitHub Integration'));
-        logger.log('');
-        logger.log(`${chalk.cyan('Repository:')}        ${githubStats.repository}`);
-        logger.log(`${chalk.cyan('Total Documents:')}   ${githubStats.totalDocuments}`);
-        logger.log(`${chalk.cyan('Issues:')}            ${githubStats.byType.issue || 0}`);
-        logger.log(`${chalk.cyan('Pull Requests:')}     ${githubStats.byType.pull_request || 0}`);
-        logger.log('');
-        logger.log(`${chalk.cyan('Open:')}              ${githubStats.byState.open || 0}`);
-        logger.log(`${chalk.cyan('Closed:')}            ${githubStats.byState.closed || 0}`);
-        if (githubStats.byState.merged) {
-          logger.log(`${chalk.cyan('Merged:')}            ${githubStats.byState.merged}`);
+      // Compact one-line summary
+      output.log(formatCompactSummary(stats, repoName));
+      output.log('');
+
+      // Language breakdown (compact or verbose)
+      if (stats.byLanguage && Object.keys(stats.byLanguage).length > 0) {
+        if (options.verbose) {
+          // Verbose: Show table with LOC
+          output.log(formatDetailedLanguageTable(stats.byLanguage));
+        } else {
+          // Compact: Show simple list
+          output.log(formatLanguageBreakdown(stats.byLanguage));
         }
-        logger.log('');
-        logger.log(
-          `${chalk.cyan('Last Synced:')}       ${new Date(githubStats.lastIndexed).toLocaleString()}`
-        );
-      } else {
-        logger.log('');
-        logger.log(chalk.bold.cyan('🔗 GitHub Integration'));
-        logger.log('');
-        logger.log(
-          chalk.gray('Not indexed. Run') +
-            chalk.yellow(' dev gh index ') +
-            chalk.gray('to sync GitHub data.')
-        );
+        output.log('');
       }
 
-      logger.log('');
+      // Component types summary (compact - top 3)
+      if (stats.byComponentType && Object.keys(stats.byComponentType).length > 0) {
+        output.log(formatComponentTypes(stats.byComponentType));
+        output.log('');
+      }
+
+      // GitHub stats (compact)
+      if (githubStats) {
+        output.log(formatGitHubSummary(githubStats));
+      } else {
+        output.log(`🔗 ${chalk.gray('GitHub not indexed. Run')} ${chalk.cyan('dev gh index')}`);
+      }
+
+      output.log('');
     } catch (error) {
       spinner.fail('Failed to load statistics');
       logger.error(error instanceof Error ? error.message : String(error));

@@ -18,6 +18,7 @@ import ora from 'ora';
 import { getDefaultConfig, loadConfig } from '../utils/config.js';
 import { formatBytes, getDirectorySize } from '../utils/file.js';
 import { createIndexLogger, logger } from '../utils/logger.js';
+import { formatIndexSummary, output } from '../utils/output.js';
 
 /**
  * Check if a command is available
@@ -165,19 +166,9 @@ export const indexCommand = new Command('index')
 
       await indexer.close();
 
-      const codeDuration = ((Date.now() - startTime) / 1000).toFixed(2);
+      const codeDuration = (Date.now() - startTime) / 1000;
 
       spinner.succeed(chalk.green('Code indexed successfully!'));
-
-      // Show code stats
-      logger.log('');
-      logger.log(chalk.bold('Code Indexing:'));
-      logger.log(`  ${chalk.cyan('Files scanned:')}      ${stats.filesScanned}`);
-      logger.log(`  ${chalk.cyan('Documents extracted:')} ${stats.documentsExtracted}`);
-      logger.log(`  ${chalk.cyan('Documents indexed:')}   ${stats.documentsIndexed}`);
-      logger.log(`  ${chalk.cyan('Vectors stored:')}      ${stats.vectorsStored}`);
-      logger.log(`  ${chalk.cyan('Storage size:')}        ${formatBytes(storageSize)}`);
-      logger.log(`  ${chalk.cyan('Duration:')}            ${codeDuration}s`);
 
       // Index git history if available
       let gitStats = { commitsIndexed: 0, durationMs: 0 };
@@ -206,12 +197,6 @@ export const indexCommand = new Command('index')
         await gitVectorStore.close();
 
         spinner.succeed(chalk.green('Git history indexed!'));
-        logger.log('');
-        logger.log(chalk.bold('Git History:'));
-        logger.log(`  ${chalk.cyan('Commits indexed:')}    ${gitStats.commitsIndexed}`);
-        logger.log(
-          `  ${chalk.cyan('Duration:')}            ${(gitStats.durationMs / 1000).toFixed(2)}s`
-        );
       }
 
       // Index GitHub issues/PRs if available
@@ -238,33 +223,50 @@ export const indexCommand = new Command('index')
           },
         });
         spinner.succeed(chalk.green('GitHub indexed!'));
-        logger.log('');
-        logger.log(chalk.bold('GitHub:'));
-        logger.log(`  ${chalk.cyan('Issues/PRs indexed:')} ${ghStats.totalDocuments}`);
-        logger.log(
-          `  ${chalk.cyan('Duration:')}            ${(ghStats.indexDuration / 1000).toFixed(2)}s`
-        );
       }
 
-      const totalDuration = ((Date.now() - startTime) / 1000).toFixed(2);
+      const totalDuration = (Date.now() - startTime) / 1000;
 
-      logger.log('');
-      logger.log(chalk.bold('Summary:'));
-      logger.log(`  ${chalk.cyan('Total duration:')}     ${totalDuration}s`);
-      logger.log(`  ${chalk.cyan('Storage:')}            ${storagePath}`);
+      // Compact summary output
+      output.log('');
+      output.log(
+        formatIndexSummary({
+          code: {
+            files: stats.filesScanned,
+            documents: stats.documentsIndexed,
+            vectors: stats.vectorsStored,
+            duration: codeDuration,
+            size: formatBytes(storageSize),
+          },
+          git: canIndexGit
+            ? { commits: gitStats.commitsIndexed, duration: gitStats.durationMs / 1000 }
+            : undefined,
+          github: canIndexGitHub
+            ? { documents: ghStats.totalDocuments, duration: ghStats.indexDuration / 1000 }
+            : undefined,
+          total: {
+            duration: totalDuration,
+            storage: storagePath,
+          },
+        })
+      );
 
+      // Show errors if any
       if (stats.errors.length > 0) {
-        logger.log('');
-        logger.warn(`${stats.errors.length} error(s) occurred during indexing`);
+        output.log('');
+        output.warn(`${stats.errors.length} error(s) occurred during indexing`);
         if (options.verbose) {
           for (const error of stats.errors) {
-            logger.error(`  ${error.file}: ${error.message}`);
+            output.log(`  ${chalk.gray(error.file)}: ${error.message}`);
           }
+        } else {
+          output.log(
+            `  ${chalk.gray('Run with')} ${chalk.cyan('--verbose')} ${chalk.gray('to see details')}`
+          );
         }
       }
 
-      logger.log('');
-      logger.log(`Now you can search with: ${chalk.yellow('dev search "<query>"')}`);
+      output.log('');
     } catch (error) {
       spinner.fail('Failed to index repository');
       logger.error(error instanceof Error ? error.message : String(error));

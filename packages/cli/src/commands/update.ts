@@ -10,6 +10,7 @@ import { Command } from 'commander';
 import ora from 'ora';
 import { loadConfig } from '../utils/config.js';
 import { logger } from '../utils/logger.js';
+import { formatUpdateSummary, output } from '../utils/output.js';
 
 export const updateCommand = new Command('update')
   .description('Update index with changed files')
@@ -66,34 +67,36 @@ export const updateCommand = new Command('update')
 
       await indexer.close();
 
-      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+      const duration = (Date.now() - startTime) / 1000;
 
-      if (stats.filesScanned === 0) {
-        spinner.succeed(chalk.green('Index is up to date!'));
-        logger.log('');
-        logger.log('No changes detected since last index.');
-      } else {
-        spinner.succeed(chalk.green('Index updated successfully!'));
+      spinner.stop();
 
-        // Show stats
-        logger.log('');
-        logger.log(chalk.bold('Update Statistics:'));
-        logger.log(`  ${chalk.cyan('Files updated:')}      ${stats.filesScanned}`);
-        logger.log(`  ${chalk.cyan('Documents re-indexed:')} ${stats.documentsIndexed}`);
-        logger.log(`  ${chalk.cyan('Duration:')}            ${duration}s`);
+      // Compact output
+      output.log('');
+      output.log(
+        formatUpdateSummary({
+          filesUpdated: stats.filesScanned,
+          documentsReindexed: stats.documentsIndexed,
+          duration: Number.parseFloat(duration.toFixed(2)),
+        })
+      );
 
-        if (stats.errors.length > 0) {
-          logger.log('');
-          logger.warn(`${stats.errors.length} error(s) occurred during update`);
-          if (options.verbose) {
-            for (const error of stats.errors) {
-              logger.error(`  ${error.file}: ${error.message}`);
-            }
+      // Show errors if any
+      if (stats.errors.length > 0) {
+        output.log('');
+        output.warn(`${stats.errors.length} error(s) occurred during update`);
+        if (options.verbose) {
+          for (const error of stats.errors) {
+            output.log(`  ${chalk.gray(error.file)}: ${error.message}`);
           }
+        } else {
+          output.log(
+            `  ${chalk.gray('Run with')} ${chalk.cyan('--verbose')} ${chalk.gray('to see details')}`
+          );
         }
       }
 
-      logger.log('');
+      output.log('');
     } catch (error) {
       spinner.fail('Failed to update index');
       logger.error(error instanceof Error ? error.message : String(error));

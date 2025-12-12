@@ -1,6 +1,5 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import chalk from 'chalk';
 import { logger } from './logger.js';
 
 /**
@@ -181,7 +180,7 @@ export async function saveConfig(
   try {
     await fs.mkdir(configDir, { recursive: true });
     await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
-    logger.success(`Config saved to ${chalk.cyan(configPath)}`);
+    // Silent save - let caller handle user messaging
   } catch (error) {
     throw new Error(
       `Failed to save config: ${error instanceof Error ? error.message : String(error)}`
