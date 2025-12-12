@@ -11,8 +11,10 @@ import {
   type RepositoryIndexer,
 } from '@lytics/dev-agent-core';
 import { estimateTokensForText, startTimer } from '../../formatters/utils';
+import { MapArgsSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
+import { validateArgs } from '../validation.js';
 
 /**
  * Map adapter configuration
@@ -118,52 +120,13 @@ export class MapAdapter extends ToolAdapter {
   }
 
   async execute(args: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {
-    const {
-      depth = this.config.defaultDepth,
-      focus,
-      includeExports = true,
-      tokenBudget = this.config.defaultTokenBudget,
-      includeChangeFrequency = false,
-    } = args as {
-      depth?: number;
-      focus?: string;
-      includeExports?: boolean;
-      tokenBudget?: number;
-      includeChangeFrequency?: boolean;
-    };
-
-    // Validate depth
-    if (typeof depth !== 'number' || depth < 1 || depth > 5) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_DEPTH',
-          message: 'Depth must be a number between 1 and 5',
-        },
-      };
+    // Validate args with Zod
+    const validation = validateArgs(MapArgsSchema, args);
+    if (!validation.success) {
+      return validation.error;
     }
 
-    // Validate focus if provided
-    if (focus !== undefined && typeof focus !== 'string') {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_FOCUS',
-          message: 'Focus must be a string path',
-        },
-      };
-    }
-
-    // Validate tokenBudget
-    if (typeof tokenBudget !== 'number' || tokenBudget < 500 || tokenBudget > 10000) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_TOKEN_BUDGET',
-          message: 'Token budget must be a number between 500 and 10000',
-        },
-      };
-    }
+    const { depth, focus, includeExports, tokenBudget, includeChangeFrequency } = validation.data;
 
     try {
       const timer = startTimer();

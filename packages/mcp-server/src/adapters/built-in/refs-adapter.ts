@@ -5,8 +5,10 @@
 
 import type { CalleeInfo, RepositoryIndexer, SearchResult } from '@lytics/dev-agent-core';
 import { estimateTokensForText, startTimer } from '../../formatters/utils';
+import { RefsArgsSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
+import { validateArgs } from '../validation.js';
 
 /**
  * Direction of relationship query
@@ -104,48 +106,13 @@ export class RefsAdapter extends ToolAdapter {
   }
 
   async execute(args: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {
-    const {
-      name,
-      direction = 'both',
-      limit = this.config.defaultLimit,
-    } = args as {
-      name: string;
-      direction?: RefDirection;
-      limit?: number;
-    };
-
-    // Validate name
-    if (typeof name !== 'string' || name.trim().length === 0) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_NAME',
-          message: 'Name must be a non-empty string',
-        },
-      };
+    // Validate args with Zod
+    const validation = validateArgs(RefsArgsSchema, args);
+    if (!validation.success) {
+      return validation.error;
     }
 
-    // Validate direction
-    if (!['callees', 'callers', 'both'].includes(direction)) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_DIRECTION',
-          message: 'Direction must be "callees", "callers", or "both"',
-        },
-      };
-    }
-
-    // Validate limit
-    if (typeof limit !== 'number' || limit < 1 || limit > 50) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_LIMIT',
-          message: 'Limit must be a number between 1 and 50',
-        },
-      };
-    }
+    const { name, direction, limit } = validation.data;
 
     try {
       const timer = startTimer();

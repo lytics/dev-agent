@@ -5,8 +5,10 @@
  */
 
 import * as fs from 'node:fs/promises';
+import { HealthArgsSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
+import { validateArgs } from '../validation.js';
 
 export interface HealthCheckConfig {
   repositoryPath: string;
@@ -74,7 +76,13 @@ export class HealthAdapter extends ToolAdapter {
   }
 
   async execute(args: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {
-    const verbose = args.verbose === true;
+    // Validate args with Zod (no type assertions!)
+    const validation = validateArgs(HealthArgsSchema, args);
+    if (!validation.success) {
+      return validation.error;
+    }
+
+    const { verbose } = validation.data;
 
     try {
       const health = await this.performHealthChecks(verbose);
