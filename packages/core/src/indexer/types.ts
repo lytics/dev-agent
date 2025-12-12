@@ -62,6 +62,29 @@ export interface IndexProgress {
 }
 
 /**
+ * Metadata about the freshness and source of statistics
+ */
+export interface StatsMetadata {
+  /** Whether this is from an incremental update (vs full index) */
+  isIncremental: boolean;
+
+  /** Timestamp of the last full index */
+  lastFullIndex: Date;
+
+  /** Timestamp of the last update (full or incremental) */
+  lastUpdate: Date;
+
+  /** Number of incremental updates since last full index */
+  incrementalUpdatesSince: number;
+
+  /** Languages affected by this update (only set for incremental updates) */
+  affectedLanguages?: SupportedLanguage[];
+
+  /** Warning message if stats may be stale */
+  warning?: string;
+}
+
+/**
  * Statistics from an indexing operation
  */
 export interface IndexStats {
@@ -91,6 +114,9 @@ export interface IndexStats {
 
   /** Repository path that was indexed */
   repositoryPath: string;
+
+  /** Metadata about stats freshness and source */
+  statsMetadata?: StatsMetadata;
 }
 
 /**
@@ -158,7 +184,7 @@ export interface PackageStats {
  */
 export interface DetailedIndexStats extends IndexStats {
   /** Statistics broken down by language */
-  byLanguage?: Record<SupportedLanguage, LanguageStats>;
+  byLanguage?: Partial<Record<SupportedLanguage, LanguageStats>>;
 
   /** Statistics broken down by component type */
   byComponentType?: Partial<Record<string, number>>;
@@ -212,6 +238,12 @@ export interface IndexerState {
   /** Last full index timestamp */
   lastIndexTime: Date;
 
+  /** Last update timestamp (full or incremental) */
+  lastUpdate?: Date;
+
+  /** Number of incremental updates since last full index */
+  incrementalUpdatesSince?: number;
+
   /** File metadata map (path -> metadata) */
   files: Record<string, FileMetadata>;
 
@@ -220,7 +252,7 @@ export interface IndexerState {
     totalFiles: number;
     totalDocuments: number;
     totalVectors: number;
-    byLanguage?: Record<SupportedLanguage, LanguageStats>;
+    byLanguage?: Partial<Record<SupportedLanguage, LanguageStats>>;
     byComponentType?: Partial<Record<string, number>>;
     byPackage?: Record<string, PackageStats>;
   };

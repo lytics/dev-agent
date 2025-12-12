@@ -230,7 +230,7 @@ describe('StatsAggregator', () => {
 
       // Should match the more specific package
       expect(stats.byPackage['packages/core'].components).toBe(1);
-      expect(stats.byPackage['packages'].components).toBe(0);
+      expect(stats.byPackage.packages.components).toBe(0);
     });
 
     it('should handle mixed languages in a package', () => {
@@ -346,8 +346,9 @@ describe('StatsAggregator', () => {
 
       // Should complete in reasonable time (<100ms for 10k docs)
       expect(duration).toBeLessThan(100);
-      expect(stats.byLanguage.typescript.files).toBe(10000);
-      expect(stats.byLanguage.typescript.components).toBe(10000);
+      expect(stats.byLanguage.typescript).toBeDefined();
+      expect(stats.byLanguage.typescript?.files).toBe(10000);
+      expect(stats.byLanguage.typescript?.components).toBe(10000);
     });
   });
 
@@ -438,7 +439,8 @@ describe('StatsAggregator', () => {
 
       const stats = aggregator.getDetailedStats();
 
-      expect(stats.byLanguage.typescript.files).toBe(1);
+      expect(stats.byLanguage.typescript).toBeDefined();
+      expect(stats.byLanguage.typescript?.files).toBe(1);
       expect(Object.keys(stats.byPackage).length).toBe(0);
     });
 
@@ -460,7 +462,8 @@ describe('StatsAggregator', () => {
 
       const stats = aggregator.getDetailedStats();
 
-      expect(stats.byLanguage.typescript.lines).toBe(1);
+      expect(stats.byLanguage.typescript).toBeDefined();
+      expect(stats.byLanguage.typescript?.lines).toBe(1);
     });
   });
 });

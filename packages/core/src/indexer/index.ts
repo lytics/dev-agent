@@ -11,6 +11,7 @@ import { getCurrentSystemResources, getOptimalConcurrency } from '../utils/concu
 import { VectorStorage } from '../vector';
 import type { EmbeddingDocument, SearchOptions, SearchResult } from '../vector/types';
 import { StatsAggregator } from './stats-aggregator';
+import { mergeStats } from './stats-merger';
 import type {
   DetailedIndexStats,
   FileMetadata,
@@ -19,6 +20,7 @@ import type {
   IndexerState,
   IndexOptions,
   IndexStats,
+  SupportedLanguage,
   UpdateOptions,
 } from './types';
 import { getExtensionForLanguage, prepareDocumentsForEmbedding } from './utils';
@@ -248,10 +250,22 @@ export class RepositoryIndexer {
         endTime,
         repositoryPath: this.config.repositoryPath,
         ...detailedStats,
+        statsMetadata: {
+          isIncremental: false,
+          lastFullIndex: endTime,
+          lastUpdate: endTime,
+          incrementalUpdatesSince: 0,
+        },
       };
 
       // Update state with file metadata and detailed stats
       await this.updateState(scanResult.documents, detailedStats);
+
+      // Reset incremental update counter after full index
+      if (this.state) {
+        this.state.incrementalUpdatesSince = 0;
+        this.state.lastUpdate = endTime;
+      }
 
       return stats;
     } catch (error) {
@@ -338,6 +352,8 @@ export class RepositoryIndexer {
     // Scan and index changed + added files
     let documentsExtracted = 0;
     let documentsIndexed = 0;
+    let incrementalStats: ReturnType<StatsAggregator['getDetailedStats']> | null = null;
+    const affectedLanguages = new Set<string>();
 
     if (filesToReindex.length > 0) {
       const scanResult = await scanRepository({
@@ -349,31 +365,47 @@ export class RepositoryIndexer {
 
       documentsExtracted = scanResult.documents.length;
 
+      // Calculate stats for incremental changes
+      const statsAggregator = new StatsAggregator();
+      for (const doc of scanResult.documents) {
+        statsAggregator.addDocument(doc);
+        affectedLanguages.add(doc.language);
+      }
+      incrementalStats = statsAggregator.getDetailedStats();
+
       // Index new documents
       const embeddingDocuments = prepareDocumentsForEmbedding(scanResult.documents);
       await this.vectorStorage.addDocuments(embeddingDocuments);
       documentsIndexed = embeddingDocuments.length;
 
-      // Update state with new documents (don't pass detailed stats to preserve existing)
+      // Merge incremental stats into state (updates the full repository stats)
+      this.applyStatsMerge(deleted, changed, incrementalStats);
+
+      // Update state with new documents
       await this.updateState(scanResult.documents);
     } else {
-      // Only deletions - still need to save state
+      // Only deletions - need to update stats by removing deleted file contributions
+      if (deleted.length > 0) {
+        this.applyStatsMerge(deleted, [], null);
+      }
+      // Save state
       await this.saveState();
     }
 
     const endTime = new Date();
 
-    // For incremental updates, preserve existing detailed stats from last full index
-    // Note: These stats may become slightly stale. Run full 'dev index' periodically
-    // to refresh detailed statistics for accurate language/component breakdowns.
-    const detailedStats = this.state.stats.byLanguage
-      ? {
-          byLanguage: this.state.stats.byLanguage,
-          byComponentType: this.state.stats.byComponentType,
-          byPackage: this.state.stats.byPackage,
-        }
-      : {};
+    // Update metadata
+    const incrementalUpdatesSince = (this.state.incrementalUpdatesSince || 0) + 1;
+    if (this.state) {
+      this.state.incrementalUpdatesSince = incrementalUpdatesSince;
+      this.state.lastUpdate = endTime;
+    }
 
+    // Build metadata
+    const lastFullIndex = this.state?.lastIndexTime || endTime;
+    const warning = this.getStatsWarning(incrementalUpdatesSince);
+
+    // Return incremental stats (what changed) with metadata
     return {
       filesScanned: filesToReindex.length,
       documentsExtracted,
@@ -384,7 +416,16 @@ export class RepositoryIndexer {
       startTime,
       endTime,
       repositoryPath: this.config.repositoryPath,
-      ...detailedStats,
+      // Include incremental stats if we calculated them
+      ...(incrementalStats || {}),
+      statsMetadata: {
+        isIncremental: true,
+        lastFullIndex,
+        lastUpdate: endTime,
+        incrementalUpdatesSince,
+        affectedLanguages: Array.from(affectedLanguages) as SupportedLanguage[],
+        warning,
+      },
     };
   }
 
@@ -404,6 +445,10 @@ export class RepositoryIndexer {
     }
 
     const vectorStats = await this.vectorStorage.getStats();
+    const lastFullIndex = this.state.lastIndexTime;
+    const lastUpdate = this.state.lastUpdate || lastFullIndex;
+    const incrementalUpdatesSince = this.state.incrementalUpdatesSince || 0;
+    const warning = this.getStatsWarning(incrementalUpdatesSince);
 
     return {
       filesScanned: this.state.stats.totalFiles,
@@ -418,7 +463,72 @@ export class RepositoryIndexer {
       byLanguage: this.state.stats.byLanguage,
       byComponentType: this.state.stats.byComponentType,
       byPackage: this.state.stats.byPackage,
+      statsMetadata: {
+        isIncremental: false, // getStats returns full picture
+        lastFullIndex,
+        lastUpdate,
+        incrementalUpdatesSince,
+        warning,
+      },
     };
+  }
+
+  /**
+   * Apply stat merging using pure functions
+   * Wrapper around the pure mergeStats function that updates state
+   */
+  private applyStatsMerge(
+    deleted: string[],
+    changed: string[],
+    incrementalStats: ReturnType<StatsAggregator['getDetailedStats']> | null
+  ): void {
+    if (!this.state) {
+      return;
+    }
+
+    // Prepare file metadata for deleted and changed files
+    const deletedFiles = deleted
+      .map((path) => ({ path, metadata: this.state?.files[path] }))
+      .filter((f) => f.metadata !== undefined);
+
+    const changedFiles = changed
+      .map((path) => ({ path, metadata: this.state?.files[path] }))
+      .filter((f) => f.metadata !== undefined);
+
+    // Use pure function to compute new stats
+    const mergedStats = mergeStats({
+      currentStats: {
+        byLanguage: this.state.stats.byLanguage || {},
+        byComponentType: this.state.stats.byComponentType || {},
+        byPackage: this.state.stats.byPackage || {},
+      },
+      deletedFiles: deletedFiles.filter((f) => f.metadata !== undefined) as Array<{
+        path: string;
+        metadata: FileMetadata;
+      }>,
+      changedFiles: changedFiles.filter((f) => f.metadata !== undefined) as Array<{
+        path: string;
+        metadata: FileMetadata;
+      }>,
+      incrementalStats,
+    });
+
+    // Update state with merged stats
+    this.state.stats.byLanguage = mergedStats.byLanguage;
+    this.state.stats.byComponentType = mergedStats.byComponentType;
+    this.state.stats.byPackage = mergedStats.byPackage;
+  }
+
+  /**
+   * Get warning message for stale stats
+   * Extracted for testability
+   */
+  private getStatsWarning(incrementalUpdatesSince: number): string | undefined {
+    const threshold = 10;
+    if (incrementalUpdatesSince > threshold) {
+      return "Consider running 'dev index' for most accurate statistics";
+    }
+    return undefined;
   }
 
   /**

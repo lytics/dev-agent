@@ -6,6 +6,7 @@ import type { DetailedIndexStats, LanguageStats, SupportedLanguage } from '@lyti
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import terminalSize from 'terminal-size';
+import { getTimeSince } from './date-utils';
 
 /**
  * Format bytes to human-readable string
@@ -157,7 +158,7 @@ export function createHealthIndicator(stats: DetailedIndexStats): string {
 /**
  * Capitalize language name
  */
-function capitalizeLanguage(lang: string): string {
+export function capitalizeLanguage(lang: string): string {
   const map: Record<string, string> = {
     typescript: 'TypeScript',
     javascript: 'JavaScript',
@@ -208,6 +209,36 @@ export function createOverviewSection(stats: DetailedIndexStats, repoPath: strin
   }
 
   lines.push(`${chalk.cyan('Health:')}             ${createHealthIndicator(stats)}`);
+
+  // Add stats freshness information
+  if (stats.statsMetadata) {
+    const metadata = stats.statsMetadata;
+    lines.push('');
+
+    if (metadata.isIncremental) {
+      lines.push(chalk.yellow('ℹ️  Showing incremental update stats'));
+      if (metadata.affectedLanguages && metadata.affectedLanguages.length > 0) {
+        const langs = metadata.affectedLanguages.map(capitalizeLanguage).join(', ');
+        lines.push(`   ${chalk.gray('Languages affected:')} ${langs}`);
+      }
+    } else {
+      const updatesSince = metadata.incrementalUpdatesSince || 0;
+      if (updatesSince > 0) {
+        const plural = updatesSince === 1 ? 'update' : 'updates';
+        lines.push(chalk.gray(`💡 ${updatesSince} incremental ${plural} since last full index`));
+      }
+    }
+
+    if (metadata.lastFullIndex) {
+      const timeSince = getTimeSince(new Date(metadata.lastFullIndex));
+      lines.push(chalk.gray(`   Last full index: ${timeSince}`));
+    }
+
+    if (metadata.warning) {
+      lines.push('');
+      lines.push(chalk.yellow(`⚠️  ${metadata.warning}`));
+    }
+  }
 
   return lines;
 }

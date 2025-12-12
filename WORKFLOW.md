@@ -2,6 +2,14 @@
 
 Standard workflow for implementing features in dev-agent.
 
+## 📚 Related Documentation
+
+Before starting development, familiarize yourself with our coding standards:
+
+- **[TypeScript Standards](./docs/TYPESCRIPT_STANDARDS.md)** ⭐ **START HERE** - Our coding manifesto
+- **[Feature Template](./docs/FEATURE_TEMPLATE.md)** - Step-by-step guide for new features
+- **[Architecture](./ARCHITECTURE.md)** - System design and package structure
+
 ## The Drill™
 
 ### 1. Find Next Work (Dogfooding! 🐕🍽️)
@@ -99,6 +107,7 @@ pnpm typecheck
 - ✅ 100% function coverage
 - ✅ No linter errors
 - ✅ No TypeScript errors
+- ✅ **Follows [TypeScript Standards](./docs/TYPESCRIPT_STANDARDS.md)** (no `as`, Result types, pure functions)
 - ✅ Documentation with examples
 
 ### 6. Commit & PR

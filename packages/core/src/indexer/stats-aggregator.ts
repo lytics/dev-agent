@@ -60,15 +60,12 @@ export class StatsAggregator {
    * Get aggregated statistics
    */
   getDetailedStats(): {
-    byLanguage: Record<SupportedLanguage, LanguageStats>;
-    byComponentType: Record<string, number>;
+    byLanguage: Partial<Record<SupportedLanguage, LanguageStats>>;
+    byComponentType: Partial<Record<string, number>>;
     byPackage: Record<string, PackageStats>;
   } {
     return {
-      byLanguage: Object.fromEntries(this.languageStats) as Record<
-        SupportedLanguage,
-        LanguageStats
-      >,
+      byLanguage: Object.fromEntries(this.languageStats),
       byComponentType: Object.fromEntries(this.componentTypeStats),
       byPackage: Object.fromEntries(this.packageStats),
     };

@@ -7,16 +7,21 @@
 <!-- Link to related GitHub issues -->
 Closes #
 
-## 🧪 Testability Checklist
+## 🧪 Code Standards Checklist
 
-<!-- Check all that apply -->
+<!-- Check all that apply - See docs/TYPESCRIPT_STANDARDS.md -->
 
 - [ ] Pure functions extracted to `utils/` modules
 - [ ] Utilities achieve 100% coverage (statements & functions)
-- [ ] No `!` non-null assertions (use guard clauses or optional chaining)
+- [ ] **No type assertions (`as`, `!`)** without validation
+- [ ] **Runtime validation** for external data (Zod/type guards)
+- [ ] **Result types** used instead of exceptions
 - [ ] Modules organized by domain (not generic "utils")
-- [ ] Each module < 200 lines
+- [ ] Each module < 300 lines, each class < 400 lines
+- [ ] Constructor injection for dependencies
 - [ ] Atomic commits with clear dependencies
+
+**See:** [TypeScript Standards](../docs/TYPESCRIPT_STANDARDS.md)
 
 ## ✅ Testing
 
