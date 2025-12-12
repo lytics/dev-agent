@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import {
+  type DetailedIndexStats,
   ensureStorageDirectory,
   getStorageFilePaths,
   getStoragePath,
@@ -11,6 +12,7 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
 import { loadConfig } from '../utils/config.js';
+import { formatDetailedStats } from '../utils/formatters.js';
 import { logger } from '../utils/logger.js';
 
 export const statsCommand = new Command('stats')
@@ -48,7 +50,7 @@ export const statsCommand = new Command('stats')
 
       await indexer.initialize();
 
-      const stats = await indexer.getStats();
+      const stats = (await indexer.getStats()) as DetailedIndexStats | null;
 
       // Try to load GitHub stats
       let githubStats = null;
@@ -90,35 +92,26 @@ export const statsCommand = new Command('stats')
 
       // Output as JSON if requested
       if (options.json) {
-        console.log(JSON.stringify(stats, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              repository: stats,
+              github: githubStats || undefined,
+            },
+            null,
+            2
+          )
+        );
         return;
       }
 
-      // Pretty print stats
-      logger.log('');
-      logger.log(chalk.bold.cyan('📊 Indexing Statistics'));
-      logger.log('');
-      logger.log(`${chalk.cyan('Repository:')}         ${resolvedRepoPath}`);
-      logger.log(`${chalk.cyan('Storage:')}            ${storagePath}`);
-      logger.log(`${chalk.cyan('Vector Store:')}       ${filePaths.vectors}`);
-      logger.log('');
-      logger.log(`${chalk.cyan('Files Indexed:')}      ${stats.filesScanned}`);
-      logger.log(`${chalk.cyan('Documents Extracted:')} ${stats.documentsExtracted}`);
-      logger.log(`${chalk.cyan('Vectors Stored:')}     ${stats.vectorsStored}`);
-      logger.log('');
+      // Detect if monorepo (check for package stats)
+      const showPackages = !!(stats.byPackage && Object.keys(stats.byPackage).length > 0);
 
-      if (stats.startTime && stats.endTime) {
-        const duration = (stats.duration / 1000).toFixed(2);
-        logger.log(
-          `${chalk.cyan('Last Indexed:')}       ${new Date(stats.startTime).toLocaleString()}`
-        );
-        logger.log(`${chalk.cyan('Duration:')}           ${duration}s`);
-      }
-
-      if (stats.errors && stats.errors.length > 0) {
-        logger.log('');
-        logger.warn(`${stats.errors.length} error(s) during last indexing`);
-      }
+      // Pretty print stats with enhanced formatting
+      logger.log('');
+      logger.log(formatDetailedStats(stats, resolvedRepoPath, { showPackages }));
+      logger.log('');
 
       // Display GitHub stats if available
       if (githubStats) {

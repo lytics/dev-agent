@@ -43,8 +43,10 @@
     "@lytics/dev-agent-subagents": "workspace:*",
     "@lytics/kero": "workspace:*",
     "chalk": "^5.6.2",
+    "cli-table3": "^0.6.5",
     "commander": "^12.1.0",
-    "ora": "^8.0.1"
+    "ora": "^8.0.1",
+    "terminal-size": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
