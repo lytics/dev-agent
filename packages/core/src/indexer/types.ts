@@ -220,6 +220,9 @@ export interface IndexerState {
     totalFiles: number;
     totalDocuments: number;
     totalVectors: number;
+    byLanguage?: Record<SupportedLanguage, LanguageStats>;
+    byComponentType?: Partial<Record<string, number>>;
+    byPackage?: Record<string, PackageStats>;
   };
 }
 
