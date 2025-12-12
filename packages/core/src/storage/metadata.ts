@@ -7,6 +7,7 @@ import { execSync } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { getGitRemote, normalizeGitRemote } from './path';
+import { validateRepositoryMetadata } from './validation.js';
 
 export interface RepositoryMetadata {
   version: string;
@@ -73,7 +74,9 @@ export async function loadMetadata(storagePath: string): Promise<RepositoryMetad
   const metadataPath = path.join(storagePath, 'metadata.json');
   try {
     const content = await fs.readFile(metadataPath, 'utf-8');
-    return JSON.parse(content) as RepositoryMetadata;
+    const data = JSON.parse(content);
+    const validated = validateRepositoryMetadata(data);
+    return validated as RepositoryMetadata | null;
   } catch {
     return null;
   }
