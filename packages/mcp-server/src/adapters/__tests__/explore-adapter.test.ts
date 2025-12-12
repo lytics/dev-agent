@@ -64,7 +64,8 @@ describe('ExploreAdapter', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_ACTION');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('action');
     });
 
     it('should reject empty query', async () => {
@@ -77,7 +78,8 @@ describe('ExploreAdapter', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_QUERY');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('query');
     });
 
     it('should reject invalid limit', async () => {
@@ -91,7 +93,8 @@ describe('ExploreAdapter', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_LIMIT');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('limit');
     });
 
     it('should reject invalid threshold', async () => {
@@ -105,7 +108,8 @@ describe('ExploreAdapter', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_THRESHOLD');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('threshold');
     });
 
     it('should reject invalid format', async () => {
@@ -119,7 +123,8 @@ describe('ExploreAdapter', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_FORMAT');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('format');
     });
   });
 

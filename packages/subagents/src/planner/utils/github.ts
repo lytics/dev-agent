@@ -4,6 +4,7 @@
  */
 
 import { execSync } from 'node:child_process';
+import { type GitHubIssueData, GitHubIssueSchema } from '../../schemas/github-cli.js';
 import type { GitHubComment, GitHubIssue } from '../types';
 
 /**
@@ -65,27 +66,33 @@ export async function fetchGitHubIssue(
       cwd: repositoryPath, // Run in the repository directory
     });
 
-    const data = JSON.parse(output);
+    // Parse and validate GitHub CLI response
+    const rawData = JSON.parse(output);
+    const parseResult = GitHubIssueSchema.safeParse(rawData);
 
-    // Parse comments if included
-    let comments: GitHubComment[] | undefined;
-    if (options.includeComments && data.comments) {
-      comments = data.comments.map(
-        (c: { author?: { login: string }; body: string; createdAt?: string }) => ({
-          author: c.author?.login,
-          body: c.body,
-          createdAt: c.createdAt,
-        })
-      );
+    if (!parseResult.success) {
+      const firstError = parseResult.error.issues[0];
+      const path = firstError.path.length > 0 ? `${firstError.path.join('.')}: ` : '';
+      throw new Error(`Invalid GitHub CLI response: ${path}${firstError.message}`);
     }
 
+    const data: GitHubIssueData = parseResult.data;
+
+    // Transform comments if included
+    const comments: GitHubComment[] | undefined = data.comments?.map((c) => ({
+      author: c.author?.login,
+      body: c.body,
+      createdAt: c.createdAt,
+    }));
+
+    // Transform to internal type
     return {
       number: data.number,
       title: data.title,
-      body: data.body || '',
-      state: data.state.toLowerCase() as 'open' | 'closed',
-      labels: data.labels?.map((l: { name: string }) => l.name) || [],
-      assignees: data.assignees?.map((a: { login: string }) => a.login) || [],
+      body: data.body ?? '',
+      state: data.state,
+      labels: data.labels.map((l) => l.name),
+      assignees: data.assignees.map((a) => a.login),
       author: data.author?.login,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,

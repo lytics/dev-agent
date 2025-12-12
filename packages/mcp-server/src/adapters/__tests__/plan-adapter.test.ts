@@ -157,22 +157,24 @@ describe('PlanAdapter', () => {
         const result = await adapter.execute({ issue: 'invalid' }, mockExecutionContext);
 
         expect(result.success).toBe(false);
-        expect(result.error?.code).toBe('INVALID_ISSUE');
-        expect(result.error?.message).toContain('positive number');
+        expect(result.error?.code).toBe('INVALID_PARAMS');
+        expect(result.error?.message).toContain('issue');
       });
 
       it('should reject invalid issue number (negative)', async () => {
         const result = await adapter.execute({ issue: -1 }, mockExecutionContext);
 
         expect(result.success).toBe(false);
-        expect(result.error?.code).toBe('INVALID_ISSUE');
+        expect(result.error?.code).toBe('INVALID_PARAMS');
+        expect(result.error?.message).toContain('issue');
       });
 
       it('should reject invalid issue number (zero)', async () => {
         const result = await adapter.execute({ issue: 0 }, mockExecutionContext);
 
         expect(result.success).toBe(false);
-        expect(result.error?.code).toBe('INVALID_ISSUE');
+        expect(result.error?.code).toBe('INVALID_PARAMS');
+        expect(result.error?.message).toContain('issue');
       });
 
       it('should reject invalid format', async () => {
@@ -182,7 +184,8 @@ describe('PlanAdapter', () => {
         );
 
         expect(result.success).toBe(false);
-        expect(result.error?.code).toBe('INVALID_FORMAT');
+        expect(result.error?.code).toBe('INVALID_PARAMS');
+        expect(result.error?.message).toContain('format');
         expect(result.error?.message).toContain('compact');
       });
     });

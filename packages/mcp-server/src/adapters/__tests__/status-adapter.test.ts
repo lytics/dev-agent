@@ -147,8 +147,8 @@ describe('StatusAdapter', () => {
         const result = await adapter.execute({ section: 'invalid' }, mockExecutionContext);
 
         expect(result.success).toBe(false);
-        expect(result.error?.code).toBe('INVALID_SECTION');
-        expect(result.error?.message).toContain('summary');
+        expect(result.error?.code).toBe('INVALID_PARAMS');
+        expect(result.error?.message).toContain('section');
       });
 
       it('should reject invalid format', async () => {
@@ -158,8 +158,8 @@ describe('StatusAdapter', () => {
         );
 
         expect(result.success).toBe(false);
-        expect(result.error?.code).toBe('INVALID_FORMAT');
-        expect(result.error?.message).toContain('compact');
+        expect(result.error?.code).toBe('INVALID_PARAMS');
+        expect(result.error?.message).toContain('format');
       });
     });
 

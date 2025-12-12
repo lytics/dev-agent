@@ -118,28 +118,32 @@ describe('MapAdapter', () => {
       const result = await adapter.execute({ depth: 10 }, execContext);
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_DEPTH');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('depth');
     });
 
     it('should reject depth less than 1', async () => {
       const result = await adapter.execute({ depth: 0 }, execContext);
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_DEPTH');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('depth');
     });
 
     it('should reject invalid focus type', async () => {
       const result = await adapter.execute({ focus: 123 }, execContext);
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_FOCUS');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('focus');
     });
 
     it('should reject invalid token budget', async () => {
       const result = await adapter.execute({ tokenBudget: 100 }, execContext);
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_TOKEN_BUDGET');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('tokenBudget');
     });
   });
 

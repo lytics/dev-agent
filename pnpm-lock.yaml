@@ -230,6 +230,9 @@ importers:
       '@lytics/kero':
         specifier: workspace:*
         version: link:../logger
+      zod:
+        specifier: ^4.1.13
+        version: 4.1.13
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
