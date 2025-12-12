@@ -13,6 +13,16 @@ export {
   calculateChangeFrequency,
   type FileChangeFrequency,
 } from './change-frequency';
+
+// Stats comparison
+export {
+  compareStats,
+  formatDiffSummary,
+  type LanguageDiff,
+  type NumericDiff,
+  type PackageDiff,
+  type StatsDiff,
+} from './comparison';
 // Document preparation
 export {
   filterDocumentsByExport,
@@ -21,6 +31,14 @@ export {
   prepareDocumentForEmbedding,
   prepareDocumentsForEmbedding,
 } from './documents';
+// Stats export
+export {
+  type ExportOptions,
+  exportLanguageStatsAsMarkdown,
+  exportPackageStatsAsMarkdown,
+  exportStatsAsCsv,
+  exportStatsAsJson,
+} from './export';
 // Text formatting
 export {
   cleanDocumentText,

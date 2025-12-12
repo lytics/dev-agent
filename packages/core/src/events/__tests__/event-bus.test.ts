@@ -237,6 +237,9 @@ describe('AsyncEventBus', () => {
 
   describe('error handling', () => {
     it('should not crash on handler error', async () => {
+      // Mock console.error to suppress expected error logs in test output
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
       const errorHandler = vi.fn().mockRejectedValue(new Error('Handler error'));
       const goodHandler = vi.fn();
 
@@ -249,6 +252,9 @@ describe('AsyncEventBus', () => {
 
       expect(errorHandler).toHaveBeenCalled();
       expect(goodHandler).toHaveBeenCalled();
+
+      // Restore console.error
+      consoleErrorSpy.mockRestore();
     });
   });
 });
