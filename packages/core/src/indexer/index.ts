@@ -10,7 +10,9 @@ import type { Document } from '../scanner/types';
 import { getCurrentSystemResources, getOptimalConcurrency } from '../utils/concurrency';
 import { VectorStorage } from '../vector';
 import type { EmbeddingDocument, SearchOptions, SearchResult } from '../vector/types';
+import { StatsAggregator } from './stats-aggregator';
 import type {
+  DetailedIndexStats,
   FileMetadata,
   IndexError,
   IndexerConfig,
@@ -93,6 +95,12 @@ export class RepositoryIndexer {
 
       filesScanned = scanResult.stats.filesScanned;
       documentsExtracted = scanResult.documents.length;
+
+      // Aggregate detailed statistics
+      const statsAggregator = new StatsAggregator();
+      for (const doc of scanResult.documents) {
+        statsAggregator.addDocument(doc);
+      }
 
       // Phase 2: Prepare documents for embedding
       const logger = options.logger?.child({ component: 'indexer' });
@@ -229,7 +237,10 @@ export class RepositoryIndexer {
         percentComplete: 100,
       });
 
-      const stats: IndexStats = {
+      // Get detailed stats from aggregator
+      const detailedStats = statsAggregator.getDetailedStats();
+
+      const stats: DetailedIndexStats = {
         filesScanned,
         documentsExtracted,
         documentsIndexed,
@@ -239,6 +250,7 @@ export class RepositoryIndexer {
         startTime,
         endTime,
         repositoryPath: this.config.repositoryPath,
+        ...detailedStats,
       };
 
       return stats;
@@ -326,6 +338,7 @@ export class RepositoryIndexer {
     // Scan and index changed + added files
     let documentsExtracted = 0;
     let documentsIndexed = 0;
+    const statsAggregator = new StatsAggregator();
 
     if (filesToReindex.length > 0) {
       const scanResult = await scanRepository({
@@ -336,6 +349,11 @@ export class RepositoryIndexer {
       });
 
       documentsExtracted = scanResult.documents.length;
+
+      // Aggregate detailed statistics
+      for (const doc of scanResult.documents) {
+        statsAggregator.addDocument(doc);
+      }
 
       // Index new documents
       const embeddingDocuments = prepareDocumentsForEmbedding(scanResult.documents);
@@ -350,6 +368,8 @@ export class RepositoryIndexer {
     }
 
     const endTime = new Date();
+    const detailedStats = statsAggregator.getDetailedStats();
+
     return {
       filesScanned: filesToReindex.length,
       documentsExtracted,
@@ -360,6 +380,7 @@ export class RepositoryIndexer {
       startTime,
       endTime,
       repositoryPath: this.config.repositoryPath,
+      ...detailedStats,
     };
   }
 
