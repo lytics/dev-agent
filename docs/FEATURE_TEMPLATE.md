@@ -260,24 +260,16 @@ Before submitting your feature:
 
 ---
 
-## 📚 Examples
+## 📚 Examples & Resources
 
-See these implementations:
+**Real implementations:**
+1. `packages/subagents/src/explorer/` - 99 tests, 100% on utilities
+2. `packages/core/src/indexer/stats-merger.ts` - 17 tests, pure functions
+3. `packages/cli/src/utils/date-utils.ts` - 18 tests, 100% coverage
 
-1. **Explorer Subagent**
-   - Path: `packages/subagents/src/explorer/`
-   - 99 tests, 100% on utilities
-   - 4 domain modules: metadata, filters, relationships, analysis
-
-2. **Repository Indexer**
-   - Path: `packages/core/src/indexer/`
-   - 87 tests on utilities
-   - 3 domain modules: language, formatting, documents
-
-3. **Subagent Coordinator**
-   - Path: `packages/subagents/src/coordinator/`
-   - Context manager, task queue, message protocol
-   - High test coverage with mocks where needed
+**Documentation:**
+- [TYPESCRIPT_STANDARDS.md](./TYPESCRIPT_STANDARDS.md) - Our coding manifesto
+- [REFACTORING_SUMMARY.md](./REFACTORING_SUMMARY.md) - Recent refactoring example
 
 ---
 

@@ -68,12 +68,12 @@ describe('Detailed Stats Integration', () => {
     expect(stats.byLanguage?.javascript).toBeDefined();
 
     // TypeScript should have 2 components (function + class)
-    expect(stats.byLanguage?.typescript.files).toBe(1);
-    expect(stats.byLanguage?.typescript.components).toBeGreaterThanOrEqual(2);
+    expect(stats.byLanguage?.typescript?.files).toBe(1);
+    expect(stats.byLanguage?.typescript?.components).toBeGreaterThanOrEqual(2);
 
     // JavaScript should have 1 component (function)
-    expect(stats.byLanguage?.javascript.files).toBe(1);
-    expect(stats.byLanguage?.javascript.components).toBeGreaterThanOrEqual(1);
+    expect(stats.byLanguage?.javascript?.files).toBe(1);
+    expect(stats.byLanguage?.javascript?.components).toBeGreaterThanOrEqual(1);
   });
 
   it('should collect component type stats', async () => {
@@ -191,7 +191,12 @@ This is a test project.
     });
 
     await indexer.initialize();
-    const _initialStats = (await indexer.index()) as DetailedIndexStats;
+    const initialStats = (await indexer.index()) as DetailedIndexStats;
+
+    // Verify initial stats metadata
+    expect(initialStats.statsMetadata).toBeDefined();
+    expect(initialStats.statsMetadata?.isIncremental).toBe(false);
+    expect(initialStats.statsMetadata?.incrementalUpdatesSince).toBe(0);
 
     // Add new file
     await fs.writeFile(
@@ -211,12 +216,29 @@ This is a test project.
       since: new Date(Date.now() - 1000),
     })) as DetailedIndexStats;
 
-    await indexer.close();
+    // Verify incremental update stats show only the new JavaScript file
+    expect(updateStats.statsMetadata).toBeDefined();
+    expect(updateStats.statsMetadata?.isIncremental).toBe(true);
+    expect(updateStats.statsMetadata?.incrementalUpdatesSince).toBe(1);
+    expect(updateStats.statsMetadata?.affectedLanguages).toContain('javascript');
 
-    // Verify update stats show the new JavaScript file
     expect(updateStats.byLanguage).toBeDefined();
     expect(updateStats.byLanguage?.javascript).toBeDefined();
-    expect(updateStats.byLanguage?.javascript.files).toBeGreaterThanOrEqual(1);
+    expect(updateStats.byLanguage?.javascript?.files).toBe(1); // Only the new file
+
+    // Verify getStats() returns the full picture (both TypeScript and JavaScript)
+    const fullStats = (await indexer.getStats()) as DetailedIndexStats;
+    expect(fullStats.byLanguage).toBeDefined();
+    expect(fullStats.byLanguage?.typescript).toBeDefined();
+    expect(fullStats.byLanguage?.typescript?.files).toBe(1);
+    expect(fullStats.byLanguage?.javascript).toBeDefined();
+    expect(fullStats.byLanguage?.javascript?.files).toBe(1);
+
+    // Full stats metadata should show it's not incremental
+    expect(fullStats.statsMetadata?.isIncremental).toBe(false);
+    expect(fullStats.statsMetadata?.incrementalUpdatesSince).toBe(1);
+
+    await indexer.close();
   });
 
   it('should calculate line counts correctly', async () => {
@@ -247,7 +269,8 @@ This is a test project.
     await indexer.close();
 
     // Verify line count is captured
-    expect(stats.byLanguage?.typescript.lines).toBeGreaterThan(0);
+    expect(stats.byLanguage?.typescript).toBeDefined();
+    expect(stats.byLanguage?.typescript?.lines).toBeGreaterThan(0);
   });
 
   it('should handle empty repository gracefully', async () => {
