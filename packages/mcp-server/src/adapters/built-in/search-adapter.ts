@@ -5,9 +5,11 @@
 
 import type { RepositoryIndexer } from '@lytics/dev-agent-core';
 import { CompactFormatter, type FormatMode, VerboseFormatter } from '../../formatters';
+import { SearchArgsSchema } from '../../schemas/index.js';
 import { findRelatedTestFiles, formatRelatedFiles } from '../../utils/related-files';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
+import { validateArgs } from '../validation.js';
 
 /**
  * Search adapter configuration
@@ -125,71 +127,13 @@ export class SearchAdapter extends ToolAdapter {
   }
 
   async execute(args: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {
-    const {
-      query,
-      format = this.config.defaultFormat,
-      limit = this.config.defaultLimit,
-      scoreThreshold = 0,
-      tokenBudget,
-    } = args;
-
-    // Validate query
-    if (typeof query !== 'string' || query.trim().length === 0) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_QUERY',
-          message: 'Query must be a non-empty string',
-        },
-      };
+    // Validate args with Zod
+    const validation = validateArgs(SearchArgsSchema, args);
+    if (!validation.success) {
+      return validation.error;
     }
 
-    // Validate format
-    if (format !== 'compact' && format !== 'verbose') {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_FORMAT',
-          message: 'Format must be either "compact" or "verbose"',
-        },
-      };
-    }
-
-    // Validate limit
-    if (typeof limit !== 'number' || limit < 1 || limit > 50) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_LIMIT',
-          message: 'Limit must be a number between 1 and 50',
-        },
-      };
-    }
-
-    // Validate scoreThreshold
-    if (typeof scoreThreshold !== 'number' || scoreThreshold < 0 || scoreThreshold > 1) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_SCORE_THRESHOLD',
-          message: 'Score threshold must be a number between 0 and 1',
-        },
-      };
-    }
-
-    // Validate tokenBudget if provided
-    if (
-      tokenBudget !== undefined &&
-      (typeof tokenBudget !== 'number' || tokenBudget < 500 || tokenBudget > 10000)
-    ) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_TOKEN_BUDGET',
-          message: 'Token budget must be a number between 500 and 10000',
-        },
-      };
-    }
+    const { query, format, limit, scoreThreshold, tokenBudget } = validation.data;
 
     try {
       const startTime = Date.now();

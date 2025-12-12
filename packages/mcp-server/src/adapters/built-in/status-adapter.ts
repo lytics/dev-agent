@@ -8,8 +8,10 @@ import * as path from 'node:path';
 import type { RepositoryIndexer } from '@lytics/dev-agent-core';
 import { GitHubIndexer } from '@lytics/dev-agent-subagents';
 import { estimateTokensForText } from '../../formatters/utils';
+import { StatusArgsSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
+import { validateArgs } from '../validation.js';
 
 /**
  * Status section types
@@ -203,41 +205,20 @@ export class StatusAdapter extends ToolAdapter {
   }
 
   async execute(args: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {
-    const { section = this.defaultSection, format = 'compact' } = args;
-
-    // Validate section
-    const validSections: StatusSection[] = ['summary', 'repo', 'indexes', 'github', 'health'];
-    if (!validSections.includes(section as StatusSection)) {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_SECTION',
-          message: `Section must be one of: ${validSections.join(', ')}`,
-        },
-      };
+    // Validate args with Zod (no type assertions!)
+    const validation = validateArgs(StatusArgsSchema, args);
+    if (!validation.success) {
+      return validation.error;
     }
 
-    // Validate format
-    if (format !== 'compact' && format !== 'verbose') {
-      return {
-        success: false,
-        error: {
-          code: 'INVALID_FORMAT',
-          message: 'Format must be either "compact" or "verbose"',
-        },
-      };
-    }
+    const { section, format } = validation.data;
 
     try {
       const startTime = Date.now();
       context.logger.debug('Executing status check', { section, format });
 
       // Generate status content based on section
-      const content = await this.generateStatus(
-        section as StatusSection,
-        format as string,
-        context
-      );
+      const content = await this.generateStatus(section, format, context);
 
       const duration_ms = Date.now() - startTime;
       const tokens = estimateTokensForText(content);
