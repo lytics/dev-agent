@@ -14,19 +14,21 @@ import { z } from 'zod';
  * Repository metadata schema
  */
 export const RepositoryMetadataSchema = z.object({
-  version: z.string(),
+  version: z.string().min(1),
   repository: z.object({
-    path: z.string(),
-    remote: z.string().optional(),
+    path: z.string().min(1),
+    remote: z.string().optional(), // Can be URL or git remote name
     branch: z.string().optional(),
     lastCommit: z.string().optional(),
+    totalCommits: z.number().int().nonnegative().optional(),
   }),
   indexed: z
     .object({
-      timestamp: z.string(),
+      timestamp: z.union([z.string(), z.coerce.date()]), // Support both string and Date
       files: z.number().int().nonnegative(),
       components: z.number().int().nonnegative(),
       size: z.number().int().nonnegative(),
+      languages: z.array(z.string()).optional(),
     })
     .optional(),
   config: z
@@ -37,8 +39,8 @@ export const RepositoryMetadataSchema = z.object({
     .optional(),
   migrated: z
     .object({
-      timestamp: z.string(),
-      from: z.string(),
+      timestamp: z.union([z.string(), z.coerce.date()]), // Support both string and Date
+      from: z.string().min(1),
     })
     .optional(),
 });

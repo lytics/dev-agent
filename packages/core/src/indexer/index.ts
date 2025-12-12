@@ -21,10 +21,13 @@ import type {
   IndexerState,
   IndexOptions,
   IndexStats,
+  LanguageStats,
+  PackageStats,
   SupportedLanguage,
   UpdateOptions,
 } from './types';
 import { getExtensionForLanguage, prepareDocumentsForEmbedding } from './utils';
+import { aggregateChangeFrequency, calculateChangeFrequency } from './utils/change-frequency.js';
 
 const INDEXER_VERSION = '1.0.0';
 const DEFAULT_STATE_PATH = '.dev-agent/indexer-state.json';
@@ -451,6 +454,14 @@ export class RepositoryIndexer {
     const incrementalUpdatesSince = this.state.incrementalUpdatesSince || 0;
     const warning = this.getStatsWarning(incrementalUpdatesSince);
 
+    // Enrich stats with change frequency (optional, non-blocking)
+    const enrichedByLanguage = await this.enrichLanguageStatsWithChangeFrequency(
+      this.state.stats.byLanguage
+    );
+    const enrichedByPackage = await this.enrichPackageStatsWithChangeFrequency(
+      this.state.stats.byPackage
+    );
+
     const stats = {
       filesScanned: this.state.stats.totalFiles,
       documentsExtracted: this.state.stats.totalDocuments,
@@ -461,9 +472,9 @@ export class RepositoryIndexer {
       startTime: this.state.lastIndexTime,
       endTime: this.state.lastIndexTime,
       repositoryPath: this.state.repositoryPath,
-      byLanguage: this.state.stats.byLanguage,
+      byLanguage: enrichedByLanguage,
       byComponentType: this.state.stats.byComponentType,
-      byPackage: this.state.stats.byPackage,
+      byPackage: enrichedByPackage,
       statsMetadata: {
         isIncremental: false, // getStats returns full picture
         lastFullIndex,
@@ -481,6 +492,114 @@ export class RepositoryIndexer {
     }
 
     return validation.data;
+  }
+
+  /**
+   * Enrich language stats with change frequency data
+   * Non-blocking: returns original stats if git analysis fails
+   */
+  private async enrichLanguageStatsWithChangeFrequency(
+    byLanguage?: Partial<Record<SupportedLanguage, LanguageStats>>
+  ): Promise<Partial<Record<SupportedLanguage, LanguageStats>> | undefined> {
+    if (!byLanguage) return byLanguage;
+
+    try {
+      // Calculate change frequency for repository
+      const changeFreq = await calculateChangeFrequency({
+        repositoryPath: this.config.repositoryPath,
+        maxCommits: 1000,
+      });
+
+      // Enrich each language with aggregate stats
+      const enriched: Partial<Record<SupportedLanguage, LanguageStats>> = {};
+
+      for (const [lang, langStats] of Object.entries(byLanguage) as Array<
+        [SupportedLanguage, LanguageStats]
+      >) {
+        // Filter change frequency by file extension for this language
+        const langExtensions = this.getExtensionsForLanguage(lang);
+        const langFiles = new Map(
+          [...changeFreq.entries()].filter(([filePath]) =>
+            langExtensions.some((ext) => filePath.endsWith(ext))
+          )
+        );
+
+        const aggregate = aggregateChangeFrequency(langFiles);
+
+        enriched[lang] = {
+          ...langStats,
+          avgCommitsPerFile: aggregate.avgCommitsPerFile,
+          lastModified: aggregate.lastModified ?? undefined,
+        };
+      }
+
+      return enriched;
+    } catch (error) {
+      // Git not available or analysis failed - return original stats without change frequency
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(
+        `[indexer] Unable to calculate change frequency for language stats: ${errorMessage}`
+      );
+      return byLanguage;
+    }
+  }
+
+  /**
+   * Enrich package stats with change frequency data
+   * Non-blocking: returns original stats if git analysis fails
+   */
+  private async enrichPackageStatsWithChangeFrequency(
+    byPackage?: Record<string, PackageStats>
+  ): Promise<Record<string, PackageStats> | undefined> {
+    if (!byPackage) return byPackage;
+
+    try {
+      // Calculate change frequency for repository
+      const changeFreq = await calculateChangeFrequency({
+        repositoryPath: this.config.repositoryPath,
+        maxCommits: 1000,
+      });
+
+      // Enrich each package with aggregate stats
+      const enriched: Record<string, PackageStats> = {};
+
+      for (const [pkgPath, pkgStats] of Object.entries(byPackage)) {
+        // Filter change frequency by package path
+        const pkgFiles = new Map(
+          [...changeFreq.entries()].filter(([filePath]) => filePath.startsWith(pkgPath))
+        );
+
+        const aggregate = aggregateChangeFrequency(pkgFiles);
+
+        enriched[pkgPath] = {
+          ...pkgStats,
+          totalCommits: aggregate.totalCommits,
+          lastModified: aggregate.lastModified ?? undefined,
+        };
+      }
+
+      return enriched;
+    } catch (error) {
+      // Git not available or analysis failed - return original stats without change frequency
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(
+        `[indexer] Unable to calculate change frequency for package stats: ${errorMessage}`
+      );
+      return byPackage;
+    }
+  }
+
+  /**
+   * Get file extensions for a language
+   */
+  private getExtensionsForLanguage(language: SupportedLanguage): string[] {
+    const extensionMap: Record<SupportedLanguage, string[]> = {
+      typescript: ['.ts', '.tsx'],
+      javascript: ['.js', '.jsx', '.mjs', '.cjs'],
+      go: ['.go'],
+      markdown: ['.md', '.markdown'],
+    };
+    return extensionMap[language] || [];
   }
 
   /**
