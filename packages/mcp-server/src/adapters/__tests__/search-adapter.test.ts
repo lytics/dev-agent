@@ -104,14 +104,16 @@ describe('SearchAdapter', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
-      expect(result.error?.code).toBe('INVALID_QUERY');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('query');
     });
 
     it('should reject non-string query', async () => {
       const result = await adapter.execute({ query: 123 }, execContext);
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_QUERY');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('query');
     });
 
     it('should accept valid query', async () => {
@@ -158,7 +160,8 @@ describe('SearchAdapter', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_FORMAT');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('format');
     });
 
     it('should use default format when not specified', async () => {
@@ -192,7 +195,8 @@ describe('SearchAdapter', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_LIMIT');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('limit');
     });
 
     it('should reject limit above 50', async () => {
@@ -205,7 +209,8 @@ describe('SearchAdapter', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_LIMIT');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('limit');
     });
   });
 
@@ -232,7 +237,8 @@ describe('SearchAdapter', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_SCORE_THRESHOLD');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('scoreThreshold');
     });
 
     it('should reject threshold above 1', async () => {
@@ -245,7 +251,8 @@ describe('SearchAdapter', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_SCORE_THRESHOLD');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('scoreThreshold');
     });
   });
 

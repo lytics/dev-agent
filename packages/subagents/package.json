@@ -31,7 +31,8 @@
   },
   "dependencies": {
     "@lytics/dev-agent-core": "workspace:*",
-    "@lytics/kero": "workspace:*"
+    "@lytics/kero": "workspace:*",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

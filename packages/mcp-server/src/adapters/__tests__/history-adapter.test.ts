@@ -179,14 +179,16 @@ describe('HistoryAdapter', () => {
         const result = await adapter.execute({}, mockContext);
 
         expect(result.success).toBe(false);
-        expect(result.error?.code).toBe('MISSING_INPUT');
+        expect(result.error?.code).toBe('INVALID_PARAMS');
+        expect(result.error?.message).toContain('query');
       });
 
       it('should validate limit range', async () => {
         const result = await adapter.execute({ query: 'test', limit: 100 }, mockContext);
 
         expect(result.success).toBe(false);
-        expect(result.error?.code).toBe('INVALID_LIMIT');
+        expect(result.error?.code).toBe('INVALID_PARAMS');
+        expect(result.error?.message).toContain('limit');
       });
     });
 

@@ -87,7 +87,8 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_ACTION');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('action');
     });
 
     it('should reject search without query', async () => {
@@ -99,7 +100,8 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('MISSING_QUERY');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('query');
     });
 
     it('should reject context without number', async () => {
@@ -111,7 +113,8 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('MISSING_NUMBER');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('number');
     });
 
     it('should reject related without number', async () => {
@@ -123,7 +126,8 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('MISSING_NUMBER');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('number');
     });
 
     it('should reject invalid limit', async () => {
@@ -137,7 +141,8 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_LIMIT');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('limit');
     });
 
     it('should reject invalid format', async () => {
@@ -151,7 +156,8 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_FORMAT');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('format');
     });
   });
 

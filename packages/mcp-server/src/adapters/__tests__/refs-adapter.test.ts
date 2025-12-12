@@ -123,7 +123,8 @@ describe('RefsAdapter', () => {
       const result = await adapter.execute({ name: '' }, execContext);
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_NAME');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('name');
     });
 
     it('should reject invalid direction', async () => {
@@ -133,14 +134,16 @@ describe('RefsAdapter', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_DIRECTION');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('direction');
     });
 
     it('should reject invalid limit', async () => {
       const result = await adapter.execute({ name: 'createPlan', limit: 100 }, execContext);
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_LIMIT');
+      expect(result.error?.code).toBe('INVALID_PARAMS');
+      expect(result.error?.message).toContain('limit');
     });
   });
 
