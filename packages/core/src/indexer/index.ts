@@ -224,9 +224,6 @@ export class RepositoryIndexer {
 
       logger?.info({ documentsIndexed, errors: errors.length }, 'Embedding complete');
 
-      // Update state
-      await this.updateState(scanResult.documents);
-
       // Phase 4: Complete
       const endTime = new Date();
       onProgress?.({
@@ -252,6 +249,9 @@ export class RepositoryIndexer {
         repositoryPath: this.config.repositoryPath,
         ...detailedStats,
       };
+
+      // Update state with file metadata and detailed stats
+      await this.updateState(scanResult.documents, detailedStats);
 
       return stats;
     } catch (error) {
@@ -338,7 +338,6 @@ export class RepositoryIndexer {
     // Scan and index changed + added files
     let documentsExtracted = 0;
     let documentsIndexed = 0;
-    const statsAggregator = new StatsAggregator();
 
     if (filesToReindex.length > 0) {
       const scanResult = await scanRepository({
@@ -350,17 +349,12 @@ export class RepositoryIndexer {
 
       documentsExtracted = scanResult.documents.length;
 
-      // Aggregate detailed statistics
-      for (const doc of scanResult.documents) {
-        statsAggregator.addDocument(doc);
-      }
-
       // Index new documents
       const embeddingDocuments = prepareDocumentsForEmbedding(scanResult.documents);
       await this.vectorStorage.addDocuments(embeddingDocuments);
       documentsIndexed = embeddingDocuments.length;
 
-      // Update state with new documents
+      // Update state with new documents (don't pass detailed stats to preserve existing)
       await this.updateState(scanResult.documents);
     } else {
       // Only deletions - still need to save state
@@ -368,7 +362,17 @@ export class RepositoryIndexer {
     }
 
     const endTime = new Date();
-    const detailedStats = statsAggregator.getDetailedStats();
+
+    // For incremental updates, preserve existing detailed stats from last full index
+    // Note: These stats may become slightly stale. Run full 'dev index' periodically
+    // to refresh detailed statistics for accurate language/component breakdowns.
+    const detailedStats = this.state.stats.byLanguage
+      ? {
+          byLanguage: this.state.stats.byLanguage,
+          byComponentType: this.state.stats.byComponentType,
+          byPackage: this.state.stats.byPackage,
+        }
+      : {};
 
     return {
       filesScanned: filesToReindex.length,
@@ -394,7 +398,7 @@ export class RepositoryIndexer {
   /**
    * Get indexing statistics
    */
-  async getStats(): Promise<IndexStats | null> {
+  async getStats(): Promise<DetailedIndexStats | null> {
     if (!this.state) {
       return null;
     }
@@ -411,6 +415,9 @@ export class RepositoryIndexer {
       startTime: this.state.lastIndexTime,
       endTime: this.state.lastIndexTime,
       repositoryPath: this.state.repositoryPath,
+      byLanguage: this.state.stats.byLanguage,
+      byComponentType: this.state.stats.byComponentType,
+      byPackage: this.state.stats.byPackage,
     };
   }
 
@@ -463,7 +470,23 @@ export class RepositoryIndexer {
   /**
    * Update state with newly indexed documents
    */
-  private async updateState(documents: Document[]): Promise<void> {
+  private async updateState(
+    documents: Document[],
+    detailedStats?: {
+      byLanguage?: Record<string, { files: number; components: number; lines: number }>;
+      byComponentType?: Partial<Record<string, number>>;
+      byPackage?: Record<
+        string,
+        {
+          name: string;
+          path: string;
+          files: number;
+          components: number;
+          languages: Partial<Record<string, number>>;
+        }
+      >;
+    }
+  ): Promise<void> {
     if (!this.state) {
       this.state = {
         version: INDEXER_VERSION,
@@ -522,6 +545,19 @@ export class RepositoryIndexer {
     this.state.stats.totalDocuments = documents.length;
     this.state.stats.totalVectors = documents.length;
     this.state.lastIndexTime = new Date();
+
+    // Save detailed stats if provided
+    if (detailedStats) {
+      if (detailedStats.byLanguage) {
+        this.state.stats.byLanguage = detailedStats.byLanguage;
+      }
+      if (detailedStats.byComponentType) {
+        this.state.stats.byComponentType = detailedStats.byComponentType;
+      }
+      if (detailedStats.byPackage) {
+        this.state.stats.byPackage = detailedStats.byPackage;
+      }
+    }
 
     // Save state
     await this.saveState();
