@@ -10,6 +10,7 @@ import { Command } from 'commander';
 import ora from 'ora';
 import { loadConfig } from '../utils/config.js';
 import { logger } from '../utils/logger.js';
+import { formatSearchResults, output } from '../utils/output.js';
 
 export const searchCommand = new Command('search')
   .description('Search indexed code semantically')
@@ -17,6 +18,7 @@ export const searchCommand = new Command('search')
   .option('-l, --limit <number>', 'Maximum number of results', '10')
   .option('-t, --threshold <number>', 'Minimum similarity score (0-1)', '0.7')
   .option('--json', 'Output results as JSON', false)
+  .option('-v, --verbose', 'Show detailed results with signatures and docs', false)
   .action(async (query: string, options) => {
     const spinner = ora('Searching...').start();
 
@@ -59,14 +61,15 @@ export const searchCommand = new Command('search')
 
       await indexer.close();
 
-      spinner.succeed(chalk.green(`Found ${results.length} result(s)`));
+      spinner.stop();
 
       if (results.length === 0) {
-        logger.log('');
-        logger.warn('No results found. Try:');
-        logger.log(`  - Lowering the threshold: ${chalk.yellow('--threshold 0.5')}`);
-        logger.log(`  - Using different keywords`);
-        logger.log(`  - Running ${chalk.yellow('dev update')} to refresh the index`);
+        output.log('');
+        output.warn('No results found. Try:');
+        output.log(`  • Lower threshold: ${chalk.cyan('--threshold 0.5')}`);
+        output.log(`  • Different keywords`);
+        output.log(`  • Refresh index: ${chalk.cyan('dev update')}`);
+        output.log('');
         return;
       }
 
@@ -76,40 +79,12 @@ export const searchCommand = new Command('search')
         return;
       }
 
-      // Pretty print results
-      logger.log('');
-      for (let i = 0; i < results.length; i++) {
-        const result = results[i];
-        const metadata = result.metadata;
-        const score = (result.score * 100).toFixed(1);
-
-        // Extract file info (metadata uses 'path', not 'file')
-        const filePath = (metadata.path || metadata.file) as string;
-        const relativePath = filePath ? path.relative(resolvedRepoPath, filePath) : 'unknown';
-        const startLine = metadata.startLine as number;
-        const endLine = metadata.endLine as number;
-        const name = metadata.name as string;
-        const type = metadata.type as string;
-
-        logger.log(
-          chalk.bold(`${i + 1}. ${chalk.cyan(name || type)} ${chalk.gray(`(${score}% match)`)}`)
-        );
-        logger.log(`   ${chalk.gray('File:')} ${relativePath}:${startLine}-${endLine}`);
-
-        // Show signature if available
-        if (metadata.signature) {
-          logger.log(`   ${chalk.gray('Signature:')} ${chalk.yellow(metadata.signature)}`);
-        }
-
-        // Show docstring if available
-        if (metadata.docstring) {
-          const doc = String(metadata.docstring);
-          const truncated = doc.length > 80 ? `${doc.substring(0, 77)}...` : doc;
-          logger.log(`   ${chalk.gray('Doc:')} ${truncated}`);
-        }
-
-        logger.log('');
-      }
+      // Pretty print results (compact or verbose)
+      output.log('');
+      output.success(`Found ${results.length} result(s)`);
+      output.log('');
+      output.log(formatSearchResults(results, resolvedRepoPath, { verbose: options.verbose }));
+      output.log('');
     } catch (error) {
       spinner.fail('Search failed');
       logger.error(error instanceof Error ? error.message : String(error));

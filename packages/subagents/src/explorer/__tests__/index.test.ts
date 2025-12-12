@@ -564,6 +564,9 @@ describe('ExplorerAgent', () => {
 
   describe('error handling', () => {
     it('should handle unknown actions', async () => {
+      // Suppress error logs for this intentional error test
+      const errorSpy = vi.spyOn(CoordinatorLogger.prototype, 'error').mockImplementation(() => {});
+
       const message: Message = {
         id: 'msg-9',
         type: 'request',
@@ -584,9 +587,14 @@ describe('ExplorerAgent', () => {
       const result = response?.payload as { error?: string };
       expect(result.error).toBeDefined();
       expect(result.error).toContain('Invalid exploration request');
+
+      errorSpy.mockRestore();
     });
 
     it('should return error response on failure', async () => {
+      // Suppress error logs for this intentional error test
+      const errorSpy = vi.spyOn(CoordinatorLogger.prototype, 'error').mockImplementation(() => {});
+
       // Create explorer without initialization
       const uninitializedExplorer = new ExplorerAgent();
 
@@ -604,6 +612,8 @@ describe('ExplorerAgent', () => {
       };
 
       await expect(uninitializedExplorer.handleMessage(message)).rejects.toThrow();
+
+      errorSpy.mockRestore();
     });
 
     it('should ignore non-request messages', async () => {

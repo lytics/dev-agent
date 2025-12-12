@@ -1,8 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { findConfigFile, getDefaultConfig, loadConfig, saveConfig } from './config';
+import * as loggerModule from './logger';
 
 describe('Config Utilities', () => {
   let testDir: string;
@@ -43,7 +44,7 @@ describe('Config Utilities', () => {
       const adapters = config.mcp?.adapters;
 
       expect(adapters).toBeDefined();
-      expect(Object.keys(adapters!)).toHaveLength(9);
+      expect(Object.keys(adapters ?? {})).toHaveLength(9);
 
       // Verify all adapters are present and enabled by default
       expect(adapters?.search?.enabled).toBe(true);
@@ -136,11 +137,19 @@ describe('Config Utilities', () => {
     });
 
     it('should return null if config not found', async () => {
+      // Suppress error logs for this intentional error test
+      const errorSpy = vi.spyOn(loggerModule.logger, 'error').mockImplementation(() => {});
+
       const loaded = await loadConfig('/nonexistent/path/.dev-agent/config.json');
       expect(loaded).toBeNull();
+
+      errorSpy.mockRestore();
     });
 
     it('should handle invalid JSON gracefully', async () => {
+      // Suppress error logs for this intentional error test
+      const errorSpy = vi.spyOn(loggerModule.logger, 'error').mockImplementation(() => {});
+
       const invalidDir = path.join(testDir, '.dev-agent-invalid');
       await fs.mkdir(invalidDir, { recursive: true });
       const invalidPath = path.join(invalidDir, 'config.json');
@@ -148,6 +157,8 @@ describe('Config Utilities', () => {
 
       const loaded = await loadConfig(invalidPath);
       expect(loaded).toBeNull();
+
+      errorSpy.mockRestore();
     });
   });
 });

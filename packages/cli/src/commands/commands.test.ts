@@ -100,12 +100,11 @@ export class Calculator {
 }`
       );
 
-      // Capture logger output
+      // Capture console output (used by output.log)
       const loggedMessages: string[] = [];
-      const loggerModule = await import('../utils/logger.js');
-      const originalLog = loggerModule.logger.log;
-      vi.spyOn(loggerModule.logger, 'log').mockImplementation((msg: string) => {
-        loggedMessages.push(msg);
+      const originalConsoleLog = console.log;
+      vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+        loggedMessages.push(args.join(' '));
       });
 
       // Mock process.exit to prevent test termination
@@ -119,12 +118,15 @@ export class Calculator {
       await program.parseAsync(['node', 'cli', 'index', indexDir, '--no-git', '--no-github']);
 
       exitSpy.mockRestore();
-      loggerModule.logger.log = originalLog;
+      console.log = originalConsoleLog;
 
-      // Verify storage size is in the output
-      const storageSizeLog = loggedMessages.find((msg) => msg.includes('Storage size:'));
+      // Verify storage size is in the output (new compact format shows it after duration)
+      const storageSizeLog = loggedMessages.find(
+        (msg) => msg.includes('Duration:') || msg.includes('Storage:')
+      );
       expect(storageSizeLog).toBeDefined();
-      expect(storageSizeLog).toMatch(/Storage size:.*\d+(\.\d+)?\s*(B|KB|MB|GB)/);
+      // Check for storage size in compact format: "Duration: X • Storage: Y"
+      expect(loggedMessages.some((msg) => /\d+(\.\d+)?\s*(B|KB|MB|GB)/.test(msg))).toBe(true);
     }, 30000); // 30s timeout for indexing
   });
 });

@@ -7,8 +7,9 @@ import { mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { RepositoryIndexer } from '@lytics/dev-agent-core';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ExplorerAgent } from '../../explorer';
+import { CoordinatorLogger } from '../../logger';
 import { SubagentCoordinator } from '../coordinator';
 
 describe('Coordinator → Explorer Integration', () => {
@@ -108,6 +109,9 @@ describe('Coordinator → Explorer Integration', () => {
     });
 
     it('should route similar code request to Explorer', async () => {
+      // Suppress error logs for validation failures (missing filePath)
+      const errorSpy = vi.spyOn(CoordinatorLogger.prototype, 'error').mockImplementation(() => {});
+
       const response = await coordinator.sendMessage({
         type: 'request',
         sender: 'test',
@@ -130,6 +134,8 @@ describe('Coordinator → Explorer Integration', () => {
         expect(result.action).toBe('similar');
         expect(Array.isArray(result.results)).toBe(true);
       }
+
+      errorSpy.mockRestore();
     });
 
     it('should route relationships request to Explorer', async () => {
@@ -175,6 +181,9 @@ describe('Coordinator → Explorer Integration', () => {
     });
 
     it('should handle unknown actions gracefully', async () => {
+      // Suppress error logs for this intentional error test
+      const errorSpy = vi.spyOn(CoordinatorLogger.prototype, 'error').mockImplementation(() => {});
+
       const response = await coordinator.sendMessage({
         type: 'request',
         sender: 'test',
@@ -191,9 +200,14 @@ describe('Coordinator → Explorer Integration', () => {
       const result = response?.payload as { error?: string };
       expect(result.error).toBeDefined();
       expect(result.error).toContain('Invalid exploration request');
+
+      errorSpy.mockRestore();
     });
 
     it('should handle non-existent agent gracefully', async () => {
+      // Suppress error logs for this intentional error test
+      const errorSpy = vi.spyOn(CoordinatorLogger.prototype, 'error').mockImplementation(() => {});
+
       const response = await coordinator.sendMessage({
         type: 'request',
         sender: 'test',
@@ -207,6 +221,8 @@ describe('Coordinator → Explorer Integration', () => {
 
       const error = response?.payload as { error: string };
       expect(error.error).toContain('not found');
+
+      errorSpy.mockRestore();
     });
   });
 

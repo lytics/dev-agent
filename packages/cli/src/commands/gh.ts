@@ -9,7 +9,9 @@ import { createLogger } from '@lytics/kero';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
+import { formatNumber } from '../utils/formatters.js';
 import { keroLogger, logger } from '../utils/logger.js';
+import { output } from '../utils/output.js';
 
 /**
  * Create GitHub indexer with centralized storage
@@ -99,23 +101,18 @@ export const ghCommand = new Command('gh')
             },
           });
 
-          spinner.succeed(chalk.green('GitHub data indexed!'));
+          spinner.stop();
 
-          // Display stats
-          logger.log('');
-          logger.log(chalk.bold('Indexing Stats:'));
-          logger.log(`  Repository: ${chalk.cyan(stats.repository)}`);
-          logger.log(`  Total: ${chalk.yellow(stats.totalDocuments)} documents`);
+          // Compact summary
+          const issues = stats.byType.issue || 0;
+          const prs = stats.byType.pull_request || 0;
+          const duration = (stats.indexDuration / 1000).toFixed(2);
 
-          if (stats.byType.issue) {
-            logger.log(`  Issues: ${stats.byType.issue}`);
-          }
-          if (stats.byType.pull_request) {
-            logger.log(`  Pull Requests: ${stats.byType.pull_request}`);
-          }
-
-          logger.log(`  Duration: ${stats.indexDuration}ms`);
-          logger.log('');
+          output.log('');
+          output.success(`Indexed ${formatNumber(stats.totalDocuments)} GitHub documents`);
+          output.log(`   ${chalk.gray('Repository:')} ${chalk.bold(stats.repository)}`);
+          output.log(`   ${issues} issues • ${prs} PRs • ${duration}s`);
+          output.log('');
         } catch (error) {
           spinner.fail('Indexing failed');
           logger.error((error as Error).message);
