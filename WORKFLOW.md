@@ -184,6 +184,156 @@ Fix MCP install error handling' > .changeset/fix-name.md
 - The wrapper package needs to pull in the latest CLI changes
 - Ensures `npm install -g dev-agent` gets all improvements
 
+## 🎯 Commit Checkpoints (Know When to Commit)
+
+**Principle:** Commit when you reach a "green state" at a logical boundary. Secure working progress before entering complexity.
+
+### The Checkpoint Signals
+
+Commit when you hit **any 2** of these signals:
+
+#### 1. ✅ Green State
+- All tests passing
+- Build successful  
+- No linter/TypeScript errors
+- **This is non-negotiable** - never commit broken code
+
+#### 2. 🎯 Logical Boundary
+- Foundation complete (schemas, types, utils)
+- Feature partially working (demo-able)
+- Pattern proven (1+ examples working)
+- Module/component finished
+
+#### 3. ⚠️ Before Complexity
+- About to refactor large file (>500 lines)
+- About to change core architecture
+- About to touch multiple interconnected systems
+- About to migrate/upgrade major dependencies
+
+#### 4. 📊 Demonstrable Value
+- Can show progress in PR review
+- Reviewers can understand what changed
+- Rollback would still leave useful code
+- "X/Y complete" milestones (e.g., "5/9 adapters migrated")
+
+#### 5. 🧠 Context Limits
+- Approaching 150K+ tokens in AI session
+- Been working >2 hours on single task
+- About to switch tasks/contexts
+- End of work session
+
+### Examples of Good Checkpoints
+
+✅ **Foundation + Pattern Proven**
+```bash
+git commit -m "feat(mcp): add Zod validation to MCP adapters (5/9 complete)
+
+- Create schemas for all 9 adapters (247 lines, 33 tests)
+- Migrate 5 adapters (eliminates ~150 lines of validation)
+- Pattern proven, remaining 4 follow same approach
+
+All tests passing, build successful"
+```
+
+✅ **Before Complexity**
+```bash
+git commit -m "refactor(indexer): extract pure stat merging functions
+
+- Extract 6 pure functions from 102-line method
+- Add comprehensive tests (17 tests, 100% coverage)
+- About to integrate into RepositoryIndexer class
+
+Foundation secure before complex integration"
+```
+
+✅ **Logical Boundary**
+```bash
+git commit -m "feat(core): add stats metadata tracking
+
+- Add StatsMetadata interface
+- Implement in getStats() method
+- Update CLI formatters to display metadata
+
+Next: Incremental update merging (complex)"
+```
+
+### Anti-Patterns (Don't Commit)
+
+❌ **Broken State**
+```bash
+# NEVER commit this:
+git commit -m "WIP: refactoring adapters, tests failing"
+git commit -m "fix: half-done, will finish tomorrow"
+```
+
+❌ **No Value**
+```bash
+# Don't commit just to save work:
+git commit -m "save work"
+git commit -m "checkpoint" # (what's done?)
+git commit -m "WIP" # (what works?)
+```
+
+❌ **Debug Code**
+```bash
+# Don't commit with:
+console.log('DEBUG: ...')
+// TODO: fix this later
+// HACK: temporary workaround
+```
+
+### Quick Checkpoint Checklist
+
+Run before every commit:
+
+```bash
+# 1. Quality gates
+pnpm build      # ✅ Builds without errors?
+pnpm test       # ✅ All tests pass?
+pnpm typecheck  # ✅ No TypeScript errors?
+
+# 2. Review changes
+git diff --stat # 📊 Reasonable change size?
+git status      # 🔍 All intended files staged?
+
+# 3. If all pass → commit!
+git add -A
+git commit -m "feat(scope): description..."
+```
+
+### Why This Matters
+
+**For Teams:**
+- Reduces risk of losing working code
+- Makes code review easier (incremental progress)
+- Git bisect finds bugs faster
+- Enables parallel work (others can pull partial features)
+
+**For AI Collaboration:**
+- Context windows reset - commits are checkpoints
+- Recovery is instant (just read git log)
+- TODOs + commits = perfect state reconstruction
+- Enables long-running refactorings (>1 session)
+
+**For You:**
+- Sleep better (work is secured)
+- Switch contexts freely (commit before leaving)
+- Experiment safely (can always rollback)
+- Build confidence (see progress accumulate)
+
+### Real Example: Zod Migration
+
+**Checkpoint Decision:** After migrating 5/9 adapters
+- ✅ Green: All tests passing, build successful
+- ✅ Logical boundary: Foundation complete, pattern proven
+- ✅ Before complexity: Next 4 adapters are 690-724 lines each
+- ✅ Demonstrable: "5/9 complete, 150 lines eliminated"
+- ✅ Context: At 115K tokens, approaching limit
+
+**Result:** Committed working state. If next adapters break, we can rollback to this checkpoint.
+
+---
+
 ## Commit Message Format
 
 ### Structure
