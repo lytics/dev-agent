@@ -609,6 +609,110 @@ export function printStorageInfo(data: {
 }
 
 /**
+ * Print MCP servers list (docker ps inspired)
+ */
+export function printMcpServers(data: {
+  ide: 'Cursor' | 'Claude Code';
+  servers: Array<{
+    name: string;
+    command: string;
+    repository?: string;
+    status?: 'active' | 'inactive' | 'unknown';
+  }>;
+}): void {
+  const { ide, servers } = data;
+
+  if (servers.length === 0) {
+    output.log();
+    output.log(chalk.yellow(`No MCP servers configured in ${ide}`));
+    output.log();
+    output.log(
+      `Run ${chalk.cyan(`dev mcp install${ide === 'Cursor' ? ' --cursor' : ''}`)} to add one`
+    );
+    output.log();
+    return;
+  }
+
+  output.log();
+  output.log(chalk.bold(`MCP Servers (${ide})`));
+  output.log();
+
+  // Find max widths for alignment
+  const maxNameLen = Math.max(...servers.map((s) => s.name.length), 12);
+  const maxStatusLen = 12;
+
+  // Header
+  output.log(
+    `${chalk.cyan('NAME'.padEnd(maxNameLen))}  ${chalk.cyan('STATUS'.padEnd(maxStatusLen))}  ${chalk.cyan('COMMAND')}`
+  );
+
+  // Servers
+  for (const server of servers) {
+    const name = server.name.padEnd(maxNameLen);
+    const status =
+      server.status === 'active'
+        ? chalk.green('✓ Active')
+        : server.status === 'inactive'
+          ? chalk.gray('○ Inactive')
+          : chalk.gray('  Unknown');
+    const statusPadded = status.padEnd(maxStatusLen + 10); // +10 for ANSI codes
+    const command = chalk.gray(server.command);
+
+    output.log(`${name}  ${statusPadded}  ${command}`);
+
+    // Repository on next line if present
+    if (server.repository) {
+      output.log(`${' '.repeat(maxNameLen + 2)}${chalk.gray(`→ ${server.repository}`)}`);
+    }
+  }
+
+  output.log();
+  output.log(`Total: ${chalk.bold(servers.length)} server(s) configured`);
+  output.log();
+}
+
+/**
+ * Print MCP installation success
+ */
+export function printMcpInstallSuccess(data: {
+  ide: 'Cursor' | 'Claude Code';
+  serverName: string;
+  configPath: string;
+  repository?: string;
+}): void {
+  const { ide, serverName, configPath, repository } = data;
+
+  output.log();
+  output.log(chalk.green(`✓ ${serverName} installed in ${ide}`));
+  output.log();
+  output.log(`Configuration: ${chalk.gray(configPath)}`);
+  if (repository) {
+    output.log(`Repository:    ${chalk.gray(repository)}`);
+  }
+  output.log();
+  output.log(chalk.bold('Next steps:'));
+  output.log(`  ${chalk.cyan('•')} Restart ${ide} to activate the integration`);
+  output.log(`  ${chalk.cyan('•')} Open a workspace to start using dev-agent tools`);
+  output.log();
+}
+
+/**
+ * Print MCP uninstallation success
+ */
+export function printMcpUninstallSuccess(data: {
+  ide: 'Cursor' | 'Claude Code';
+  serverName: string;
+}): void {
+  const { ide, serverName } = data;
+
+  output.log();
+  output.log(chalk.green(`✓ ${serverName} removed from ${ide}`));
+  output.log();
+  output.log(chalk.yellow(`⚠️  Restart ${ide} to apply changes`));
+  output.log();
+}
+
+/**
  * Print GitHub indexing statistics (gh CLI inspired)
  */
 export function printGitHubStats(githubStats: {
