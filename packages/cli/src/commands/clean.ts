@@ -9,7 +9,9 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
 import { loadConfig } from '../utils/config.js';
+import { formatBytes, getDirectorySize } from '../utils/file.js';
 import { logger } from '../utils/logger.js';
+import { output, printCleanSuccess, printCleanSummary } from '../utils/output.js';
 
 export const cleanCommand = new Command('clean')
   .description('Clean indexed data and cache')
@@ -33,21 +35,35 @@ export const cleanCommand = new Command('clean')
       await ensureStorageDirectory(storagePath);
       const filePaths = getStorageFilePaths(storagePath);
 
+      // Calculate sizes of files to be deleted
+      const files = await Promise.all(
+        [
+          { name: 'Vector store', path: filePaths.vectors },
+          { name: 'Indexer state', path: filePaths.indexerState },
+          { name: 'GitHub state', path: filePaths.githubState },
+          { name: 'Metadata', path: filePaths.metadata },
+        ].map(async (file) => {
+          try {
+            const stat = await fs.stat(file.path);
+            const size = stat.isDirectory() ? await getDirectorySize(file.path) : stat.size;
+            return { ...file, size };
+          } catch {
+            return { ...file, size: null };
+          }
+        })
+      );
+
+      const totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
+
       // Show what will be deleted
-      logger.log('');
-      logger.log(chalk.bold('The following will be deleted:'));
-      logger.log(`  ${chalk.cyan('Storage directory:')} ${storagePath}`);
-      logger.log(`  ${chalk.cyan('Vector store:')}     ${filePaths.vectors}`);
-      logger.log(`  ${chalk.cyan('State file:')}       ${filePaths.indexerState}`);
-      logger.log(`  ${chalk.cyan('GitHub state:')}      ${filePaths.githubState}`);
-      logger.log(`  ${chalk.cyan('Metadata:')}         ${filePaths.metadata}`);
-      logger.log('');
+      printCleanSummary({
+        files,
+        totalSize,
+        force: options.force,
+      });
 
       // Confirm unless --force
       if (!options.force) {
-        logger.warn('This action cannot be undone!');
-        logger.log(`Run with ${chalk.yellow('--force')} to skip this prompt.`);
-        logger.log('');
         process.exit(0);
       }
 
@@ -56,17 +72,14 @@ export const cleanCommand = new Command('clean')
       // Delete storage directory (contains all index files)
       try {
         await fs.rm(storagePath, { recursive: true, force: true });
-        spinner.succeed(chalk.green('Cleaned successfully!'));
+        spinner.succeed('Cleaned successfully');
+
+        printCleanSuccess({ totalSize });
       } catch (error) {
         spinner.fail('Failed to clean');
-        logger.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+        output.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
         process.exit(1);
       }
-
-      logger.log('');
-      logger.log('All indexed data has been removed.');
-      logger.log(`Run ${chalk.yellow('dev index')} to re-index your repository.`);
-      logger.log('');
     } catch (error) {
       logger.error(`Failed to clean: ${error instanceof Error ? error.message : String(error)}`);
       process.exit(1);
