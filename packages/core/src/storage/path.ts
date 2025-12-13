@@ -106,11 +106,13 @@ export function getStorageFilePaths(storagePath: string): {
   githubState: string;
   metadata: string;
   indexerState: string;
+  metrics: string;
 } {
   return {
     vectors: path.join(storagePath, 'vectors.lance'),
     githubState: path.join(storagePath, 'github-state.json'),
     metadata: path.join(storagePath, 'metadata.json'),
     indexerState: path.join(storagePath, 'indexer-state.json'),
+    metrics: path.join(storagePath, 'metrics.db'),
   };
 }
