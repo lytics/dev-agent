@@ -37,6 +37,12 @@ import { Command } from 'commander';
 import ora from 'ora';
 import { addCursorServer, listCursorServers, removeCursorServer } from '../utils/cursor-config';
 import { logger } from '../utils/logger';
+import {
+  output,
+  printMcpInstallSuccess,
+  printMcpServers,
+  printMcpUninstallSuccess,
+} from '../utils/output';
 
 export const mcpCommand = new Command('mcp')
   .description('MCP (Model Context Protocol) server integration')
@@ -276,32 +282,21 @@ export const mcpCommand = new Command('mcp')
 
             if (result.alreadyExists) {
               spinner.info(chalk.yellow('MCP server already installed in Cursor!'));
-              logger.log('');
-              logger.log(`Server name: ${chalk.cyan(result.serverName)}`);
-              logger.log(`Repository: ${chalk.gray(repositoryPath)}`);
-              logger.log('');
-              logger.log(`Run ${chalk.cyan('dev mcp list --cursor')} to see all servers`);
+              output.log();
+              output.log(`Server name: ${chalk.cyan(result.serverName)}`);
+              output.log(`Repository:  ${chalk.gray(repositoryPath)}`);
+              output.log();
+              output.log(`Run ${chalk.cyan('dev mcp list --cursor')} to see all servers`);
+              output.log();
             } else {
-              spinner.succeed(chalk.green('MCP server installed in Cursor!'));
-              logger.log('');
-              logger.log(chalk.bold('Integration complete! 🎉'));
-              logger.log('');
-              logger.log(`Server name: ${chalk.cyan(result.serverName)}`);
-              logger.log('Available tools in Cursor:');
-              logger.log(`  ${chalk.cyan('dev_search')}  - Semantic code search`);
-              logger.log(`  ${chalk.cyan('dev_status')}  - Repository status`);
-              logger.log(`  ${chalk.cyan('dev_plan')}    - Generate development plans`);
-              logger.log(`  ${chalk.cyan('dev_explore')} - Explore code patterns`);
-              logger.log(`  ${chalk.cyan('dev_gh')}      - Search GitHub issues/PRs`);
-              logger.log(`  ${chalk.cyan('dev_health')} - Server health checks`);
-              logger.log(`  ${chalk.cyan('dev_refs')}    - Find symbol references`);
-              logger.log(`  ${chalk.cyan('dev_map')}     - Generate codebase map`);
-              logger.log(`  ${chalk.cyan('dev_history')} - Search git history`);
-              logger.log('');
-              logger.log(`Repository: ${chalk.yellow(repositoryPath)}`);
-              logger.log(`Storage: ${chalk.yellow(storagePath)}`);
-              logger.log('');
-              logger.log(chalk.yellow('⚠️  Please restart Cursor to apply changes'));
+              spinner.succeed('MCP server installed');
+
+              printMcpInstallSuccess({
+                ide: 'Cursor',
+                serverName: result.serverName,
+                configPath: '~/.cursor/mcp.json',
+                repository: repositoryPath,
+              });
             }
           } else {
             // Install for Claude Code using claude CLI
@@ -326,56 +321,48 @@ export const mcpCommand = new Command('mcp')
               stdio: ['inherit', 'pipe', 'pipe'],
             });
 
-            let output = '';
-            let error = '';
+            let stdoutData = '';
+            let stderrData = '';
 
             result.stdout?.on('data', (data) => {
-              output += data.toString();
+              stdoutData += data.toString();
             });
 
             result.stderr?.on('data', (data) => {
-              error += data.toString();
+              stderrData += data.toString();
             });
 
             result.on('close', (code) => {
               if (code === 0) {
-                spinner.succeed(chalk.green('MCP server installed in Claude Code!'));
-                logger.log('');
-                logger.log(chalk.bold('Integration complete! 🎉'));
-                logger.log('');
-                logger.log('Available tools in Claude Code:');
-                logger.log(`  ${chalk.cyan('dev_search')}  - Semantic code search`);
-                logger.log(`  ${chalk.cyan('dev_status')}  - Repository status`);
-                logger.log(`  ${chalk.cyan('dev_plan')}    - Generate development plans`);
-                logger.log(`  ${chalk.cyan('dev_explore')} - Explore code patterns`);
-                logger.log(`  ${chalk.cyan('dev_gh')}      - Search GitHub issues/PRs`);
-                logger.log(`  ${chalk.cyan('dev_health')} - Server health checks`);
-                logger.log(`  ${chalk.cyan('dev_refs')}    - Find symbol references`);
-                logger.log(`  ${chalk.cyan('dev_map')}     - Generate codebase map`);
-                logger.log(`  ${chalk.cyan('dev_history')} - Search git history`);
-                logger.log('');
-                logger.log(`Repository: ${chalk.yellow(repositoryPath)}`);
-                logger.log(`Storage: ${chalk.yellow(storagePath)}`);
+                spinner.succeed('MCP server installed');
+
+                printMcpInstallSuccess({
+                  ide: 'Claude Code',
+                  serverName: 'dev-agent',
+                  configPath: '~/.claude/mcp.json',
+                  repository: repositoryPath,
+                });
               } else {
                 // Check if error is due to server already existing
-                const errorText = error.toLowerCase();
+                const errorText = stderrData.toLowerCase();
                 if (
                   errorText.includes('already exists') ||
                   errorText.includes('dev-agent already exists')
                 ) {
                   spinner.info(chalk.yellow('MCP server already installed in Claude Code!'));
-                  logger.log('');
-                  logger.log(`Server name: ${chalk.cyan('dev-agent')}`);
-                  logger.log(`Repository: ${chalk.gray(repositoryPath)}`);
-                  logger.log('');
-                  logger.log(`Run ${chalk.cyan('claude mcp list')} to see all servers`);
+                  output.log();
+                  output.log(`Server name: ${chalk.cyan('dev-agent')}`);
+                  output.log(`Repository:  ${chalk.gray(repositoryPath)}`);
+                  output.log();
+                  output.log(`Run ${chalk.cyan('claude mcp list')} to see all servers`);
+                  output.log();
                 } else {
                   spinner.fail('Failed to install MCP server in Claude Code');
-                  if (error) {
-                    logger.error(error);
+                  if (stderrData) {
+                    logger.error(stderrData);
                   }
-                  if (output) {
-                    logger.log(output);
+                  if (stdoutData) {
+                    logger.log(stdoutData);
                   }
                   process.exit(1);
                 }
@@ -409,9 +396,12 @@ export const mcpCommand = new Command('mcp')
             const removed = await removeCursorServer(repositoryPath);
 
             if (removed) {
-              spinner.succeed(chalk.green('MCP server removed from Cursor!'));
-              logger.log('');
-              logger.log(chalk.yellow('⚠️  Please restart Cursor to apply changes'));
+              spinner.succeed('MCP server removed');
+
+              printMcpUninstallSuccess({
+                ide: 'Cursor',
+                serverName: 'dev-agent',
+              });
             } else {
               spinner.warn('No MCP server found for this repository in Cursor');
             }
@@ -423,7 +413,12 @@ export const mcpCommand = new Command('mcp')
 
             result.on('close', (code) => {
               if (code === 0) {
-                spinner.succeed(chalk.green('MCP server removed from Claude Code!'));
+                spinner.succeed('MCP server removed');
+
+                printMcpUninstallSuccess({
+                  ide: 'Claude Code',
+                  serverName: 'dev-agent',
+                });
               } else {
                 spinner.fail('Failed to remove MCP server from Claude Code');
                 process.exit(1);
@@ -445,45 +440,42 @@ export const mcpCommand = new Command('mcp')
         try {
           if (options.cursor) {
             // List Cursor servers
+            const spinner = ora('Checking MCP server health...').start();
             const servers = await listCursorServers();
+            spinner.stop();
 
-            if (servers.length === 0) {
-              logger.log(chalk.yellow('No MCP servers configured in Cursor'));
-              logger.log('');
-              logger.log(`Run ${chalk.cyan('dev mcp install --cursor')} to add one`);
-              return;
-            }
+            // Add status check (simple check: does the command exist?)
+            const serversWithStatus = servers.map((server) => ({
+              ...server,
+              status: 'active' as const, // For now, all listed servers are considered active
+            }));
 
-            logger.log('');
-            logger.log(chalk.bold('MCP Servers in Cursor:'));
-            logger.log('');
-
-            for (const server of servers) {
-              logger.log(`  ${chalk.cyan(server.name)}`);
-              logger.log(`    Command: ${chalk.gray(server.command)}`);
-              if (server.repository) {
-                logger.log(`    Repository: ${chalk.gray(server.repository)}`);
-              }
-              logger.log('');
-            }
-
-            logger.log(`Total: ${chalk.yellow(servers.length)} server(s)`);
+            printMcpServers({
+              ide: 'Cursor',
+              servers: serversWithStatus,
+            });
           } else {
             // List Claude Code servers
+            output.log();
+            output.log(chalk.bold('MCP Servers (Claude Code)'));
+            output.log();
+            output.log('Running: claude mcp list');
+            output.log();
+
             const result = spawn('claude', ['mcp', 'list'], {
               stdio: 'inherit',
             });
 
             result.on('close', (code) => {
               if (code !== 0) {
-                logger.error('Failed to list MCP servers');
+                output.error('Failed to list MCP servers');
                 process.exit(1);
               }
             });
           }
         } catch (error) {
-          logger.error('Failed to list MCP servers');
-          logger.error(error instanceof Error ? error.message : String(error));
+          output.error('Failed to list MCP servers');
+          output.error(error instanceof Error ? error.message : String(error));
           process.exit(1);
         }
       })
