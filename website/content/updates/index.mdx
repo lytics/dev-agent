@@ -9,6 +9,124 @@ What's new in dev-agent. We ship improvements regularly to help AI assistants un
 
 ---
 
+## v0.8.0 — Developer Insights & Performance
+
+*December 13, 2025*
+
+**New developer activity and ownership commands with 35x faster queries via indexed author contributions.**
+
+### What's New
+
+**🗺️ New Command: `dev map`**
+
+Visualize your codebase structure with component counts, exports, and hot paths:
+
+```bash
+dev map --depth 2 --change-frequency
+
+packages/
+├── 🔥 core/ (45 components, 12 exports) — 12 commits in 30d
+│   ├── scanner/ (18 components, 3 exports)
+│   └── vector/ (12 components, 5 exports)
+├── ✏️ cli/ (28 components, 8 exports) — 3 commits in 30d
+└── mcp-server/ (35 components, 9 exports)
+```
+
+**224x performance improvement** (103s → 0.46s) through optimized scanning and lazy embedder initialization.
+
+**📊 Developer Insight Commands**
+
+Two new top-level commands for understanding codebase activity:
+
+```bash
+# See most active files with commit counts and complexity
+dev activity
+
+# See developer specializations and file ownership
+dev owners
+```
+
+**Example Output:**
+
+```bash
+$ dev owners
+
+👥 Developer Contributions
+
+  Developer                Files   Commits   Last Active
+  ───────────────────────────────────────────────────────
+  jane@example.com         147     523       2 hours ago
+  john@example.com         89      312       1 day ago
+  alice@example.com        64      201       3 days ago
+
+Summary:
+• 305 files analyzed across 3 developers
+• Most active: jane@example.com (147 files)
+• Average 3.5 commits per file
+```
+
+**💾 Persistent Metrics with SQLite**
+
+New MetricsStore tracks code analytics over time:
+- File-level metrics (lines, complexity, change frequency)
+- Author contributions per file
+- Historical snapshots for trend analysis
+- Foundation for future analytics commands (`dev trends`, `dev health`)
+
+**⚡ Performance Improvements**
+
+Multiple commands received dramatic speedups:
+
+- **`dev map`:** 224x faster (103s → 0.46s) via optimized scanning
+- **`dev owners`:** 35x faster (17.5s → 0.5s) via indexed author data
+- **`dev stats`:** 10x faster via direct JSON reads
+- **Offline capability:** Indexed data works without git access
+
+**🎨 CLI Enhancements**
+
+- Modernized output with compact, scannable tables
+- Factual summaries instead of verbose recommendations
+- Visual indicators for activity (🔥 hot, ✏️ active, 📝 recent)
+- GitHub handle resolution for developer identification
+- Comprehensive help text with examples across all commands
+
+**🏗️ Architecture & Quality**
+
+This release includes significant internal improvements that improve reliability and enable future features:
+
+- **Service layer architecture** — 7 services with dependency injection for better testability
+- **Complete Zod validation** — All 9 MCP adapters validated at runtime
+- **SearchService refactor** — Shared search logic across tools reduces duplication
+- **Enhanced error handling** — Clearer messages and proper logging throughout
+- **Batched git operations** — Reduced overhead from O(N files) to O(1)
+- **1,918 tests passing** — Comprehensive test coverage for all new features
+
+These improvements make dev-agent more stable, easier to extend, and ready for upcoming analytics features.
+
+### Migration Notes
+
+**Breaking Changes:**
+
+- `dev metrics activity` → `dev activity` (top-level command)
+- `dev metrics ownership` → `dev owners` (top-level command)
+- `dev metrics size` removed (redundant with `dev stats`)
+
+**What You Get:**
+
+The `dev metrics` namespace is now reserved for future analytical commands like `trends`, `health`, and `complexity`. The simpler top-level commands provide better discoverability and UX.
+
+### Re-index Required
+
+To populate author contribution data, re-index your repository:
+
+```bash
+dev index .
+```
+
+This is a one-time operation. Future updates via `dev update` will maintain the author data automatically.
+
+---
+
 ## v0.7.0 — UX & TypeScript Performance Improvements
 
 *December 11, 2025*
