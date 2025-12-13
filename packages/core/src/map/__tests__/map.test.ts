@@ -95,6 +95,7 @@ describe('Codebase Map', () => {
   function createMockIndexer(results: SearchResult[] = mockSearchResults): RepositoryIndexer {
     return {
       search: vi.fn().mockResolvedValue(results),
+      getAll: vi.fn().mockResolvedValue(results),
     } as unknown as RepositoryIndexer;
   }
 
