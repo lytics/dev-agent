@@ -10,6 +10,7 @@ export * from './map';
 export * from './metrics';
 export * from './observability';
 export * from './scanner';
+export * from './services';
 export * from './storage';
 export * from './utils';
 export * from './vector';
