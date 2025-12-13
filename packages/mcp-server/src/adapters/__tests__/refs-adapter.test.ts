@@ -2,14 +2,14 @@
  * Tests for RefsAdapter
  */
 
-import type { RepositoryIndexer, SearchResult } from '@lytics/dev-agent-core';
+import type { SearchResult, SearchService } from '@lytics/dev-agent-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConsoleLogger } from '../../utils/logger';
 import { RefsAdapter } from '../built-in/refs-adapter';
 import type { AdapterContext, ToolExecutionContext } from '../types';
 
 describe('RefsAdapter', () => {
-  let mockIndexer: RepositoryIndexer;
+  let mockSearchService: SearchService;
   let adapter: RefsAdapter;
   let context: AdapterContext;
   let execContext: ToolExecutionContext;
@@ -69,14 +69,14 @@ describe('RefsAdapter', () => {
   ];
 
   beforeEach(async () => {
-    // Create mock indexer
-    mockIndexer = {
+    // Create mock search service
+    mockSearchService = {
       search: vi.fn().mockResolvedValue(mockSearchResults),
-    } as unknown as RepositoryIndexer;
+    } as unknown as SearchService;
 
     // Create adapter
     adapter = new RefsAdapter({
-      repositoryIndexer: mockIndexer,
+      searchService: mockSearchService,
       defaultLimit: 20,
     });
 
@@ -269,7 +269,7 @@ describe('RefsAdapter', () => {
   describe('Not Found', () => {
     it('should return error when function not found', async () => {
       // Mock empty results
-      (mockIndexer.search as ReturnType<typeof vi.fn>).mockResolvedValueOnce([]);
+      (mockSearchService.search as ReturnType<typeof vi.fn>).mockResolvedValueOnce([]);
 
       const result = await adapter.execute({ name: 'nonExistentFunction' }, execContext);
 

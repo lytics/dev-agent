@@ -6,7 +6,7 @@
  * falls back to direct indexer calls otherwise.
  */
 
-import type { RepositoryIndexer } from '@lytics/dev-agent-core';
+import type { SearchService } from '@lytics/dev-agent-core';
 import type {
   ExplorationResult,
   PatternResult,
@@ -20,7 +20,7 @@ import { validateArgs } from '../validation.js';
 
 export interface ExploreAdapterConfig {
   repositoryPath: string;
-  repositoryIndexer: RepositoryIndexer;
+  searchService: SearchService;
   defaultLimit?: number;
   defaultThreshold?: number;
   defaultFormat?: 'compact' | 'verbose';
@@ -43,7 +43,7 @@ export class ExploreAdapter extends ToolAdapter {
   };
 
   private repositoryPath: string;
-  private repositoryIndexer: RepositoryIndexer;
+  private searchService: SearchService;
   private defaultLimit: number;
   private defaultThreshold: number;
   private defaultFormat: 'compact' | 'verbose';
@@ -51,7 +51,7 @@ export class ExploreAdapter extends ToolAdapter {
   constructor(config: ExploreAdapterConfig) {
     super();
     this.repositoryPath = config.repositoryPath;
-    this.repositoryIndexer = config.repositoryIndexer;
+    this.searchService = config.searchService;
     this.defaultLimit = config.defaultLimit ?? 10;
     this.defaultThreshold = config.defaultThreshold ?? 0.7;
     this.defaultFormat = config.defaultFormat ?? 'compact';
@@ -411,7 +411,7 @@ export class ExploreAdapter extends ToolAdapter {
     fileTypes: string[] | undefined,
     format: string
   ): Promise<string> {
-    const results = await this.repositoryIndexer.search(query, {
+    const results = await this.searchService.search(query, {
       limit,
       scoreThreshold: threshold,
     });
@@ -444,9 +444,9 @@ export class ExploreAdapter extends ToolAdapter {
     threshold: number,
     format: string
   ): Promise<string> {
-    const results = await this.repositoryIndexer.search(`file:${filePath}`, {
+    const results = await this.searchService.findSimilar(filePath, {
       limit: limit + 1,
-      scoreThreshold: threshold,
+      threshold,
     });
 
     // Exclude the reference file itself
@@ -469,7 +469,7 @@ export class ExploreAdapter extends ToolAdapter {
   private async findRelationships(filePath: string, format: string): Promise<string> {
     // Search for references to this file
     const fileName = filePath.split('/').pop() || filePath;
-    const results = await this.repositoryIndexer.search(`import ${fileName}`, {
+    const results = await this.searchService.search(`import ${fileName}`, {
       limit: 20,
       scoreThreshold: 0.6,
     });

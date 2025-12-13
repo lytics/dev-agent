@@ -5,11 +5,10 @@ import {
   getStorageFilePaths,
   getStoragePath,
 } from '@lytics/dev-agent-core';
-import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
 import { loadConfig } from '../utils/config.js';
-import { formatBytes, getDirectorySize } from '../utils/file.js';
+import { getDirectorySize } from '../utils/file.js';
 import { logger } from '../utils/logger.js';
 import { output, printCleanSuccess, printCleanSummary } from '../utils/output.js';
 
