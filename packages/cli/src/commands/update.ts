@@ -61,6 +61,11 @@ export const updateCommand = new Command('update')
           if (event.codeMetadata && event.codeMetadata.length > 0) {
             metricsStore.appendCodeMetadata(snapshotId, event.codeMetadata);
           }
+
+          // Store file author contributions if available
+          if (event.authorContributions && event.authorContributions.size > 0) {
+            metricsStore.appendFileAuthors(snapshotId, event.authorContributions);
+          }
         } catch (error) {
           // Log error but don't fail update - metrics are non-critical
           logger.error(

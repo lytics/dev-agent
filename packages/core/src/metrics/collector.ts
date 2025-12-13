@@ -4,7 +4,11 @@
  * Builds CodeMetadata from scanner results and change frequency data.
  */
 
-import { calculateChangeFrequency } from '../indexer/utils/change-frequency.js';
+import {
+  calculateChangeFrequency,
+  calculateFileAuthorContributions,
+  type FileAuthorContribution,
+} from '../indexer/utils/change-frequency.js';
 import type { Document } from '../scanner/types.js';
 import type { CodeMetadata } from './types.js';
 
@@ -24,14 +28,20 @@ function countLines(content: string): number {
  *
  * @param repositoryPath - Repository path
  * @param documents - Scanned documents
- * @returns Array of code metadata
+ * @returns Object with code metadata and author contributions
  */
 export async function buildCodeMetadata(
   repositoryPath: string,
   documents: Document[]
-): Promise<CodeMetadata[]> {
-  // Calculate change frequency for all files
-  const changeFreq = await calculateChangeFrequency({ repositoryPath }).catch(() => new Map());
+): Promise<{
+  metadata: CodeMetadata[];
+  authorContributions: Map<string, FileAuthorContribution[]>;
+}> {
+  // Calculate change frequency and author contributions for all files (in parallel)
+  const [changeFreq, authorContributions] = await Promise.all([
+    calculateChangeFrequency({ repositoryPath }).catch(() => new Map()),
+    calculateFileAuthorContributions({ repositoryPath }).catch(() => new Map()),
+  ]);
 
   // Group documents by file
   const fileToDocuments = new Map<string, Document[]>();
@@ -76,5 +86,5 @@ export async function buildCodeMetadata(
     });
   }
 
-  return metadata;
+  return { metadata, authorContributions };
 }

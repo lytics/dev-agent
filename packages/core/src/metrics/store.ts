@@ -296,6 +296,97 @@ export class MetricsStore {
   }
 
   /**
+   * Append file author contributions to database
+   *
+   * @param snapshotId - Snapshot ID
+   * @param authorContributions - Map of file paths to author contributions
+   * @returns Number of author records inserted
+   */
+  appendFileAuthors(
+    snapshotId: string,
+    authorContributions: Map<
+      string,
+      Array<{ authorEmail: string; commitCount: number; lastCommit: Date | null }>
+    >
+  ): number {
+    if (authorContributions.size === 0) return 0;
+
+    const stmt = this.db.prepare(`
+      INSERT INTO file_authors 
+      (snapshot_id, file_path, author_email, commit_count, last_commit)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+
+    const insert = this.db.transaction(() => {
+      let count = 0;
+      for (const [filePath, contributions] of authorContributions) {
+        for (const contrib of contributions) {
+          stmt.run(
+            snapshotId,
+            filePath,
+            contrib.authorEmail,
+            contrib.commitCount,
+            contrib.lastCommit ? contrib.lastCommit.getTime() : null
+          );
+          count++;
+        }
+      }
+      return count;
+    });
+
+    try {
+      const count = insert();
+      this.logger?.debug({ snapshotId, count }, 'Appended file author contributions');
+      return count;
+    } catch (error) {
+      this.logger?.error({ error, snapshotId }, 'Failed to append file authors');
+      throw error;
+    }
+  }
+
+  /**
+   * Get file authors for a snapshot
+   *
+   * @param snapshotId - Snapshot ID
+   * @returns Map of file paths to author contributions
+   */
+  getFileAuthors(
+    snapshotId: string
+  ): Map<string, Array<{ authorEmail: string; commitCount: number; lastCommit: Date | null }>> {
+    const rows = this.db
+      .prepare(
+        'SELECT file_path, author_email, commit_count, last_commit FROM file_authors WHERE snapshot_id = ? ORDER BY file_path, commit_count DESC'
+      )
+      .all(snapshotId) as Array<{
+      file_path: string;
+      author_email: string;
+      commit_count: number;
+      last_commit: number | null;
+    }>;
+
+    const result = new Map<
+      string,
+      Array<{ authorEmail: string; commitCount: number; lastCommit: Date | null }>
+    >();
+
+    for (const row of rows) {
+      let contributions = result.get(row.file_path);
+      if (!contributions) {
+        contributions = [];
+        result.set(row.file_path, contributions);
+      }
+
+      contributions.push({
+        authorEmail: row.author_email,
+        commitCount: row.commit_count,
+        lastCommit: row.last_commit ? new Date(row.last_commit) : null,
+      });
+    }
+
+    return result;
+  }
+
+  /**
    * Get code metadata for a snapshot
    *
    * @param query - Query parameters
