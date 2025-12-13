@@ -11,7 +11,12 @@ import { Command } from 'commander';
 import ora from 'ora';
 import { formatNumber } from '../utils/formatters.js';
 import { keroLogger, logger } from '../utils/logger.js';
-import { output } from '../utils/output.js';
+import {
+  output,
+  printGitHubContext,
+  printGitHubSearchResults,
+  printGitHubStats,
+} from '../utils/output.js';
 
 /**
  * Create GitHub indexer with centralized storage
@@ -169,13 +174,7 @@ export const ghCommand = new Command('gh')
             limit: options.limit,
           });
 
-          spinner.succeed(chalk.green(`Found ${results.length} results`));
-
-          if (results.length === 0) {
-            logger.log('');
-            logger.log(chalk.gray('No results found'));
-            return;
-          }
+          spinner.stop();
 
           // Output results
           if (options.json) {
@@ -183,30 +182,7 @@ export const ghCommand = new Command('gh')
             return;
           }
 
-          logger.log('');
-          for (const result of results) {
-            const doc = result.document;
-            const typeEmoji = doc.type === 'issue' ? '🐛' : '🔀';
-            const stateColor =
-              doc.state === 'open'
-                ? chalk.green
-                : doc.state === 'merged'
-                  ? chalk.magenta
-                  : chalk.gray;
-
-            logger.log(
-              `${typeEmoji} ${chalk.bold(`#${doc.number}`)} ${doc.title} ${stateColor(`[${doc.state}]`)}`
-            );
-            logger.log(
-              `   ${chalk.gray(`Score: ${(result.score * 100).toFixed(0)}%`)} | ${chalk.blue(doc.url)}`
-            );
-
-            if (doc.labels.length > 0) {
-              logger.log(`   Labels: ${doc.labels.map((l: string) => chalk.cyan(l)).join(', ')}`);
-            }
-
-            logger.log('');
-          }
+          printGitHubSearchResults(results, query as string);
         } catch (error) {
           spinner.fail('Search failed');
           logger.error((error as Error).message);
@@ -257,46 +233,42 @@ export const ghCommand = new Command('gh')
             return;
           }
 
-          spinner.succeed(chalk.green('Context retrieved'));
+          spinner.stop();
 
           if (options.json) {
             console.log(JSON.stringify(context, null, 2));
             return;
           }
 
+          // Convert context to printable format
           const doc = context.document;
-          const typeEmoji = doc.type === 'issue' ? '🐛' : '🔀';
-
-          logger.log('');
-          logger.log(chalk.bold.cyan(`${typeEmoji} #${doc.number}: ${doc.title}`));
-          logger.log('');
-          logger.log(chalk.gray(`${doc.body.substring(0, 200)}...`));
-          logger.log('');
-
-          if (context.relatedIssues.length > 0) {
-            logger.log(chalk.bold('Related Issues:'));
-            for (const related of context.relatedIssues) {
-              logger.log(`  🐛 #${related.number} ${related.title}`);
-            }
-            logger.log('');
-          }
-
-          if (context.relatedPRs.length > 0) {
-            logger.log(chalk.bold('Related PRs:'));
-            for (const related of context.relatedPRs) {
-              logger.log(`  🔀 #${related.number} ${related.title}`);
-            }
-            logger.log('');
-          }
-
-          if (context.linkedCodeFiles.length > 0) {
-            logger.log(chalk.bold('Linked Code Files:'));
-            for (const file of context.linkedCodeFiles) {
-              const scorePercent = (file.score * 100).toFixed(0);
-              logger.log(`  📁 ${file.path} (${scorePercent}% match)`);
-            }
-            logger.log('');
-          }
+          printGitHubContext({
+            type: doc.type,
+            number: doc.number,
+            title: doc.title,
+            body: doc.body,
+            state: doc.state,
+            author: doc.author,
+            createdAt: doc.createdAt,
+            updatedAt: doc.updatedAt,
+            labels: doc.labels,
+            url: doc.url,
+            comments: doc.comments,
+            relatedIssues: context.relatedIssues.map((r) => ({
+              number: r.number,
+              title: r.title,
+              state: r.state,
+            })),
+            relatedPRs: context.relatedPRs.map((r) => ({
+              number: r.number,
+              title: r.title,
+              state: r.state,
+            })),
+            linkedFiles: context.linkedCodeFiles.map((f) => ({
+              path: f.path,
+              score: f.score,
+            })),
+          });
         } catch (error) {
           spinner.fail('Failed to get context');
           logger.error((error as Error).message);
@@ -319,45 +291,16 @@ export const ghCommand = new Command('gh')
         spinner.stop();
 
         if (!stats) {
-          logger.log('');
-          logger.log(chalk.yellow('GitHub data not indexed'));
-          logger.log('Run "dev gh index" to index');
+          output.log();
+          output.warn('GitHub data not indexed');
+          output.log('Run "dev gh index" to index');
           return;
         }
 
-        logger.log('');
-        logger.log(chalk.bold.cyan('GitHub Indexing Stats'));
-        logger.log('');
-        logger.log(`Repository: ${chalk.cyan(stats.repository)}`);
-        logger.log(`Total Documents: ${chalk.yellow(stats.totalDocuments)}`);
-        logger.log('');
-
-        logger.log(chalk.bold('By Type:'));
-        if (stats.byType.issue) {
-          logger.log(`  Issues: ${stats.byType.issue}`);
-        }
-        if (stats.byType.pull_request) {
-          logger.log(`  Pull Requests: ${stats.byType.pull_request}`);
-        }
-        logger.log('');
-
-        logger.log(chalk.bold('By State:'));
-        if (stats.byState.open) {
-          logger.log(`  ${chalk.green('Open')}: ${stats.byState.open}`);
-        }
-        if (stats.byState.closed) {
-          logger.log(`  ${chalk.gray('Closed')}: ${stats.byState.closed}`);
-        }
-        if (stats.byState.merged) {
-          logger.log(`  ${chalk.magenta('Merged')}: ${stats.byState.merged}`);
-        }
-        logger.log('');
-
-        logger.log(`Last Indexed: ${chalk.gray(stats.lastIndexed)}`);
-        logger.log('');
+        printGitHubStats(stats);
       } catch (error) {
         spinner.fail('Failed to get stats');
-        logger.error((error as Error).message);
+        output.error((error as Error).message);
         process.exit(1);
       }
     })

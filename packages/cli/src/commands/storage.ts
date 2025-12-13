@@ -11,6 +11,7 @@ import {
   getStorageFilePaths,
   getStoragePath,
   loadMetadata,
+  type RepositoryMetadata,
   saveMetadata,
 } from '@lytics/dev-agent-core';
 import chalk from 'chalk';
@@ -19,6 +20,7 @@ import ora from 'ora';
 import { loadConfig } from '../utils/config.js';
 import { formatBytes, getDirectorySize } from '../utils/file.js';
 import { logger } from '../utils/logger.js';
+import { printStorageInfo } from '../utils/output.js';
 
 /**
  * Detect existing project-local indexes
@@ -319,74 +321,52 @@ storageCommand
         // Storage doesn't exist yet
       }
 
-      logger.log('');
-      logger.log(chalk.bold('💾 Storage Information'));
-      logger.log('');
-      logger.log(`  ${chalk.cyan('Storage Location:')} ${storagePath}`);
-      logger.log(
-        `  ${chalk.cyan('Status:')}           ${storageExists ? chalk.green('Active') : chalk.gray('Not initialized')}`
-      );
+      // Collect file information
+      const fileList = [
+        { name: 'Vector Store', path: filePaths.vectors },
+        { name: 'Indexer State', path: filePaths.indexerState },
+        { name: 'GitHub State', path: filePaths.githubState },
+        { name: 'Metadata', path: filePaths.metadata },
+      ];
 
-      if (storageExists) {
-        logger.log(`  ${chalk.cyan('Total Size:')}        ${formatBytes(totalSize)}`);
-        logger.log('');
-
-        // Show individual files
-        logger.log(chalk.bold('📁 Index Files:'));
-        logger.log('');
-
-        const files = [
-          { name: 'Vector Store', path: filePaths.vectors },
-          { name: 'Indexer State', path: filePaths.indexerState },
-          { name: 'GitHub State', path: filePaths.githubState },
-          { name: 'Metadata', path: filePaths.metadata },
-        ];
-
-        for (const file of files) {
+      const files = await Promise.all(
+        fileList.map(async (file) => {
           try {
             const stat = await fs.stat(file.path);
             const size = stat.isDirectory() ? await getDirectorySize(file.path) : stat.size;
-            const exists = chalk.green('✓');
-            logger.log(`  ${exists} ${chalk.cyan(`${file.name}:`)}     ${formatBytes(size)}`);
-            logger.log(`    ${chalk.gray(file.path)}`);
+            return {
+              name: file.name,
+              path: file.path,
+              size,
+              exists: true,
+            };
           } catch {
-            const missing = chalk.gray('○');
-            logger.log(
-              `  ${missing} ${chalk.gray(`${file.name}:`)}     ${chalk.gray('Not found')}`
-            );
+            return {
+              name: file.name,
+              path: file.path,
+              size: null,
+              exists: false,
+            };
           }
-        }
+        })
+      );
 
-        // Load and show metadata if available
-        try {
-          const metadata = await loadMetadata(storagePath);
-          if (metadata) {
-            logger.log('');
-            logger.log(chalk.bold('📋 Repository Metadata:'));
-            logger.log('');
-            if (metadata.repository?.remote) {
-              logger.log(`  ${chalk.cyan('Remote:')}          ${metadata.repository.remote}`);
-            }
-            if (metadata.repository?.branch) {
-              logger.log(`  ${chalk.cyan('Branch:')}          ${metadata.repository.branch}`);
-            }
-            if (metadata.indexed) {
-              logger.log(
-                `  ${chalk.cyan('Last Indexed:')}    ${new Date(metadata.indexed.timestamp).toLocaleString()}`
-              );
-              logger.log(`  ${chalk.cyan('Files Indexed:')}   ${metadata.indexed.files}`);
-              logger.log(`  ${chalk.cyan('Components:')}      ${metadata.indexed.components}`);
-            }
-          }
-        } catch {
-          // Metadata not available
-        }
-      } else {
-        logger.log('');
-        logger.log(chalk.gray('No indexes found. Run "dev index" to create indexes.'));
+      // Load metadata if available
+      let metadata: RepositoryMetadata | null = null;
+      try {
+        metadata = await loadMetadata(storagePath);
+      } catch {
+        // Metadata not available
       }
 
-      logger.log('');
+      // Print using new output format
+      printStorageInfo({
+        storagePath,
+        status: storageExists ? 'active' : 'not-initialized',
+        totalSize,
+        files,
+        metadata: metadata || undefined,
+      });
     } catch (error) {
       spinner.fail('Failed to load storage information');
       logger.error(`Error: ${error instanceof Error ? error.message : String(error)}`);

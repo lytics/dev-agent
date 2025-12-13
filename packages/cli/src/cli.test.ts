@@ -58,16 +58,9 @@ describe('CLI Structure', () => {
       expect(jsonOption).toBeDefined();
     });
 
-    it('stats command should have show subcommand with json option', () => {
-      const subcommands = statsCommand.commands;
-      const showCommand = subcommands.find((cmd) => cmd.name() === 'show');
-
-      expect(showCommand).toBeDefined();
-
-      if (showCommand) {
-        const jsonOption = showCommand.options.find((opt) => opt.long === '--json');
-        expect(jsonOption).toBeDefined();
-      }
+    it('stats command should have json option', () => {
+      const jsonOption = statsCommand.options.find((opt) => opt.long === '--json');
+      expect(jsonOption).toBeDefined();
     });
 
     it('clean command should have force option', () => {
