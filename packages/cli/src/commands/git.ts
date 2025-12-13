@@ -14,7 +14,9 @@ import { createLogger } from '@lytics/kero';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
+import { loadConfig } from '../utils/config.js';
 import { keroLogger, logger } from '../utils/logger.js';
+import { output, printGitStats } from '../utils/output.js';
 
 /**
  * Create Git indexer with centralized storage
@@ -179,18 +181,20 @@ export const gitCommand = new Command('git')
         spinner.stop();
 
         if (totalCommits === 0) {
-          logger.log('');
-          logger.log(chalk.yellow('Git history not indexed'));
-          logger.log('Run "dev git index" to index commits');
+          output.log();
+          output.log(chalk.yellow('Git history not indexed'));
+          output.log();
+          output.log(`Run ${chalk.cyan('dev git index')} to index commits`);
+          output.log();
           await vectorStore.close();
           return;
         }
 
-        logger.log('');
-        logger.log(chalk.bold.cyan('Git History Stats'));
-        logger.log('');
-        logger.log(`Total Commits Indexed: ${chalk.yellow(totalCommits)}`);
-        logger.log('');
+        // Print clean stats output
+        printGitStats({
+          totalCommits,
+          // Date range would require additional query - defer for now
+        });
 
         await vectorStore.close();
       } catch (error) {
