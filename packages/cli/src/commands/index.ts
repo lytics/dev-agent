@@ -2,11 +2,14 @@ import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  AsyncEventBus,
   ensureStorageDirectory,
   GitIndexer,
   getStorageFilePaths,
   getStoragePath,
+  type IndexUpdatedEvent,
   LocalGitExtractor,
+  MetricsStore,
   RepositoryIndexer,
   updateIndexedStats,
   VectorStorage,
@@ -116,15 +119,38 @@ export const indexCommand = new Command('index')
       const filePaths = getStorageFilePaths(storagePath);
 
       spinner.text = 'Initializing indexer...';
-      const indexer = new RepositoryIndexer({
-        repositoryPath: resolvedRepoPath,
-        vectorStorePath: filePaths.vectors,
-        statePath: filePaths.indexerState,
-        excludePatterns: config.repository?.excludePatterns || config.excludePatterns,
-        languages: config.repository?.languages || config.languages,
-        embeddingModel: config.embeddingModel,
-        embeddingDimension: config.dimension,
+
+      // Create event bus for metrics (no logger in CLI to keep it simple)
+      const eventBus = new AsyncEventBus();
+
+      // Initialize metrics store (no logger in CLI to avoid noise)
+      const metricsDbPath = join(storagePath, 'metrics.db');
+      const metricsStore = new MetricsStore(metricsDbPath);
+
+      // Subscribe to index.updated events for automatic metrics persistence
+      eventBus.on<IndexUpdatedEvent>('index.updated', async (event) => {
+        try {
+          metricsStore.recordSnapshot(event.stats, event.isIncremental ? 'update' : 'index');
+        } catch (error) {
+          // Log error but don't fail indexing - metrics are non-critical
+          logger.error(
+            `Failed to record metrics snapshot: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
       });
+
+      const indexer = new RepositoryIndexer(
+        {
+          repositoryPath: resolvedRepoPath,
+          vectorStorePath: filePaths.vectors,
+          statePath: filePaths.indexerState,
+          excludePatterns: config.repository?.excludePatterns || config.excludePatterns,
+          languages: config.repository?.languages || config.languages,
+          embeddingModel: config.embeddingModel,
+          embeddingDimension: config.dimension,
+        },
+        eventBus
+      );
 
       await indexer.initialize();
 
@@ -165,6 +191,7 @@ export const indexCommand = new Command('index')
       });
 
       await indexer.close();
+      metricsStore.close();
 
       const codeDuration = (Date.now() - startTime) / 1000;
 
