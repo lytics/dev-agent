@@ -62,6 +62,7 @@ describe('MapAdapter', () => {
     // Create mock indexer
     mockIndexer = {
       search: vi.fn().mockResolvedValue(mockSearchResults),
+      getAll: vi.fn().mockResolvedValue(mockSearchResults),
     } as unknown as RepositoryIndexer;
 
     // Create adapter
@@ -267,6 +268,7 @@ describe('MapAdapter', () => {
 
       const largeIndexer = {
         search: vi.fn().mockResolvedValue(manyResults),
+        getAll: vi.fn().mockResolvedValue(manyResults),
       } as unknown as RepositoryIndexer;
 
       const largeAdapter = new MapAdapter({

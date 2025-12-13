@@ -137,6 +137,39 @@ export class LanceDBVectorStore implements VectorStore {
   }
 
   /**
+   * Get all documents without semantic search (fast scan)
+   * Use this when you need all documents and don't need relevance ranking
+   */
+  async getAll(options: { limit?: number } = {}): Promise<SearchResult[]> {
+    if (!this.table) {
+      return []; // No documents yet
+    }
+
+    const { limit = 10000 } = options;
+
+    try {
+      // Use query() instead of search() - no vector similarity calculation needed
+      // This is much faster as it skips embedding generation and distance computation
+      const results = await this.table
+        .query()
+        .select(['id', 'text', 'metadata'])
+        .limit(limit)
+        .toArray();
+
+      // Transform results (all have score of 1 since no ranking)
+      return results.map((result) => ({
+        id: result.id as string,
+        score: 1, // No relevance score for full scan
+        metadata: JSON.parse(result.metadata as string) as SearchResultMetadata,
+      }));
+    } catch (error) {
+      throw new Error(
+        `Failed to get all documents: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
    * Get a document by ID
    */
   async get(id: string): Promise<EmbeddingDocument | null> {

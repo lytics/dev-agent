@@ -4,6 +4,7 @@
  */
 
 import * as path from 'node:path';
+import type { Logger } from '@lytics/kero';
 import type { LocalGitExtractor } from '../git/extractor';
 import type { RepositoryIndexer } from '../indexer';
 import type { SearchResult } from '../vector/types';
@@ -32,10 +33,11 @@ const DEFAULT_OPTIONS: Required<MapOptions> = {
   includeChangeFrequency: false,
 };
 
-/** Context for map generation including optional git extractor */
+/** Context for map generation including optional git extractor and logger */
 export interface MapGenerationContext {
   indexer: RepositoryIndexer;
   gitExtractor?: LocalGitExtractor;
+  logger?: Logger;
 }
 
 /**
@@ -74,27 +76,64 @@ export async function generateCodebaseMap(
       ? indexerOrContext
       : { indexer: indexerOrContext as RepositoryIndexer };
 
-  // Get all indexed documents (use a broad search)
-  // Note: We search with a generic query to get all documents
-  const allDocs = await context.indexer.search('function class interface type', {
+  const logger = context.logger;
+  const startTime = Date.now();
+
+  logger?.debug({ depth: opts.depth, focus: opts.focus }, 'Starting codebase map generation');
+
+  // Get all indexed documents (fast scan without semantic search)
+  // This is 10-20x faster than search() as it skips embedding generation
+  const t1 = Date.now();
+  const allDocs = await context.indexer.getAll({
     limit: 10000,
-    scoreThreshold: 0,
   });
+  const t2 = Date.now();
+  logger?.debug({ duration_ms: t2 - t1, docCount: allDocs.length }, 'Retrieved all documents');
 
   // Build directory tree from documents
+  const t3 = Date.now();
   const root = buildDirectoryTree(allDocs, opts);
+  const t4 = Date.now();
+  logger?.debug({ duration_ms: t4 - t3 }, 'Built directory tree');
 
   // Count totals
+  const t5 = Date.now();
   const totalComponents = countComponents(root);
   const totalDirectories = countDirectories(root);
+  const t6 = Date.now();
+  logger?.debug(
+    {
+      duration_ms: t6 - t5,
+      totalComponents,
+      totalDirectories,
+    },
+    'Counted components'
+  );
 
   // Compute hot paths (most referenced files)
+  const t7 = Date.now();
   const hotPaths = opts.includeHotPaths ? computeHotPaths(allDocs, opts.maxHotPaths) : [];
+  const t8 = Date.now();
+  logger?.debug({ duration_ms: t8 - t7, hotPathCount: hotPaths.length }, 'Computed hot paths');
 
   // Compute change frequency if requested and git extractor is available
   if (opts.includeChangeFrequency && context.gitExtractor) {
+    const t9 = Date.now();
     await computeChangeFrequency(root, context.gitExtractor);
+    const t10 = Date.now();
+    logger?.debug({ duration_ms: t10 - t9 }, 'Computed change frequency');
   }
+
+  const totalDuration = Date.now() - startTime;
+  logger?.info(
+    {
+      duration_ms: totalDuration,
+      totalComponents,
+      totalDirectories,
+      hotPathCount: hotPaths.length,
+    },
+    'Codebase map generated'
+  );
 
   return {
     root,
@@ -144,6 +183,9 @@ function buildDirectoryTree(docs: SearchResult[], opts: Required<MapOptions>): M
   for (const [dir, dirDocs] of byDir) {
     insertIntoTree(root, dir, dirDocs, opts);
   }
+
+  // Propagate counts up the tree (do this ONCE after all directories are processed)
+  propagateCounts(root);
 
   // Prune tree to depth (smart or fixed)
   if (opts.smartDepth) {
@@ -202,8 +244,7 @@ function insertIntoTree(
     }
   }
 
-  // Propagate counts up the tree
-  propagateCounts(root);
+  // Note: Don't propagate counts here - it will be done once after all directories are processed
 }
 
 /**
