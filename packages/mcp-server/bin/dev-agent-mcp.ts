@@ -5,21 +5,20 @@
  */
 
 import {
+  CoordinatorService,
   ensureStorageDirectory,
+  GitHubService,
   GitIndexer,
   getStorageFilePaths,
   getStoragePath,
   LocalGitExtractor,
   RepositoryIndexer,
+  SearchService,
+  StatsService,
   saveMetadata,
   VectorStorage,
 } from '@lytics/dev-agent-core';
-import {
-  ExplorerAgent,
-  PlannerAgent,
-  PrAgent,
-  SubagentCoordinator,
-} from '@lytics/dev-agent-subagents';
+import type { SubagentCoordinator } from '@lytics/dev-agent-subagents';
 import {
   ExploreAdapter,
   GitHubAdapter,
@@ -127,33 +126,40 @@ async function main() {
     // Update metadata
     await saveMetadata(storagePath, repositoryPath);
 
-    // Create and configure the subagent coordinator
-    const coordinator = new SubagentCoordinator({
+    // Create and configure the subagent coordinator using CoordinatorService
+    const coordinatorService = new CoordinatorService({
+      repositoryPath,
       maxConcurrentTasks: 5,
       defaultMessageTimeout: 30000,
       logLevel,
     });
+    // Type assertion: CoordinatorService returns a minimal interface, but it's
+    // structurally compatible with the full SubagentCoordinator type
+    const coordinator = (await coordinatorService.createCoordinator(
+      indexer
+    )) as SubagentCoordinator;
 
-    // Set up context manager with indexer
-    coordinator.getContextManager().setIndexer(indexer);
-
-    // Register subagents
-    await coordinator.registerAgent(new ExplorerAgent());
-    await coordinator.registerAgent(new PlannerAgent());
-    await coordinator.registerAgent(new PrAgent());
+    // Create services
+    const searchService = new SearchService({ repositoryPath });
+    const githubService = new GitHubService({ repositoryPath }, async (config) => {
+      const { GitHubIndexer } = await import('@lytics/dev-agent-subagents');
+      return new GitHubIndexer(config);
+    });
+    const statsService = new StatsService({ repositoryPath });
 
     // Create and register adapters
     const searchAdapter = new SearchAdapter({
-      repositoryIndexer: indexer,
+      searchService,
       repositoryPath,
       defaultFormat: 'compact',
       defaultLimit: 10,
     });
 
     const statusAdapter = new StatusAdapter({
-      repositoryIndexer: indexer,
+      statsService,
       repositoryPath,
       vectorStorePath: filePaths.vectors,
+      githubService,
       defaultSection: 'summary',
     });
 
@@ -186,10 +192,8 @@ async function main() {
     });
 
     const githubAdapter = new GitHubAdapter({
+      githubService,
       repositoryPath,
-      // GitHubIndexer will be lazily initialized on first use
-      vectorStorePath: `${filePaths.vectors}-github`,
-      statePath: filePaths.githubState,
       defaultLimit: 10,
       defaultFormat: 'compact',
     });
@@ -249,10 +253,8 @@ async function main() {
       await server.stop();
       await indexer.close();
       await gitVectorStorage.close();
-      // Close GitHub adapter if initialized
-      if (githubAdapter.githubIndexer) {
-        await githubAdapter.githubIndexer.close();
-      }
+      // Close GitHub service
+      await githubService.shutdown();
       process.exit(0);
     };
 

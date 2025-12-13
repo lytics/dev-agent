@@ -9,7 +9,7 @@ import type { GitIndexer, RepositoryIndexer } from '@lytics/dev-agent-core';
 import type { ContextAssemblyOptions } from '@lytics/dev-agent-subagents';
 import { assembleContext, formatContextPackage } from '@lytics/dev-agent-subagents';
 import { estimateTokensForText, startTimer } from '../../formatters/utils';
-import { PlanArgsSchema } from '../../schemas/index.js';
+import { PlanArgsSchema, type PlanOutput, PlanOutputSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
 import { validateArgs } from '../validation.js';
@@ -123,6 +123,27 @@ export class PlanAdapter extends ToolAdapter {
         },
         required: ['issue'],
       },
+      outputSchema: {
+        type: 'object',
+        properties: {
+          issue: {
+            type: 'number',
+            description: 'Issue number that was processed',
+          },
+          format: {
+            type: 'string',
+            description: 'Output format used',
+          },
+          content: {
+            type: 'string',
+            description: 'Formatted implementation context',
+          },
+          context: {
+            description: 'Raw context package (verbose mode only)',
+          },
+        },
+        required: ['issue', 'format', 'content'],
+      },
     };
   }
 
@@ -186,14 +207,23 @@ export class PlanAdapter extends ToolAdapter {
         duration_ms,
       });
 
+      // Validate output with Zod
+      const outputData: PlanOutput = {
+        issue,
+        format,
+        content,
+        context: format === 'verbose' ? contextPackage : undefined,
+      };
+
+      const outputValidation = PlanOutputSchema.safeParse(outputData);
+      if (!outputValidation.success) {
+        context.logger.error('Output validation failed', { error: outputValidation.error });
+        throw new Error(`Output validation failed: ${outputValidation.error.message}`);
+      }
+
       return {
         success: true,
-        data: {
-          issue,
-          format,
-          content,
-          context: format === 'verbose' ? contextPackage : undefined,
-        },
+        data: outputValidation.data,
         metadata: {
           tokens,
           duration_ms,

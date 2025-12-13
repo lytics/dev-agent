@@ -5,7 +5,7 @@
 
 import type { GitCommit, GitIndexer, LocalGitExtractor } from '@lytics/dev-agent-core';
 import { estimateTokensForText, startTimer } from '../../formatters/utils';
-import { HistoryArgsSchema } from '../../schemas/index.js';
+import { HistoryArgsSchema, type HistoryOutput, HistoryOutputSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
 import { validateArgs } from '../validation.js';
@@ -115,6 +115,53 @@ export class HistoryAdapter extends ToolAdapter {
         // Note: At least one of query or file is required (validated in execute)
         required: [],
       },
+      outputSchema: {
+        type: 'object',
+        properties: {
+          searchType: {
+            type: 'string',
+            enum: ['semantic', 'file'],
+            description: 'Type of history search performed',
+          },
+          query: {
+            type: 'string',
+            description: 'Semantic search query (if applicable)',
+          },
+          file: {
+            type: 'string',
+            description: 'File path (if file history)',
+          },
+          commits: {
+            type: 'array',
+            description: 'List of commit summaries',
+            items: {
+              type: 'object',
+              properties: {
+                hash: {
+                  type: 'string',
+                },
+                subject: {
+                  type: 'string',
+                },
+                author: {
+                  type: 'string',
+                },
+                date: {
+                  type: 'string',
+                },
+                filesChanged: {
+                  type: 'number',
+                },
+              },
+            },
+          },
+          content: {
+            type: 'string',
+            description: 'Formatted commit history',
+          },
+        },
+        required: ['searchType', 'commits', 'content'],
+      },
     };
   }
 
@@ -163,21 +210,30 @@ export class HistoryAdapter extends ToolAdapter {
 
       const tokens = estimateTokensForText(content);
 
+      // Validate output with Zod
+      const outputData: HistoryOutput = {
+        searchType,
+        query: query || undefined,
+        file: file || undefined,
+        commits: commits.map((c) => ({
+          hash: c.shortHash,
+          subject: c.subject,
+          author: c.author.name,
+          date: c.author.date,
+          filesChanged: c.stats.filesChanged,
+        })),
+        content,
+      };
+
+      const outputValidation = HistoryOutputSchema.safeParse(outputData);
+      if (!outputValidation.success) {
+        context.logger.error('Output validation failed', { error: outputValidation.error });
+        throw new Error(`Output validation failed: ${outputValidation.error.message}`);
+      }
+
       return {
         success: true,
-        data: {
-          searchType,
-          query: query || undefined,
-          file: file || undefined,
-          commits: commits.map((c) => ({
-            hash: c.shortHash,
-            subject: c.subject,
-            author: c.author.name,
-            date: c.author.date,
-            filesChanged: c.stats.filesChanged,
-          })),
-          content,
-        },
+        data: outputValidation.data,
         metadata: {
           tokens,
           duration_ms,

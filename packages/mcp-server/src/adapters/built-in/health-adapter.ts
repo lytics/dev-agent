@@ -5,7 +5,7 @@
  */
 
 import * as fs from 'node:fs/promises';
-import { HealthArgsSchema } from '../../schemas/index.js';
+import { HealthArgsSchema, type HealthOutput, HealthOutputSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
 import { validateArgs } from '../validation.js';
@@ -72,6 +72,29 @@ export class HealthAdapter extends ToolAdapter {
           },
         },
       },
+      outputSchema: {
+        type: 'object',
+        properties: {
+          status: {
+            type: 'string',
+            enum: ['healthy', 'degraded', 'unhealthy'],
+            description: 'Overall health status',
+          },
+          uptime: {
+            type: 'number',
+            description: 'Server uptime in milliseconds',
+          },
+          checks: {
+            type: 'object',
+            description: 'Health check results for each component',
+          },
+          formattedReport: {
+            type: 'string',
+            description: 'Human-readable health report',
+          },
+        },
+        required: ['status', 'uptime', 'checks', 'formattedReport'],
+      },
     };
   }
 
@@ -92,12 +115,24 @@ export class HealthAdapter extends ToolAdapter {
 
       const content = this.formatHealthReport(health, verbose);
 
+      // Validate output with Zod
+      const outputData: HealthOutput = {
+        status,
+        uptime: health.uptime,
+        timestamp: health.timestamp,
+        checks: health.checks,
+        formattedReport: `${emoji} **MCP Server Health: ${status.toUpperCase()}**\n\n${content}`,
+      };
+
+      const outputValidation = HealthOutputSchema.safeParse(outputData);
+      if (!outputValidation.success) {
+        context.logger.error('Output validation failed', { error: outputValidation.error });
+        throw new Error(`Output validation failed: ${outputValidation.error.message}`);
+      }
+
       return {
         success: true,
-        data: {
-          ...health,
-          formattedReport: `${emoji} **MCP Server Health: ${status.toUpperCase()}**\n\n${content}`,
-        },
+        data: outputValidation.data,
       };
     } catch (error) {
       context.logger.error('Health check failed', {

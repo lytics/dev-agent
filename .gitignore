@@ -70,3 +70,4 @@ packages/benchmark/
 
 # Benchmark studies and session logs
 studies/
+.test-vectors/

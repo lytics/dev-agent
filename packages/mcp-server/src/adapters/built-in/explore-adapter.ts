@@ -13,7 +13,7 @@ import type {
   RelationshipResult,
   SimilarCodeResult,
 } from '@lytics/dev-agent-subagents';
-import { ExploreArgsSchema } from '../../schemas/index.js';
+import { ExploreArgsSchema, type ExploreOutput, ExploreOutputSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
 import { validateArgs } from '../validation.js';
@@ -117,6 +117,29 @@ export class ExploreAdapter extends ToolAdapter {
         },
         required: ['action', 'query'],
       },
+      outputSchema: {
+        type: 'object',
+        properties: {
+          action: {
+            type: 'string',
+            enum: ['pattern', 'similar', 'relationships'],
+            description: 'Exploration action performed',
+          },
+          query: {
+            type: 'string',
+            description: 'Query or file path used',
+          },
+          format: {
+            type: 'string',
+            description: 'Output format used',
+          },
+          content: {
+            type: 'string',
+            description: 'Formatted exploration results',
+          },
+        },
+        required: ['action', 'query', 'format', 'content'],
+      },
     };
   }
 
@@ -185,14 +208,23 @@ export class ExploreAdapter extends ToolAdapter {
           break;
       }
 
+      // Validate output with Zod
+      const outputData: ExploreOutput = {
+        action,
+        query,
+        format,
+        content,
+      };
+
+      const outputValidation = ExploreOutputSchema.safeParse(outputData);
+      if (!outputValidation.success) {
+        context.logger.error('Output validation failed', { error: outputValidation.error });
+        throw new Error(`Output validation failed: ${outputValidation.error.message}`);
+      }
+
       return {
         success: true,
-        data: {
-          action,
-          query,
-          format,
-          content,
-        },
+        data: outputValidation.data,
       };
     } catch (error) {
       context.logger.error('Exploration failed', { error });

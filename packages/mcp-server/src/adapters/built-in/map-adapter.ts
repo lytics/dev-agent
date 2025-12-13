@@ -11,7 +11,7 @@ import {
   type RepositoryIndexer,
 } from '@lytics/dev-agent-core';
 import { estimateTokensForText, startTimer } from '../../formatters/utils';
-import { MapArgsSchema } from '../../schemas/index.js';
+import { MapArgsSchema, type MapOutput, MapOutputSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
 import { validateArgs } from '../validation.js';
@@ -116,6 +116,36 @@ export class MapAdapter extends ToolAdapter {
         },
         required: [],
       },
+      outputSchema: {
+        type: 'object',
+        properties: {
+          content: {
+            type: 'string',
+            description: 'Formatted directory structure map',
+          },
+          totalComponents: {
+            type: 'number',
+            description: 'Total number of code components (functions, classes, etc.)',
+          },
+          totalDirectories: {
+            type: 'number',
+            description: 'Total number of directories in the map',
+          },
+          depth: {
+            type: 'number',
+            description: 'Directory depth level used',
+          },
+          focus: {
+            type: 'string',
+            description: 'Directory focus path, if any (null if no focus)',
+          },
+          truncated: {
+            type: 'boolean',
+            description: 'Whether output was truncated to fit token budget',
+          },
+        },
+        required: ['content', 'totalComponents', 'totalDirectories', 'depth', 'focus', 'truncated'],
+      },
     };
   }
 
@@ -193,16 +223,25 @@ export class MapAdapter extends ToolAdapter {
         duration_ms,
       });
 
+      // Validate output with Zod
+      const outputData: MapOutput = {
+        content,
+        totalComponents: map.totalComponents,
+        totalDirectories: map.totalDirectories,
+        depth,
+        focus: focus || null,
+        truncated,
+      };
+
+      const outputValidation = MapOutputSchema.safeParse(outputData);
+      if (!outputValidation.success) {
+        context.logger.error('Output validation failed', { error: outputValidation.error });
+        throw new Error(`Output validation failed: ${outputValidation.error.message}`);
+      }
+
       return {
         success: true,
-        data: {
-          content,
-          totalComponents: map.totalComponents,
-          totalDirectories: map.totalDirectories,
-          depth,
-          focus: focus || null,
-          truncated,
-        },
+        data: outputValidation.data,
         metadata: {
           tokens,
           duration_ms,

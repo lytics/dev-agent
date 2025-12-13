@@ -3,9 +3,9 @@
  * Provides semantic code search via the dev_search tool
  */
 
-import type { RepositoryIndexer } from '@lytics/dev-agent-core';
+import type { SearchService } from '@lytics/dev-agent-core';
 import { CompactFormatter, type FormatMode, VerboseFormatter } from '../../formatters';
-import { SearchArgsSchema } from '../../schemas/index.js';
+import { SearchArgsSchema, type SearchOutput, SearchOutputSchema } from '../../schemas/index.js';
 import { findRelatedTestFiles, formatRelatedFiles } from '../../utils/related-files';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
@@ -16,9 +16,9 @@ import { validateArgs } from '../validation.js';
  */
 export interface SearchAdapterConfig {
   /**
-   * Repository indexer instance
+   * Search service instance
    */
-  repositoryIndexer: RepositoryIndexer;
+  searchService: SearchService;
 
   /**
    * Repository root path (for finding related files)
@@ -53,16 +53,16 @@ export class SearchAdapter extends ToolAdapter {
     author: 'Dev-Agent Team',
   };
 
-  private indexer: RepositoryIndexer;
+  private searchService: SearchService;
   private config: Required<Omit<SearchAdapterConfig, 'repositoryPath'>> & {
     repositoryPath?: string;
   };
 
   constructor(config: SearchAdapterConfig) {
     super();
-    this.indexer = config.repositoryIndexer;
+    this.searchService = config.searchService;
     this.config = {
-      repositoryIndexer: config.repositoryIndexer,
+      searchService: config.searchService,
       repositoryPath: config.repositoryPath,
       defaultFormat: config.defaultFormat ?? 'compact',
       defaultLimit: config.defaultLimit ?? 10,
@@ -123,6 +123,24 @@ export class SearchAdapter extends ToolAdapter {
         },
         required: ['query'],
       },
+      outputSchema: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'The search query that was executed',
+          },
+          format: {
+            type: 'string',
+            description: 'The output format used',
+          },
+          content: {
+            type: 'string',
+            description: 'Formatted search results',
+          },
+        },
+        required: ['query', 'format', 'content'],
+      },
     };
   }
 
@@ -145,8 +163,8 @@ export class SearchAdapter extends ToolAdapter {
         tokenBudget,
       });
 
-      // Perform search
-      const results = await this.indexer.search(query as string, {
+      // Perform search using SearchService
+      const results = await this.searchService.search(query as string, {
         limit: limit as number,
         scoreThreshold: scoreThreshold as number,
       });
@@ -194,13 +212,22 @@ export class SearchAdapter extends ToolAdapter {
         duration_ms,
       });
 
+      // Validate output with Zod
+      const outputData: SearchOutput = {
+        query: query as string,
+        format,
+        content: formatted.content + relatedFilesSection,
+      };
+
+      const outputValidation = SearchOutputSchema.safeParse(outputData);
+      if (!outputValidation.success) {
+        context.logger.error('Output validation failed', { error: outputValidation.error });
+        throw new Error(`Output validation failed: ${outputValidation.error.message}`);
+      }
+
       return {
         success: true,
-        data: {
-          query,
-          format,
-          content: formatted.content + relatedFilesSection,
-        },
+        data: outputValidation.data,
         metadata: {
           tokens: formatted.tokens,
           duration_ms,

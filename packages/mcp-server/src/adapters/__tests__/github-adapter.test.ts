@@ -2,18 +2,16 @@
  * GitHubAdapter Unit Tests
  */
 
-import type {
-  GitHubDocument,
-  GitHubIndexer,
-  GitHubSearchResult,
-} from '@lytics/dev-agent-subagents';
+import type { GitHubService } from '@lytics/dev-agent-core';
+import type { GitHubDocument, GitHubSearchResult } from '@lytics/dev-agent-subagents';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { GitHubOutput } from '../../schemas/index.js';
 import { GitHubAdapter } from '../built-in/github-adapter';
 import type { ToolExecutionContext } from '../types';
 
 describe('GitHubAdapter', () => {
   let adapter: GitHubAdapter;
-  let mockGitHubIndexer: GitHubIndexer;
+  let mockGitHubService: GitHubService;
   let mockContext: ToolExecutionContext;
 
   const mockIssue: GitHubDocument = {
@@ -37,16 +35,21 @@ describe('GitHubAdapter', () => {
   };
 
   beforeEach(() => {
-    // Mock GitHubIndexer
-    mockGitHubIndexer = {
+    // Mock GitHubService
+    mockGitHubService = {
       search: vi.fn(),
-      getDocument: vi.fn(),
-    } as unknown as GitHubIndexer;
+      getContext: vi.fn(),
+      findRelated: vi.fn(),
+      getStats: vi.fn(),
+      index: vi.fn(),
+      isIndexed: vi.fn(),
+      shutdown: vi.fn(),
+    } as unknown as GitHubService;
 
     // Create adapter
     adapter = new GitHubAdapter({
       repositoryPath: '/test/repo',
-      githubIndexer: mockGitHubIndexer,
+      githubService: mockGitHubService,
       defaultLimit: 10,
       defaultFormat: 'compact',
     });
@@ -171,7 +174,7 @@ describe('GitHubAdapter', () => {
         },
       ];
 
-      vi.mocked(mockGitHubIndexer.search).mockResolvedValue(mockResults);
+      vi.mocked(mockGitHubService.search).mockResolvedValue(mockResults);
 
       const result = await adapter.execute(
         {
@@ -183,9 +186,9 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect((result.data as { content: string })?.content).toContain('GitHub Search Results');
-      expect((result.data as { content: string })?.content).toContain('#1');
-      expect((result.data as { content: string })?.content).toContain('Test Issue');
+      expect((result.data as GitHubOutput)?.content).toContain('GitHub Search Results');
+      expect((result.data as GitHubOutput)?.content).toContain('#1');
+      expect((result.data as GitHubOutput)?.content).toContain('Test Issue');
     });
 
     it('should search with filters', async () => {
@@ -197,7 +200,7 @@ describe('GitHubAdapter', () => {
         },
       ];
 
-      vi.mocked(mockGitHubIndexer.search).mockResolvedValue(mockResults);
+      vi.mocked(mockGitHubService.search).mockResolvedValue(mockResults);
 
       const result = await adapter.execute(
         {
@@ -212,7 +215,7 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(mockGitHubIndexer.search).toHaveBeenCalledWith('test', {
+      expect(mockGitHubService.search).toHaveBeenCalledWith('test', {
         type: 'issue',
         state: 'open',
         labels: ['bug'],
@@ -222,7 +225,7 @@ describe('GitHubAdapter', () => {
     });
 
     it('should handle no results', async () => {
-      vi.mocked(mockGitHubIndexer.search).mockResolvedValue([]);
+      vi.mocked(mockGitHubService.search).mockResolvedValue([]);
 
       const result = await adapter.execute(
         {
@@ -233,9 +236,7 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect((result.data as { content: string })?.content).toContain(
-        'No matching issues or PRs found'
-      );
+      expect((result.data as GitHubOutput)?.content).toContain('No matching issues or PRs found');
     });
 
     it('should include token footer in search results', async () => {
@@ -247,7 +248,7 @@ describe('GitHubAdapter', () => {
         },
       ];
 
-      vi.mocked(mockGitHubIndexer.search).mockResolvedValue(mockResults);
+      vi.mocked(mockGitHubService.search).mockResolvedValue(mockResults);
 
       const result = await adapter.execute(
         {
@@ -259,7 +260,7 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      const content = (result.data as { content: string })?.content;
+      const content = (result.data as GitHubOutput)?.content;
       expect(content).toBeDefined();
       // Token info is now in metadata, not content
       expect(result.metadata).toHaveProperty('tokens');
@@ -270,7 +271,7 @@ describe('GitHubAdapter', () => {
   describe('Context Action', () => {
     it('should get issue context in compact format', async () => {
       // Mock getDocument to return the issue directly (new implementation)
-      vi.mocked(mockGitHubIndexer.getDocument).mockResolvedValue(mockIssue);
+      vi.mocked(mockGitHubService.getContext).mockResolvedValue(mockIssue);
 
       const result = await adapter.execute(
         {
@@ -282,14 +283,14 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect((result.data as { content: string })?.content).toContain('Issue #1');
-      expect((result.data as { content: string })?.content).toContain('Test Issue');
-      expect((result.data as { content: string })?.content).toContain('testuser');
+      expect((result.data as GitHubOutput)?.content).toContain('Issue #1');
+      expect((result.data as GitHubOutput)?.content).toContain('Test Issue');
+      expect((result.data as GitHubOutput)?.content).toContain('testuser');
     });
 
     it('should get issue context in verbose format', async () => {
       // Mock getDocument to return the issue directly
-      vi.mocked(mockGitHubIndexer.getDocument).mockResolvedValue(mockIssue);
+      vi.mocked(mockGitHubService.getContext).mockResolvedValue(mockIssue);
 
       const result = await adapter.execute(
         {
@@ -301,19 +302,17 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect((result.data as { content: string })?.content).toContain('**Related Issues:** #2, #3');
-      expect((result.data as { content: string })?.content).toContain('**Related PRs:** #10');
-      expect((result.data as { content: string })?.content).toContain(
-        '**Linked Files:** `src/test.ts`'
-      );
-      expect((result.data as { content: string })?.content).toContain('**Mentions:** @developer1');
+      expect((result.data as GitHubOutput)?.content).toContain('**Related Issues:** #2, #3');
+      expect((result.data as GitHubOutput)?.content).toContain('**Related PRs:** #10');
+      expect((result.data as GitHubOutput)?.content).toContain('**Linked Files:** `src/test.ts`');
+      expect((result.data as GitHubOutput)?.content).toContain('**Mentions:** @developer1');
     });
 
     it('should handle issue not found', async () => {
       // Mock getDocument to return null (not found)
-      vi.mocked(mockGitHubIndexer.getDocument).mockResolvedValue(null);
+      vi.mocked(mockGitHubService.getContext).mockResolvedValue(null);
       // Also mock search for fallback case
-      vi.mocked(mockGitHubIndexer.search).mockResolvedValue([]);
+      vi.mocked(mockGitHubService.search).mockResolvedValue([]);
 
       const result = await adapter.execute(
         {
@@ -336,16 +335,11 @@ describe('GitHubAdapter', () => {
         title: 'Related Issue',
       };
 
-      // Mock getDocument for finding the main issue
-      vi.mocked(mockGitHubIndexer.getDocument).mockResolvedValue(mockIssue);
+      // Mock getContext for finding the main issue
+      vi.mocked(mockGitHubService.getContext).mockResolvedValue(mockIssue);
 
-      // Mock search for finding related issues (semantic similarity)
-      vi.mocked(mockGitHubIndexer.search).mockResolvedValue([
-        {
-          document: mockIssue,
-          score: 1.0,
-          matchedFields: ['title'],
-        },
+      // Mock findRelated for finding related issues
+      vi.mocked(mockGitHubService.findRelated).mockResolvedValue([
         {
           document: mockRelated,
           score: 0.85,
@@ -363,23 +357,17 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect((result.data as { content: string })?.content).toContain('Related Issues/PRs');
-      expect((result.data as { content: string })?.content).toContain('#2');
-      expect((result.data as { content: string })?.content).toContain('Related Issue');
+      expect((result.data as GitHubOutput)?.content).toContain('Related Issues/PRs');
+      expect((result.data as GitHubOutput)?.content).toContain('#2');
+      expect((result.data as GitHubOutput)?.content).toContain('Related Issue');
     });
 
     it('should handle no related items', async () => {
-      // Mock getDocument for finding the main issue
-      vi.mocked(mockGitHubIndexer.getDocument).mockResolvedValue(mockIssue);
+      // Mock getContext for finding the main issue
+      vi.mocked(mockGitHubService.getContext).mockResolvedValue(mockIssue);
 
-      // Mock search to only return the main issue (no related items)
-      vi.mocked(mockGitHubIndexer.search).mockResolvedValue([
-        {
-          document: mockIssue,
-          score: 1.0,
-          matchedFields: ['title'],
-        },
-      ]);
+      // Mock findRelated to return no related items
+      vi.mocked(mockGitHubService.findRelated).mockResolvedValue([]);
 
       const result = await adapter.execute(
         {
@@ -390,15 +378,74 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect((result.data as { content: string })?.content).toContain(
-        'No related issues or PRs found'
+      expect((result.data as GitHubOutput)?.content).toContain('No related issues or PRs found');
+    });
+  });
+
+  describe('related action', () => {
+    it('should find related issues with real search scores', async () => {
+      const relatedResults: GitHubSearchResult[] = [
+        {
+          document: { ...mockIssue, number: 2, title: 'Related Issue 1' },
+          score: 0.9,
+          matchedFields: ['title', 'body'],
+        },
+        {
+          document: { ...mockIssue, number: 3, title: 'Related Issue 2' },
+          score: 0.85,
+          matchedFields: ['title'],
+        },
+      ];
+
+      vi.mocked(mockGitHubService.getContext).mockResolvedValue(mockIssue);
+      vi.mocked(mockGitHubService.findRelated).mockResolvedValue(relatedResults);
+
+      const result = await adapter.execute(
+        {
+          action: 'related',
+          number: 1,
+          limit: 5,
+        },
+        mockContext
       );
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        const output = result.data as GitHubOutput;
+        expect(output.content).toContain('Related Issue 1');
+        expect(output.content).toContain('Related Issue 2');
+        expect(output.content).toContain('90% similar'); // Score shown as percentage
+        expect(output.resultsTotal).toBe(2);
+        expect(output.resultsReturned).toBe(2);
+      }
+
+      expect(mockGitHubService.getContext).toHaveBeenCalledWith(1);
+      expect(mockGitHubService.findRelated).toHaveBeenCalledWith(1, 5);
+    });
+
+    it('should handle no related issues found', async () => {
+      vi.mocked(mockGitHubService.getContext).mockResolvedValue(mockIssue);
+      vi.mocked(mockGitHubService.findRelated).mockResolvedValue([]);
+
+      const result = await adapter.execute(
+        {
+          action: 'related',
+          number: 1,
+        },
+        mockContext
+      );
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        const output = result.data as GitHubOutput;
+        expect(output.content).toContain('No related issues or PRs found');
+      }
     });
   });
 
   describe('Error Handling', () => {
     it('should handle index not ready error', async () => {
-      vi.mocked(mockGitHubIndexer.search).mockRejectedValue(new Error('GitHub index not indexed'));
+      vi.mocked(mockGitHubService.search).mockRejectedValue(new Error('GitHub index not indexed'));
 
       const result = await adapter.execute(
         {
@@ -413,7 +460,7 @@ describe('GitHubAdapter', () => {
     });
 
     it('should handle generic errors', async () => {
-      vi.mocked(mockGitHubIndexer.search).mockRejectedValue(new Error('Unknown error'));
+      vi.mocked(mockGitHubService.search).mockRejectedValue(new Error('Unknown error'));
 
       const result = await adapter.execute(
         {
@@ -428,133 +475,6 @@ describe('GitHubAdapter', () => {
     });
   });
 
-  describe('Auto-Reload on File Changes', () => {
-    it('should detect state file modifications', async () => {
-      const fs = await import('node:fs/promises');
-      const path = await import('node:path');
-      const os = await import('node:os');
-
-      // Create temporary state file
-      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'github-adapter-test-'));
-      const statePath = path.join(tempDir, 'github-state.json');
-      const vectorPath = path.join(tempDir, 'vectors');
-
-      // Write initial state
-      await fs.writeFile(
-        statePath,
-        JSON.stringify({
-          version: '1.0.0',
-          repository: 'test/repo',
-          lastIndexed: '2024-01-01T00:00:00Z',
-          totalDocuments: 10,
-        }),
-        'utf-8'
-      );
-
-      // Create adapter with file paths (lazy initialization)
-      const lazyAdapter = new GitHubAdapter({
-        repositoryPath: '/test/repo',
-        vectorStorePath: vectorPath,
-        statePath,
-        defaultLimit: 10,
-        defaultFormat: 'compact',
-      });
-
-      // Initialize adapter
-      await lazyAdapter.initialize({
-        logger: mockContext.logger,
-      } as any);
-
-      // Trigger lazy initialization by calling ensureGitHubIndexer
-      // This will load the state file and track its modification time
-      try {
-        await (lazyAdapter as any).ensureGitHubIndexer();
-      } catch {
-        // Indexer initialization may fail (no vector storage), but that's ok
-        // We just need it to track the state file modification time
-      }
-
-      // Wait a bit to ensure file system timestamps differ
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // Update state file (simulating `dev gh index` running)
-      await fs.writeFile(
-        statePath,
-        JSON.stringify({
-          version: '1.0.0',
-          repository: 'test/repo',
-          lastIndexed: '2024-01-02T00:00:00Z', // Updated timestamp
-          totalDocuments: 20, // More documents
-        }),
-        'utf-8'
-      );
-
-      // Access the private method through type assertion for testing
-      const hasChanged = await (lazyAdapter as any).hasStateFileChanged();
-
-      expect(hasChanged).toBe(true);
-
-      // Cleanup
-      await fs.rm(tempDir, { recursive: true, force: true });
-    });
-
-    it('should not detect changes when file unchanged', async () => {
-      const fs = await import('node:fs/promises');
-      const path = await import('node:path');
-      const os = await import('node:os');
-
-      // Create temporary state file
-      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'github-adapter-test-'));
-      const statePath = path.join(tempDir, 'github-state.json');
-      const vectorPath = path.join(tempDir, 'vectors');
-
-      // Write initial state
-      await fs.writeFile(
-        statePath,
-        JSON.stringify({
-          version: '1.0.0',
-          repository: 'test/repo',
-          lastIndexed: '2024-01-01T00:00:00Z',
-          totalDocuments: 10,
-        }),
-        'utf-8'
-      );
-
-      // Create adapter with file paths
-      const lazyAdapter = new GitHubAdapter({
-        repositoryPath: '/test/repo',
-        vectorStorePath: vectorPath,
-        statePath,
-        defaultLimit: 10,
-        defaultFormat: 'compact',
-      });
-
-      // Initialize adapter
-      await lazyAdapter.initialize({
-        logger: mockContext.logger,
-      } as any);
-
-      // Don't modify file - check for changes immediately
-      const hasChanged = await (lazyAdapter as any).hasStateFileChanged();
-
-      expect(hasChanged).toBe(false);
-
-      // Cleanup
-      await fs.rm(tempDir, { recursive: true, force: true });
-    });
-
-    it('should handle missing state file gracefully', async () => {
-      const lazyAdapter = new GitHubAdapter({
-        repositoryPath: '/test/repo',
-        vectorStorePath: '/nonexistent/vectors',
-        statePath: '/nonexistent/state.json',
-        defaultLimit: 10,
-        defaultFormat: 'compact',
-      });
-
-      // Should not throw
-      const hasChanged = await (lazyAdapter as any).hasStateFileChanged();
-      expect(hasChanged).toBe(false);
-    });
-  });
+  // Note: Auto-reload functionality is now handled by GitHubService internally
+  // No need to test file watching at the adapter level
 });

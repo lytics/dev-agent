@@ -97,6 +97,9 @@ importers:
       '@lancedb/lancedb':
         specifier: ^0.22.3
         version: 0.22.3(apache-arrow@18.1.0)
+      '@lytics/dev-agent-types':
+        specifier: workspace:*
+        version: link:../types
       '@lytics/kero':
         specifier: workspace:*
         version: link:../logger
@@ -214,6 +217,9 @@ importers:
       '@lytics/dev-agent-subagents':
         specifier: workspace:*
         version: link:../subagents
+      '@lytics/dev-agent-types':
+        specifier: workspace:*
+        version: link:../types
       '@lytics/kero':
         specifier: workspace:*
         version: link:../logger
@@ -236,6 +242,9 @@ importers:
       '@lytics/dev-agent-core':
         specifier: workspace:*
         version: link:../core
+      '@lytics/dev-agent-types':
+        specifier: workspace:*
+        version: link:../types
       '@lytics/kero':
         specifier: workspace:*
         version: link:../logger
@@ -248,6 +257,16 @@ importers:
         version: 22.19.1
       typescript:
         specifier: ^5.3.3
+        version: 5.9.3
+
+  packages/types:
+    dependencies:
+      '@lytics/kero':
+        specifier: workspace:*
+        version: link:../logger
+    devDependencies:
+      typescript:
+        specifier: ^5.7.2
         version: 5.9.3
 
 packages:

@@ -160,6 +160,7 @@ describe('HealthAdapter', () => {
       await fs.writeFile(path.join(vectorStorePath, 'data.db'), 'test');
 
       const result = await adapter.execute({ verbose: true }, execContext);
+      expect(result.success).toBe(true);
       const health = result.data as HealthStatus;
 
       expect(health.checks.vectorStorage.details).toBeDefined();
@@ -300,6 +301,7 @@ describe('HealthAdapter', () => {
       await fs.writeFile(path.join(vectorStorePath, 'data.db'), 'test');
 
       const result = await adapter.execute({ verbose: true }, execContext);
+      expect(result.success).toBe(true);
       const data = result.data as { formattedReport: string };
 
       expect(data.formattedReport).toContain('Details:');

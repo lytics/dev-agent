@@ -5,10 +5,9 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { RepositoryIndexer } from '@lytics/dev-agent-core';
-import { GitHubIndexer } from '@lytics/dev-agent-subagents';
+import type { GitHubService, StatsService } from '@lytics/dev-agent-core';
 import { estimateTokensForText } from '../../formatters/utils';
-import { StatusArgsSchema } from '../../schemas/index.js';
+import { StatusArgsSchema, type StatusOutput, StatusOutputSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
 import { validateArgs } from '../validation.js';
@@ -23,9 +22,9 @@ export type StatusSection = 'summary' | 'repo' | 'indexes' | 'github' | 'health'
  */
 export interface StatusAdapterConfig {
   /**
-   * Repository indexer instance
+   * Stats service for repository statistics
    */
-  repositoryIndexer: RepositoryIndexer;
+  statsService: StatsService;
 
   /**
    * Repository path
@@ -36,6 +35,11 @@ export interface StatusAdapterConfig {
    * Vector storage path
    */
   vectorStorePath: string;
+
+  /**
+   * Optional GitHub service for GitHub integration status
+   */
+  githubService?: GitHubService;
 
   /**
    * Default section to display
@@ -55,19 +59,20 @@ export class StatusAdapter extends ToolAdapter {
     author: 'Dev-Agent Team',
   };
 
-  private repositoryIndexer: RepositoryIndexer;
+  private statsService: StatsService;
   private repositoryPath: string;
   private vectorStorePath: string;
   private defaultSection: StatusSection;
-  private githubIndexer?: GitHubIndexer;
+  private githubService?: GitHubService;
   private githubStatePath?: string; // Track state file path for reload
   private lastStateFileModTime?: number; // Track state file modification time for auto-reload
 
   constructor(config: StatusAdapterConfig) {
     super();
-    this.repositoryIndexer = config.repositoryIndexer;
+    this.statsService = config.statsService;
     this.repositoryPath = config.repositoryPath;
     this.vectorStorePath = config.vectorStorePath;
+    this.githubService = config.githubService;
     this.defaultSection = config.defaultSection ?? 'summary';
   }
 
@@ -75,38 +80,19 @@ export class StatusAdapter extends ToolAdapter {
     context.logger.info('StatusAdapter initialized', {
       repositoryPath: this.repositoryPath,
       defaultSection: this.defaultSection,
+      hasGitHubService: !!this.githubService,
     });
 
-    // Initialize GitHub indexer lazily
-    try {
-      // Try to load repository from state file
-      let repository: string | undefined;
+    // Track GitHub state file for reload detection
+    if (this.githubService) {
       this.githubStatePath = path.join(this.repositoryPath, '.dev-agent/github-state.json');
       try {
-        const stateContent = await fs.promises.readFile(this.githubStatePath, 'utf-8');
-        const state = JSON.parse(stateContent);
-        repository = state.repository;
-
-        // Track initial modification time
+        // Track initial modification time for change detection
         const stats = await fs.promises.stat(this.githubStatePath);
         this.lastStateFileModTime = stats.mtimeMs;
       } catch {
-        // State file doesn't exist, will try gh CLI
+        // State file doesn't exist yet, will be created on first GitHub index
       }
-
-      this.githubIndexer = new GitHubIndexer(
-        {
-          vectorStorePath: `${this.vectorStorePath}-github`,
-          statePath: this.githubStatePath, // Use absolute path
-          autoUpdate: false, // We handle updates via file watching
-          staleThreshold: 15 * 60 * 1000,
-        },
-        repository
-      );
-      await this.githubIndexer.initialize();
-    } catch (error) {
-      context.logger.warn('GitHub indexer initialization failed', { error });
-      // Not fatal, GitHub section will show "not indexed"
     }
   }
 
@@ -130,50 +116,29 @@ export class StatusAdapter extends ToolAdapter {
   }
 
   /**
-   * Reload the GitHub indexer to pick up fresh data
+   * Update tracking of GitHub state file modification time
+   * Note: GitHubService handles its own data freshness, this is just for tracking
    */
-  private async reloadGitHubIndexer(): Promise<void> {
-    if (!this.githubIndexer || !this.githubStatePath) {
+  private async updateGitHubStateTracking(): Promise<void> {
+    if (!this.githubStatePath) {
       return;
     }
 
     try {
-      // Close existing indexer
-      await this.githubIndexer.close();
-
-      // Load fresh repository from state file
-      const stateContent = await fs.promises.readFile(this.githubStatePath, 'utf-8');
-      const state = JSON.parse(stateContent);
-      const repository: string | undefined = state.repository;
-
-      // Update modification time
       const stats = await fs.promises.stat(this.githubStatePath);
       this.lastStateFileModTime = stats.mtimeMs;
-
-      // Re-initialize with fresh data
-      this.githubIndexer = new GitHubIndexer(
-        {
-          vectorStorePath: `${this.vectorStorePath}-github`,
-          statePath: this.githubStatePath,
-          autoUpdate: false,
-          staleThreshold: 15 * 60 * 1000,
-        },
-        repository
-      );
-      await this.githubIndexer.initialize();
-    } catch (error) {
-      // Log error but don't crash - old indexer might still work
-      console.error('[StatusAdapter] Failed to reload GitHub indexer:', error);
+    } catch {
+      // State file may not exist yet
     }
   }
 
   /**
-   * Ensure GitHub indexer is up-to-date
-   * Checks for file modifications and reloads if needed
+   * Ensure GitHub state tracking is up-to-date
+   * GitHubService handles data freshness internally
    */
   private async ensureGitHubIndexerUpToDate(): Promise<void> {
-    if (this.githubIndexer && (await this.hasGitHubStateChanged())) {
-      await this.reloadGitHubIndexer();
+    if (this.githubService && (await this.hasGitHubStateChanged())) {
+      await this.updateGitHubStateTracking();
     }
   }
 
@@ -201,6 +166,28 @@ export class StatusAdapter extends ToolAdapter {
         },
         required: [],
       },
+      outputSchema: {
+        type: 'object',
+        properties: {
+          content: {
+            type: 'string',
+            description: 'Status report content in markdown format',
+          },
+          section: {
+            type: 'string',
+            description: 'The section that was displayed',
+          },
+          format: {
+            type: 'string',
+            description: 'The format that was used',
+          },
+          length: {
+            type: 'number',
+            description: 'Length of the content in characters',
+          },
+        },
+        required: ['content', 'section', 'format', 'length'],
+      },
     };
   }
 
@@ -225,13 +212,23 @@ export class StatusAdapter extends ToolAdapter {
 
       context.logger.info('Status check completed', { section, format, duration_ms });
 
+      // Validate output with Zod (ensures type safety)
+      const outputData: StatusOutput = {
+        section,
+        format,
+        content,
+        length: content.length,
+      };
+
+      const outputValidation = StatusOutputSchema.safeParse(outputData);
+      if (!outputValidation.success) {
+        context.logger.error('Output validation failed', { error: outputValidation.error });
+        throw new Error(`Output validation failed: ${outputValidation.error.message}`);
+      }
+
       return {
         success: true,
-        data: {
-          section,
-          format,
-          content,
-        },
+        data: outputValidation.data,
         metadata: {
           tokens,
           duration_ms,
@@ -280,8 +277,8 @@ export class StatusAdapter extends ToolAdapter {
    * Generate summary (overview of all sections)
    */
   private async generateSummary(format: string): Promise<string> {
-    const repoStats = await this.repositoryIndexer.getStats();
-    const githubStats = this.githubIndexer?.getStats() ?? null;
+    const repoStats = await this.statsService.getStats();
+    const githubStats = (await this.githubService?.getStats()) ?? null;
 
     if (format === 'verbose') {
       return this.generateVerboseSummary(repoStats, githubStats);
@@ -336,8 +333,8 @@ export class StatusAdapter extends ToolAdapter {
    * Generate verbose summary with all details
    */
   private generateVerboseSummary(
-    repoStats: Awaited<ReturnType<typeof this.repositoryIndexer.getStats>>,
-    githubStats: ReturnType<NonNullable<typeof this.githubIndexer>['getStats']>
+    repoStats: Awaited<ReturnType<typeof this.statsService.getStats>>,
+    githubStats: Awaited<ReturnType<NonNullable<typeof this.githubService>['getStats']>> | null
   ): string {
     const lines: string[] = ['## Dev-Agent Status (Detailed)', ''];
 
@@ -388,7 +385,7 @@ export class StatusAdapter extends ToolAdapter {
    * Generate repository status
    */
   private async generateRepoStatus(format: string): Promise<string> {
-    const stats = await this.repositoryIndexer.getStats();
+    const stats = await this.statsService.getStats();
 
     const lines: string[] = ['## Repository Index', ''];
 
@@ -430,8 +427,8 @@ export class StatusAdapter extends ToolAdapter {
    * Generate indexes status
    */
   private async generateIndexesStatus(format: string): Promise<string> {
-    const repoStats = await this.repositoryIndexer.getStats();
-    const githubStats = this.githubIndexer?.getStats() ?? null;
+    const repoStats = await this.statsService.getStats();
+    const githubStats = (await this.githubService?.getStats()) ?? null;
     const storageSize = await this.getStorageSize();
 
     const lines: string[] = ['## Vector Indexes', ''];
@@ -487,7 +484,7 @@ export class StatusAdapter extends ToolAdapter {
     // Check for index updates and reload if needed
     await this.ensureGitHubIndexerUpToDate();
 
-    const stats = this.githubIndexer?.getStats() ?? null;
+    const stats = (await this.githubService?.getStats()) ?? null;
 
     const lines: string[] = ['## GitHub Integration', ''];
 
@@ -579,7 +576,7 @@ export class StatusAdapter extends ToolAdapter {
     }
 
     // Vector storage
-    const stats = await this.repositoryIndexer.getStats();
+    const stats = await this.statsService.getStats();
     if (stats) {
       checks.push({
         name: 'Vector Storage',

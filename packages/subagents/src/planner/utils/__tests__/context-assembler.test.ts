@@ -1,16 +1,16 @@
 import type { RepositoryIndexer, SearchResult } from '@lytics/dev-agent-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ContextPackage } from '../../context-types';
-import { assembleContext, formatContextPackage } from '../context-assembler';
 
-// Mock the GitHub fetch
-vi.mock('../github', () => ({
-  fetchGitHubIssue: vi.fn(),
+// Mock execSync from child_process to avoid actual shell commands
+const mockExecSync = vi.hoisted(() => vi.fn());
+
+vi.mock('node:child_process', () => ({
+  execSync: mockExecSync,
 }));
 
-import { fetchGitHubIssue } from '../github';
-
-const mockFetchGitHubIssue = vi.mocked(fetchGitHubIssue);
+// Now we can safely import the modules
+import { assembleContext, formatContextPackage } from '../context-assembler';
 
 describe('Context Assembler', () => {
   const mockIssue = {
@@ -69,7 +69,35 @@ describe('Context Assembler', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetchGitHubIssue.mockResolvedValue(mockIssue);
+
+    // Mock execSync to return appropriate responses
+    mockExecSync.mockImplementation((cmd: string) => {
+      if (cmd === 'gh --version') {
+        return Buffer.from('gh version 2.0.0');
+      }
+      if (cmd.toString().includes('gh issue view')) {
+        // Return mock issue data as JSON
+        return Buffer.from(
+          JSON.stringify({
+            number: mockIssue.number,
+            title: mockIssue.title,
+            body: mockIssue.body,
+            state: mockIssue.state,
+            createdAt: mockIssue.createdAt,
+            updatedAt: mockIssue.updatedAt,
+            labels: mockIssue.labels.map((name) => ({ name })),
+            assignees: mockIssue.assignees.map((login) => ({ login })),
+            author: { login: mockIssue.author },
+            comments: mockIssue.comments.map((c) => ({
+              author: { login: c.author },
+              body: c.body,
+              createdAt: c.createdAt,
+            })),
+          })
+        );
+      }
+      return Buffer.from('');
+    });
   });
 
   describe('assembleContext', () => {
@@ -172,9 +200,38 @@ describe('Context Assembler', () => {
 
     it('should infer relevance reasons correctly', async () => {
       // Mock issue with title matching a function name
-      mockFetchGitHubIssue.mockResolvedValueOnce({
+      const customIssue = {
         ...mockIssue,
         title: 'Fix verifyToken function',
+      };
+
+      // Clear previous mock and set up new one for this test
+      vi.clearAllMocks();
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd === 'gh --version') {
+          return Buffer.from('gh version 2.0.0');
+        }
+        if (cmd.toString().includes('gh issue view')) {
+          return Buffer.from(
+            JSON.stringify({
+              number: customIssue.number,
+              title: customIssue.title,
+              body: customIssue.body,
+              state: customIssue.state,
+              createdAt: customIssue.createdAt,
+              updatedAt: customIssue.updatedAt,
+              labels: customIssue.labels.map((name) => ({ name })),
+              assignees: customIssue.assignees.map((login) => ({ login })),
+              author: { login: customIssue.author },
+              comments: customIssue.comments.map((c) => ({
+                author: { login: c.author },
+                body: c.body,
+                createdAt: c.createdAt,
+              })),
+            })
+          );
+        }
+        return Buffer.from('');
       });
 
       const result = await assembleContext(42, mockIndexer, '/repo');

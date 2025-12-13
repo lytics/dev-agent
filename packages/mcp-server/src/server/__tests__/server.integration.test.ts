@@ -3,13 +3,22 @@
  * Tests the full server + adapter + transport stack
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MockAdapter } from '../../adapters/__tests__/mock-adapter';
+import { ConsoleLogger } from '../../utils/logger';
 import { MCPServer } from '../mcp-server';
 
 describe('MCP Server Integration', () => {
   let server: MCPServer;
   let mockAdapter: MockAdapter;
+
+  beforeAll(() => {
+    // Suppress all logger output globally for this test suite
+    vi.spyOn(ConsoleLogger.prototype, 'info').mockImplementation(() => {});
+    vi.spyOn(ConsoleLogger.prototype, 'debug').mockImplementation(() => {});
+    vi.spyOn(ConsoleLogger.prototype, 'warn').mockImplementation(() => {});
+    vi.spyOn(ConsoleLogger.prototype, 'error').mockImplementation(() => {});
+  });
 
   beforeEach(() => {
     mockAdapter = new MockAdapter();
