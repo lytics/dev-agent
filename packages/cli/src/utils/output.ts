@@ -3,10 +3,12 @@
  * Separates user output from debug logging
  */
 
+import * as path from 'node:path';
 import type { DetailedIndexStats, LanguageStats, SupportedLanguage } from '@lytics/dev-agent-core';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import { getTimeSince } from './date-utils.js';
+import { formatBytes } from './file.js';
 import { capitalizeLanguage, formatNumber } from './formatters.js';
 
 /**
@@ -153,6 +155,538 @@ export function formatGitHubSummary(githubStats: {
     `🔗 ${chalk.bold(githubStats.repository)} • ${formatNumber(githubStats.totalDocuments)} documents`,
     `   ${chalk.gray(issues.toString())} issues • ${chalk.gray(prs.toString())} PRs • ${chalk.gray(open.toString())} open • ${chalk.gray(merged.toString())} merged • Synced ${timeSince}`,
   ].join('\n');
+}
+
+/**
+ * Print GitHub search results in table format
+ */
+export function printGitHubSearchResults(
+  results: Array<{
+    document: {
+      type: string;
+      number: number;
+      title: string;
+      state: string;
+      labels: string[];
+      url: string;
+    };
+    score: number;
+  }>,
+  query: string
+): void {
+  if (results.length === 0) {
+    output.log();
+    output.warn('No results found');
+    output.log('Try different keywords or check your filters');
+    output.log();
+    return;
+  }
+
+  output.log();
+  output.log(
+    `🔍 Found ${chalk.yellow(results.length)} issue${results.length === 1 ? '' : 's'}/PR${results.length === 1 ? '' : 's'} for ${chalk.cyan(`"${query}"`)}`
+  );
+  output.log();
+
+  const table = new Table({
+    head: [
+      chalk.cyan('Type'),
+      chalk.cyan('#'),
+      chalk.cyan('Title'),
+      chalk.cyan('State'),
+      chalk.cyan('Score'),
+      chalk.cyan('Labels'),
+    ],
+    style: {
+      head: [],
+      border: ['gray'],
+    },
+    colAligns: ['left', 'right', 'left', 'left', 'right', 'left'],
+    colWidths: [7, 6, 45, 8, 7, 20],
+  });
+
+  for (const result of results) {
+    const doc = result.document;
+    const type = doc.type === 'issue' ? 'Issue' : 'PR';
+    const score = `${(result.score * 100).toFixed(0)}%`;
+
+    // Color-code state
+    let stateFormatted = doc.state;
+    if (doc.state === 'open') {
+      stateFormatted = chalk.green(doc.state);
+    } else if (doc.state === 'merged') {
+      stateFormatted = chalk.magenta(doc.state);
+    } else if (doc.state === 'closed') {
+      stateFormatted = chalk.gray(doc.state);
+    }
+
+    // Truncate title if too long
+    let title = doc.title;
+    if (title.length > 42) {
+      title = `${title.substring(0, 39)}...`;
+    }
+
+    // Format labels
+    const labels = doc.labels.length > 0 ? doc.labels.slice(0, 2).join(', ') : '-';
+
+    table.push([type, doc.number.toString(), title, stateFormatted, score, chalk.gray(labels)]);
+  }
+
+  output.log(table.toString());
+  output.log();
+}
+
+/**
+ * Print GitHub issue/PR context (gh-inspired format)
+ */
+export function printGitHubContext(doc: {
+  type: string;
+  number: number;
+  title: string;
+  body: string;
+  state: string;
+  author: string;
+  createdAt: string;
+  updatedAt: string;
+  labels: string[];
+  url: string;
+  comments?: number;
+  relatedIssues?: Array<{ number: number; title: string; state: string }>;
+  relatedPRs?: Array<{ number: number; title: string; state: string }>;
+  linkedFiles?: Array<{ path: string; score: number }>;
+}): void {
+  output.log();
+
+  // Title line (bold)
+  output.log(chalk.bold(`${doc.title} #${doc.number}`));
+
+  // Metadata line (state • author • time)
+  const stateColor =
+    doc.state === 'open' ? chalk.green : doc.state === 'merged' ? chalk.magenta : chalk.gray;
+
+  const createdAgo = getTimeSince(new Date(doc.createdAt));
+  const updatedAgo = getTimeSince(new Date(doc.updatedAt));
+
+  const metadata = [
+    stateColor(doc.state.charAt(0).toUpperCase() + doc.state.slice(1)),
+    `${doc.author} opened ${createdAgo}`,
+    `Updated ${updatedAgo}`,
+  ];
+
+  if (doc.comments) {
+    metadata.push(`${doc.comments} comment${doc.comments === 1 ? '' : 's'}`);
+  }
+
+  output.log(chalk.gray(metadata.join(' • ')));
+  output.log();
+
+  // Body (indented)
+  const bodyLines = doc.body.split('\n').slice(0, 15); // First 15 lines
+  for (const line of bodyLines) {
+    output.log(`  ${line}`);
+  }
+  if (doc.body.split('\n').length > 15) {
+    output.log(chalk.gray('  ...'));
+  }
+  output.log();
+
+  // Labels
+  if (doc.labels.length > 0) {
+    output.log(`${chalk.bold('Labels:')} ${doc.labels.map((l) => chalk.cyan(l)).join(', ')}`);
+  }
+
+  // Related issues
+  if (doc.relatedIssues && doc.relatedIssues.length > 0) {
+    output.log();
+    output.log(chalk.bold('Related Issues:'));
+    for (const related of doc.relatedIssues) {
+      const stateIndicator = related.state === 'open' ? chalk.green('●') : chalk.gray('●');
+      output.log(`  ${stateIndicator} #${related.number} ${related.title}`);
+    }
+  }
+
+  // Related PRs
+  if (doc.relatedPRs && doc.relatedPRs.length > 0) {
+    output.log();
+    output.log(chalk.bold('Related PRs:'));
+    for (const related of doc.relatedPRs) {
+      const stateIndicator =
+        related.state === 'merged'
+          ? chalk.magenta('●')
+          : related.state === 'open'
+            ? chalk.green('●')
+            : chalk.gray('●');
+      output.log(`  ${stateIndicator} #${related.number} ${related.title}`);
+    }
+  }
+
+  // Linked code files (dev-agent specific)
+  if (doc.linkedFiles && doc.linkedFiles.length > 0) {
+    output.log();
+    output.log(chalk.bold('Linked Files:'));
+    for (const file of doc.linkedFiles.slice(0, 5)) {
+      const score = (file.score * 100).toFixed(0);
+      output.log(`  ${chalk.blue(file.path)} ${chalk.gray(`(${score}% match)`)}`);
+    }
+  }
+
+  output.log();
+  output.log(chalk.gray(`View on GitHub: ${doc.url}`));
+  output.log();
+}
+
+/**
+ * Create a visual progress bar
+ */
+function createBar(percentage: number, width: number = 8): string {
+  const filled = Math.round((percentage / 100) * width);
+  const empty = width - filled;
+  return '█'.repeat(filled) + '░'.repeat(empty);
+}
+
+/**
+ * Print complete repository statistics (enhanced format)
+ */
+export function printRepositoryStats(data: {
+  repoName: string;
+  stats: {
+    totalFiles: number;
+    totalDocuments: number;
+    byLanguage?: Partial<Record<string, { files: number; components: number; lines: number }>>;
+    byComponentType?: Partial<Record<string, number>>;
+  };
+  metadata?: {
+    timestamp: string;
+    storageSize: number;
+    repository: {
+      remote?: string;
+      branch?: string;
+      lastCommit?: string;
+    };
+  };
+  githubStats?: {
+    repository: string;
+    totalDocuments: number;
+    byType: { issue?: number; pull_request?: number };
+    byState: { open?: number; closed?: number; merged?: number };
+    lastIndexed: string;
+  } | null;
+}): void {
+  const { repoName, stats, metadata, githubStats } = data;
+
+  // Calculate time since last index
+  const timeSince = metadata?.timestamp ? getTimeSince(new Date(metadata.timestamp)) : 'unknown';
+  const storageFormatted = metadata?.storageSize ? formatBytes(metadata.storageSize) : '0 B';
+
+  output.log();
+
+  // Summary line
+  output.log(
+    `${chalk.bold(repoName)} • ${formatNumber(stats.totalFiles)} files • ${formatNumber(stats.totalDocuments)} components • ${chalk.cyan(storageFormatted)} • Indexed ${timeSince}`
+  );
+
+  // Git context (if available)
+  if (metadata?.repository?.branch || metadata?.repository?.remote) {
+    const parts: string[] = [];
+    if (metadata.repository.branch) {
+      parts.push(`Branch: ${chalk.cyan(metadata.repository.branch)}`);
+    }
+    if (metadata.repository.lastCommit) {
+      parts.push(chalk.gray(`(${metadata.repository.lastCommit.substring(0, 7)})`));
+    }
+    if (metadata.repository.remote) {
+      parts.push(`Remote: ${chalk.gray(metadata.repository.remote)}`);
+    }
+    if (parts.length > 0) {
+      output.log(parts.join(' • '));
+    }
+  }
+
+  output.log();
+
+  // Language breakdown table with visual bars
+  if (stats.byLanguage && Object.keys(stats.byLanguage).length > 0) {
+    const table = new Table({
+      head: [
+        chalk.cyan('Language'),
+        chalk.cyan('Files'),
+        chalk.cyan('Components'),
+        chalk.cyan('Lines of Code'),
+      ],
+      style: {
+        head: [],
+        border: ['gray'],
+      },
+      colAligns: ['left', 'right', 'left', 'right'],
+      colWidths: [14, 8, 28, 16],
+    });
+
+    const totalComponents = Object.values(stats.byLanguage).reduce(
+      (sum, lang) => sum + (lang?.components || 0),
+      0
+    );
+
+    const entries = Object.entries(stats.byLanguage).sort(
+      ([, a], [, b]) => (b?.components || 0) - (a?.components || 0)
+    );
+
+    for (const [language, langStats] of entries) {
+      if (!langStats) continue;
+      const percentage = totalComponents > 0 ? (langStats.components / totalComponents) * 100 : 0;
+      const bar = createBar(percentage);
+      const componentsDisplay = `${formatNumber(langStats.components).padStart(6)}  ${chalk.gray(bar)}  ${chalk.gray(`${percentage.toFixed(0)}%`)}`;
+
+      table.push([
+        capitalizeLanguage(language),
+        formatNumber(langStats.files),
+        componentsDisplay,
+        formatNumber(langStats.lines),
+      ]);
+    }
+
+    output.log(table.toString());
+    output.log();
+  }
+
+  // Top components
+  if (stats.byComponentType) {
+    const topComponents = Object.entries(stats.byComponentType)
+      .sort(([, a], [, b]) => (b || 0) - (a || 0))
+      .slice(0, 3)
+      .map(([type, count]) => {
+        const name = type.charAt(0).toUpperCase() + type.slice(1);
+        return `${name} (${formatNumber(count || 0)})`;
+      });
+
+    if (topComponents.length > 0) {
+      output.log(`Top Components: ${topComponents.join(' • ')}`);
+      output.log();
+    }
+  }
+
+  // GitHub stats (if available)
+  if (githubStats && githubStats.totalDocuments > 0) {
+    output.log(chalk.bold(`GitHub: ${githubStats.repository}`));
+
+    const issues = githubStats.byType.issue || 0;
+    const prs = githubStats.byType.pull_request || 0;
+
+    if (issues > 0) {
+      const openIssues = githubStats.byState.open || 0;
+      const closedIssues = githubStats.byState.closed || 0;
+      output.log(
+        `  Issues: ${chalk.bold(issues.toString())} total (${chalk.green(`${openIssues} open`)}, ${chalk.gray(`${closedIssues} closed`)})`
+      );
+    }
+
+    if (prs > 0) {
+      const openPRs = githubStats.byState.open || 0;
+      const mergedPRs = githubStats.byState.merged || 0;
+      output.log(
+        `  Pull Requests: ${chalk.bold(prs.toString())} total (${chalk.green(`${openPRs} open`)}, ${chalk.magenta(`${mergedPRs} merged`)})`
+      );
+    }
+
+    const ghTimeSince = getTimeSince(new Date(githubStats.lastIndexed));
+    output.log(`  Last synced: ${chalk.gray(ghTimeSince)}`);
+    output.log();
+  }
+
+  // Health check and next steps
+  if (metadata?.timestamp) {
+    const now = Date.now();
+    const indexTime = new Date(metadata.timestamp).getTime();
+    const hoursSince = (now - indexTime) / (1000 * 60 * 60);
+
+    if (hoursSince > 24) {
+      output.log(chalk.yellow(`⚠ Index is stale (${timeSince})`));
+      output.log(chalk.gray("→ Run 'dev update' to refresh"));
+    } else {
+      output.log(chalk.green('✓ Index is up to date'));
+      if (!githubStats) {
+        output.log(chalk.gray("→ Run 'dev gh index' to index GitHub issues & PRs"));
+      }
+    }
+  }
+
+  output.log();
+}
+
+/**
+ * Print storage information
+ */
+export function printStorageInfo(data: {
+  storagePath: string;
+  status: 'active' | 'not-initialized';
+  totalSize: number;
+  files: Array<{
+    name: string;
+    path: string;
+    size: number | null;
+    exists: boolean;
+  }>;
+  metadata?: {
+    repository?: {
+      remote?: string;
+      branch?: string;
+      lastCommit?: string;
+    };
+    indexed?: {
+      timestamp: string;
+      files: number;
+      components: number;
+    };
+  };
+}): void {
+  const { storagePath, status, totalSize, files, metadata } = data;
+
+  // Summary line
+  const statusText = status === 'active' ? chalk.green('Active') : chalk.gray('Not initialized');
+  const timeSince = metadata?.indexed?.timestamp
+    ? getTimeSince(new Date(metadata.indexed.timestamp))
+    : 'never';
+
+  output.log();
+  output.log(
+    `${chalk.bold('dev-agent')} • ${statusText} • ${formatBytes(totalSize)} • Indexed ${timeSince}`
+  );
+  output.log(chalk.gray(storagePath));
+  output.log();
+
+  // Repository info
+  if (metadata?.repository?.remote) {
+    const parts: string[] = [];
+    parts.push(`Repository:  ${chalk.cyan(metadata.repository.remote)}`);
+    if (metadata.repository.branch) {
+      parts.push(chalk.gray(`(${metadata.repository.branch})`));
+    }
+    output.log(parts.join(' '));
+  }
+  if (metadata?.repository?.lastCommit) {
+    output.log(`Commit:      ${chalk.gray(metadata.repository.lastCommit)}`);
+  }
+  if (metadata?.indexed) {
+    output.log(
+      `Stats:       ${formatNumber(metadata.indexed.files)} files, ${formatNumber(metadata.indexed.components)} components`
+    );
+  }
+  output.log();
+
+  // Index files table
+  if (files.length > 0) {
+    const table = new Table({
+      head: [chalk.cyan('Index File'), chalk.cyan('Size'), chalk.cyan('Status')],
+      style: {
+        head: [],
+        border: ['gray'],
+      },
+      colAligns: ['left', 'right', 'center'],
+    });
+
+    for (const file of files) {
+      const fileName = path.basename(file.path);
+      const size = file.size !== null ? formatBytes(file.size) : chalk.gray('—');
+      const statusIcon = file.exists ? chalk.green('✓') : chalk.red('✗');
+      table.push([fileName, size, statusIcon]);
+    }
+
+    output.log(table.toString());
+    output.log();
+  }
+
+  // Status message
+  const allPresent = files.every((f) => f.exists);
+  if (allPresent && files.length > 0) {
+    output.log(chalk.green('✓ All index files present and ready'));
+  } else if (files.some((f) => !f.exists)) {
+    output.log(chalk.yellow('⚠ Some index files are missing'));
+    output.log(chalk.gray("→ Run 'dev index' to create missing files"));
+  } else if (status === 'not-initialized') {
+    output.log(chalk.gray("→ Run 'dev index' to initialize storage"));
+  }
+
+  output.log();
+}
+
+/**
+ * Print GitHub indexing statistics (gh CLI inspired)
+ */
+export function printGitHubStats(githubStats: {
+  repository: string;
+  totalDocuments: number;
+  byType: { issue?: number; pull_request?: number; discussion?: number };
+  byState: { open?: number; closed?: number; merged?: number };
+  lastIndexed: string;
+  indexDuration?: number;
+}): void {
+  const issues = githubStats.byType.issue || 0;
+  const prs = githubStats.byType.pull_request || 0;
+  const discussions = githubStats.byType.discussion || 0;
+
+  const openCount = githubStats.byState.open || 0;
+  const closedCount = githubStats.byState.closed || 0;
+  const mergedCount = githubStats.byState.merged || 0;
+
+  const timeSince = getTimeSince(new Date(githubStats.lastIndexed));
+
+  output.log();
+
+  // Repository name and document count (gh style)
+  output.log(chalk.bold(githubStats.repository));
+  output.log(`${formatNumber(githubStats.totalDocuments)} issues and pull requests`);
+  output.log();
+
+  // Issues breakdown
+  if (issues > 0) {
+    const issueStates: string[] = [];
+    // Calculate issue-specific counts (open + closed, no merged for issues)
+    const issueOpen = openCount > 0 ? openCount : 0;
+    const issueClosed = closedCount > 0 ? closedCount : 0;
+
+    if (issueOpen > 0) {
+      issueStates.push(`${chalk.green('●')} ${issueOpen} open`);
+    }
+    if (issueClosed > 0) {
+      issueStates.push(`${chalk.gray('●')} ${issueClosed} closed`);
+    }
+
+    output.log(`Issues: ${chalk.bold(issues.toString())} total`);
+    if (issueStates.length > 0) {
+      output.log(`  ${issueStates.join('  ')}`);
+    }
+    output.log();
+  }
+
+  // Pull requests breakdown
+  if (prs > 0) {
+    const prStates: string[] = [];
+    // For PRs, we show open and merged
+    const prOpen = openCount > 0 ? openCount : 0;
+    const prMerged = mergedCount > 0 ? mergedCount : 0;
+
+    if (prOpen > 0) {
+      prStates.push(`${chalk.green('●')} ${prOpen} open`);
+    }
+    if (prMerged > 0) {
+      prStates.push(`${chalk.magenta('●')} ${prMerged} merged`);
+    }
+
+    output.log(`Pull Requests: ${chalk.bold(prs.toString())} total`);
+    if (prStates.length > 0) {
+      output.log(`  ${prStates.join('  ')}`);
+    }
+    output.log();
+  }
+
+  // Discussions (if any)
+  if (discussions > 0) {
+    output.log(`Discussions: ${chalk.bold(discussions.toString())} total`);
+    output.log();
+  }
+
+  // Last synced
+  output.log(chalk.gray(`Last synced: ${timeSince}`));
+  output.log();
 }
 
 /**

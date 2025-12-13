@@ -867,8 +867,11 @@ export class RepositoryIndexer {
 
     // Update stats
     this.state.stats.totalFiles = Object.keys(this.state.files).length;
-    this.state.stats.totalDocuments = documents.length;
-    this.state.stats.totalVectors = documents.length;
+    // Query actual vector count from LanceDB (not just current batch size)
+    // This ensures totalDocuments reflects reality after both full index and incremental updates
+    const vectorStats = await this.vectorStorage.getStats();
+    this.state.stats.totalDocuments = vectorStats.totalDocuments;
+    this.state.stats.totalVectors = vectorStats.totalDocuments;
     this.state.lastIndexTime = new Date();
 
     // Save detailed stats if provided
