@@ -713,6 +713,155 @@ export function printMcpUninstallSuccess(data: {
 }
 
 /**
+ * Print compact/optimization results
+ */
+export function printCompactResults(data: {
+  duration: number;
+  before: {
+    vectors: number;
+    size?: number;
+    fragments?: number;
+  };
+  after: {
+    vectors: number;
+    size?: number;
+    fragments?: number;
+  };
+}): void {
+  const { duration, before, after } = data;
+
+  output.log();
+  output.log(chalk.bold('Optimization Complete'));
+  output.log();
+
+  // Create comparison table
+  const table = new Table({
+    head: [chalk.cyan('Metric'), chalk.cyan('Before'), chalk.cyan('After'), chalk.cyan('Change')],
+    style: {
+      head: [],
+      border: ['gray'],
+    },
+    colAligns: ['left', 'right', 'right', 'right'],
+  });
+
+  // Vectors row (should be unchanged)
+  const vectorChange = after.vectors - before.vectors;
+  const vectorChangeStr =
+    vectorChange === 0
+      ? chalk.gray('—')
+      : vectorChange > 0
+        ? chalk.green(`+${vectorChange}`)
+        : chalk.red(`${vectorChange}`);
+  table.push([
+    'Vectors',
+    formatNumber(before.vectors),
+    formatNumber(after.vectors),
+    vectorChangeStr,
+  ]);
+
+  // Storage size row (if available)
+  if (before.size && after.size) {
+    const sizeChange = after.size - before.size;
+    const sizeChangePercent = before.size > 0 ? (sizeChange / before.size) * 100 : 0;
+    const sizeChangeStr =
+      sizeChange < 0
+        ? chalk.green(`${(sizeChangePercent).toFixed(1)}%`)
+        : sizeChange > 0
+          ? chalk.red(`+${sizeChangePercent.toFixed(1)}%`)
+          : chalk.gray('—');
+
+    table.push(['Storage Size', formatBytes(before.size), formatBytes(after.size), sizeChangeStr]);
+  }
+
+  // Fragments row (if available)
+  if (before.fragments !== undefined && after.fragments !== undefined) {
+    const fragmentChange = after.fragments - before.fragments;
+    const fragmentChangePercent =
+      before.fragments > 0 ? (fragmentChange / before.fragments) * 100 : 0;
+    const fragmentChangeStr =
+      fragmentChange < 0
+        ? chalk.green(`${fragmentChangePercent.toFixed(1)}%`)
+        : fragmentChange > 0
+          ? chalk.red(`+${fragmentChangePercent.toFixed(1)}%`)
+          : chalk.gray('—');
+
+    table.push([
+      'Fragments',
+      formatNumber(before.fragments),
+      formatNumber(after.fragments),
+      fragmentChangeStr,
+    ]);
+  }
+
+  output.log(table.toString());
+  output.log();
+  output.log(`✓ Completed in ${duration.toFixed(2)}s`);
+
+  // Show savings if any
+  if (before.size && after.size && after.size < before.size) {
+    const saved = before.size - after.size;
+    output.log(`💾 Saved ${chalk.green(formatBytes(saved))}`);
+  }
+
+  output.log();
+  output.log(
+    chalk.gray(
+      'Optimization merged small data fragments and updated indices for better query performance.'
+    )
+  );
+  output.log();
+}
+
+/**
+ * Print clean summary
+ */
+export function printCleanSummary(data: {
+  files: Array<{
+    name: string;
+    path: string;
+    size: number | null;
+  }>;
+  totalSize: number;
+  force: boolean;
+}): void {
+  const { files, totalSize, force } = data;
+
+  output.log();
+  output.log(chalk.bold('This will remove:'));
+  output.log();
+
+  for (const file of files) {
+    const size = file.size !== null ? chalk.gray(`(${formatBytes(file.size)})`) : '';
+    output.log(`  ${chalk.cyan('•')} ${file.name} ${size}`);
+  }
+
+  output.log();
+  output.log(`Total to remove: ${chalk.bold(formatBytes(totalSize))}`);
+  output.log();
+
+  if (!force) {
+    output.warn('This action cannot be undone!');
+    output.log(`Run with ${chalk.yellow('--force')} to skip this prompt.`);
+    output.log();
+  }
+}
+
+/**
+ * Print clean success
+ */
+export function printCleanSuccess(data: { totalSize: number }): void {
+  const { totalSize } = data;
+
+  output.log();
+  output.log(chalk.green('✓ All indexed data removed'));
+  output.log();
+  output.log(`Freed ${chalk.bold(formatBytes(totalSize))}`);
+  output.log();
+  output.log(`Run ${chalk.cyan('dev index')} to re-index your repository`);
+  output.log();
+}
+
+/**
  * Print GitHub indexing statistics (gh CLI inspired)
  */
 export function printGitHubStats(githubStats: {

@@ -10,6 +10,7 @@ import { Command } from 'commander';
 import ora from 'ora';
 import { loadConfig } from '../utils/config.js';
 import { logger } from '../utils/logger.js';
+import { output, printCompactResults } from '../utils/output.js';
 
 export const compactCommand = new Command('compact')
   .description('🗜️  Optimize and compact the vector store')
@@ -65,36 +66,25 @@ export const compactCommand = new Command('compact')
       // @ts-expect-error - accessing private property for optimization
       await indexer.vectorStorage.optimize();
 
-      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+      const duration = (Date.now() - startTime) / 1000;
 
       // Get stats after optimization
       const statsAfter = await indexer.getStats();
 
       await indexer.close();
 
-      spinner.succeed(chalk.green('Vector store optimized successfully!'));
+      spinner.succeed('Vector store optimized');
 
-      // Show results
-      logger.log('');
-      logger.log(chalk.bold('Optimization Results:'));
-      logger.log(`  ${chalk.cyan('Duration:')}        ${duration}s`);
-      logger.log(`  ${chalk.cyan('Total documents:')} ${statsAfter?.vectorsStored || 0}`);
-
-      if (options.verbose) {
-        logger.log('');
-        logger.log(chalk.bold('Before Optimization:'));
-        logger.log(`  ${chalk.cyan('Storage size:')} ${statsBefore.vectorsStored} vectors`);
-        logger.log('');
-        logger.log(chalk.bold('After Optimization:'));
-        logger.log(`  ${chalk.cyan('Storage size:')} ${statsAfter?.vectorsStored || 0} vectors`);
-      }
-
-      logger.log('');
-      logger.log(
-        chalk.gray(
-          'Optimization merges small data fragments, updates indices, and improves query performance.'
-        )
-      );
+      // Show results using new formatter
+      printCompactResults({
+        duration,
+        before: {
+          vectors: statsBefore.vectorsStored,
+        },
+        after: {
+          vectors: statsAfter?.vectorsStored || 0,
+        },
+      });
     } catch (error) {
       spinner.fail('Failed to optimize vector store');
       logger.error(error instanceof Error ? error.message : String(error));
