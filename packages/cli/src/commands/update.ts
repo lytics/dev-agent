@@ -1,8 +1,11 @@
 import * as path from 'node:path';
 import {
+  AsyncEventBus,
   ensureStorageDirectory,
   getStorageFilePaths,
   getStoragePath,
+  type IndexUpdatedEvent,
+  MetricsStore,
   RepositoryIndexer,
 } from '@lytics/dev-agent-core';
 import chalk from 'chalk';
@@ -38,13 +41,36 @@ export const updateCommand = new Command('update')
       const filePaths = getStorageFilePaths(storagePath);
 
       spinner.text = 'Initializing indexer...';
-      const indexer = new RepositoryIndexer({
-        repositoryPath: resolvedRepoPath,
-        vectorStorePath: filePaths.vectors,
-        statePath: filePaths.indexerState,
-        excludePatterns: config.repository?.excludePatterns || config.excludePatterns,
-        languages: config.repository?.languages || config.languages,
+
+      // Create event bus for metrics (no logger in CLI to keep it simple)
+      const eventBus = new AsyncEventBus();
+
+      // Initialize metrics store (no logger in CLI to avoid noise)
+      const metricsDbPath = path.join(storagePath, 'metrics.db');
+      const metricsStore = new MetricsStore(metricsDbPath);
+
+      // Subscribe to index.updated events for automatic metrics persistence
+      eventBus.on<IndexUpdatedEvent>('index.updated', async (event) => {
+        try {
+          metricsStore.recordSnapshot(event.stats, event.isIncremental ? 'update' : 'index');
+        } catch (error) {
+          // Log error but don't fail update - metrics are non-critical
+          logger.error(
+            `Failed to record metrics snapshot: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
       });
+
+      const indexer = new RepositoryIndexer(
+        {
+          repositoryPath: resolvedRepoPath,
+          vectorStorePath: filePaths.vectors,
+          statePath: filePaths.indexerState,
+          excludePatterns: config.repository?.excludePatterns || config.excludePatterns,
+          languages: config.repository?.languages || config.languages,
+        },
+        eventBus
+      );
 
       await indexer.initialize();
 
@@ -66,6 +92,7 @@ export const updateCommand = new Command('update')
       });
 
       await indexer.close();
+      metricsStore.close();
 
       const duration = (Date.now() - startTime) / 1000;
 
