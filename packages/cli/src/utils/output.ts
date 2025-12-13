@@ -862,6 +862,42 @@ export function printCleanSuccess(data: { totalSize: number }): void {
 }
 
 /**
+ * Print git history statistics
+ */
+export function printGitStats(data: {
+  totalCommits: number;
+  dateRange?: {
+    oldest: string;
+    newest: string;
+  };
+}): void {
+  const { totalCommits, dateRange } = data;
+
+  output.log();
+  output.log(chalk.bold(`Git History • ${formatNumber(totalCommits)} commits indexed`));
+
+  if (dateRange) {
+    const oldest = new Date(dateRange.oldest);
+    const newest = new Date(dateRange.newest);
+    const span = newest.getTime() - oldest.getTime();
+    const days = Math.floor(span / (1000 * 60 * 60 * 24));
+    const years = (days / 365).toFixed(1);
+
+    output.log();
+    output.log(`Date Range:  ${oldest.toLocaleDateString()} to ${newest.toLocaleDateString()}`);
+    output.log(`Duration:    ${years} years (${formatNumber(days)} days)`);
+  }
+
+  output.log();
+  output.log(`Storage:     ${chalk.gray('~/.dev-agent/indexes/.../git-commits/')}`);
+  output.log();
+  output.log(chalk.green('✓ Git history indexed and ready for semantic search'));
+  output.log();
+  output.log(`Run ${chalk.cyan('dev git search "<query>"')} to search commit history`);
+  output.log();
+}
+
+/**
  * Print GitHub indexing statistics (gh CLI inspired)
  */
 export function printGitHubStats(githubStats: {
