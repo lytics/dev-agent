@@ -71,7 +71,6 @@ export const API_CONFIG = {
 export const SUPPORTED_LANGUAGES = ['typescript', 'javascript', 'python', 'go'];
 
 // Exported call expression (factory pattern)
-// biome-ignore lint/suspicious/noEmptyBlockStatements: Test fixture
 export const AppContext = (() => ({ value: null }))();
 
 // Typed exported constant
@@ -83,7 +82,6 @@ export const THEME_CONFIG: { dark: boolean; primary: string } = {
 // ============================================
 // NON-EXPORTED - Should NOT be extracted
 // ============================================
-// biome-ignore lint/correctness/noUnusedVariables: Test fixtures for non-extraction
 
 // Plain constant (primitive) - never extracted
 const plainConstant = 42;

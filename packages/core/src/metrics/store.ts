@@ -46,12 +46,17 @@ export class MetricsStore {
    *
    * @param stats - Repository statistics to record
    * @param trigger - What triggered this snapshot ('index' or 'update')
+   * @param customTimestamp - Optional timestamp (for testing)
    * @returns Snapshot ID
    * @throws Error if database write fails
    */
-  recordSnapshot(stats: DetailedIndexStats, trigger: 'index' | 'update'): string {
+  recordSnapshot(
+    stats: DetailedIndexStats,
+    trigger: 'index' | 'update',
+    customTimestamp?: Date
+  ): string {
     const id = crypto.randomUUID();
-    const timestamp = Date.now();
+    const timestamp = customTimestamp ? customTimestamp.getTime() : Date.now();
 
     try {
       this.db

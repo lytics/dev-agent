@@ -5,7 +5,10 @@
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { Logger } from '@lytics/kero';
 import type { EventBus } from '../events/types.js';
+import { buildCodeMetadata } from '../metrics/collector.js';
+import type { CodeMetadata } from '../metrics/types.js';
 import { scanRepository } from '../scanner';
 import type { Document } from '../scanner/types';
 import { getCurrentSystemResources, getOptimalConcurrency } from '../utils/concurrency';
@@ -38,10 +41,11 @@ const DEFAULT_STATE_PATH = '.dev-agent/indexer-state.json';
  * Orchestrates repository scanning, embedding generation, and vector storage
  */
 export class RepositoryIndexer {
-  private readonly config: Required<IndexerConfig>;
+  private readonly config: Required<Omit<IndexerConfig, 'logger'>> & Pick<IndexerConfig, 'logger'>;
   private vectorStorage: VectorStorage;
   private state: IndexerState | null = null;
   private eventBus?: EventBus;
+  private logger?: Logger;
 
   constructor(config: IndexerConfig, eventBus?: EventBus) {
     this.config = {
@@ -61,6 +65,7 @@ export class RepositoryIndexer {
     });
 
     this.eventBus = eventBus;
+    this.logger = config.logger;
   }
 
   /**
@@ -275,6 +280,17 @@ export class RepositoryIndexer {
         this.state.lastUpdate = endTime;
       }
 
+      // Build code metadata for metrics storage
+      let codeMetadata: CodeMetadata[] | undefined;
+      if (this.eventBus) {
+        try {
+          codeMetadata = await buildCodeMetadata(this.config.repositoryPath, scanResult.documents);
+        } catch (error) {
+          // Not critical if metadata collection fails
+          this.logger?.warn({ error }, 'Failed to collect code metadata for metrics');
+        }
+      }
+
       // Emit index.updated event (fire-and-forget)
       if (this.eventBus) {
         void this.eventBus.emit(
@@ -286,6 +302,7 @@ export class RepositoryIndexer {
             path: this.config.repositoryPath,
             stats,
             isIncremental: false,
+            codeMetadata,
           },
           { waitForHandlers: false }
         );
@@ -378,6 +395,7 @@ export class RepositoryIndexer {
     let documentsIndexed = 0;
     let incrementalStats: ReturnType<StatsAggregator['getDetailedStats']> | null = null;
     const affectedLanguages = new Set<string>();
+    let scannedDocuments: Document[] = [];
 
     if (filesToReindex.length > 0) {
       const scanResult = await scanRepository({
@@ -387,6 +405,7 @@ export class RepositoryIndexer {
         logger: options.logger,
       });
 
+      scannedDocuments = scanResult.documents;
       documentsExtracted = scanResult.documents.length;
 
       // Calculate stats for incremental changes
@@ -452,6 +471,17 @@ export class RepositoryIndexer {
       },
     };
 
+    // Build code metadata for metrics storage (only for updated files)
+    let codeMetadata: CodeMetadata[] | undefined;
+    if (this.eventBus && scannedDocuments.length > 0) {
+      try {
+        codeMetadata = await buildCodeMetadata(this.config.repositoryPath, scannedDocuments);
+      } catch (error) {
+        // Not critical if metadata collection fails
+        this.logger?.warn({ error }, 'Failed to collect code metadata for metrics during update');
+      }
+    }
+
     // Emit index.updated event (fire-and-forget)
     if (this.eventBus) {
       void this.eventBus.emit(
@@ -463,6 +493,7 @@ export class RepositoryIndexer {
           path: this.config.repositoryPath,
           stats,
           isIncremental: true,
+          codeMetadata,
         },
         { waitForHandlers: false }
       );

@@ -130,11 +130,19 @@ export const indexCommand = new Command('index')
       // Subscribe to index.updated events for automatic metrics persistence
       eventBus.on<IndexUpdatedEvent>('index.updated', async (event) => {
         try {
-          metricsStore.recordSnapshot(event.stats, event.isIncremental ? 'update' : 'index');
+          const snapshotId = metricsStore.recordSnapshot(
+            event.stats,
+            event.isIncremental ? 'update' : 'index'
+          );
+
+          // Store code metadata if available
+          if (event.codeMetadata && event.codeMetadata.length > 0) {
+            metricsStore.appendCodeMetadata(snapshotId, event.codeMetadata);
+          }
         } catch (error) {
           // Log error but don't fail indexing - metrics are non-critical
           logger.error(
-            `Failed to record metrics snapshot: ${error instanceof Error ? error.message : String(error)}`
+            `Failed to record metrics: ${error instanceof Error ? error.message : String(error)}`
           );
         }
       });
