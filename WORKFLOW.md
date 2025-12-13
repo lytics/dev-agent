@@ -20,7 +20,7 @@ git checkout main
 git pull origin main
 
 # Use GitHub Context to find what to work on next
-dev gh search "state:open label:\"Epic: MCP Integration\"" --type issue
+dev github search "state:open label:\"Epic: MCP Integration\"" --type issue
 
 # Or use gh CLI directly
 gh issue list --milestone "Epic #3: MCP Integration" --state open

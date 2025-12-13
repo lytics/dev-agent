@@ -66,7 +66,7 @@ When integrated with Cursor or Claude Code, you get 6 powerful tools:
 ```bash
 # Indexing
 dev index .                    # Index current repository
-dev gh index                   # Index GitHub issues/PRs
+dev github index                   # Index GitHub issues/PRs
 
 # MCP Server Integration
 dev mcp install --cursor       # Install for Cursor

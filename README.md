@@ -244,8 +244,8 @@ dev git search "authentication fix"   # Semantic search over commits
 dev git stats                         # Show indexed commit count
 
 # GitHub integration
-dev gh index                          # Index issues and PRs (also done by dev index)
-dev gh search "authentication bug"    # Semantic search
+dev github index                          # Index issues and PRs (also done by dev index)
+dev github search "authentication bug"    # Semantic search
 
 # View statistics
 dev stats

@@ -85,9 +85,27 @@ function askConfirmation(message: string): Promise<boolean> {
 /**
  * Storage command group
  */
-const storageCommand = new Command('storage').description(
-  'Manage centralized storage for repository indexes'
-);
+const storageCommand = new Command('storage')
+  .description('Manage centralized storage for repository indexes')
+  .addHelpText(
+    'after',
+    `
+Examples:
+  $ dev storage info                    Show storage location and size
+  $ dev storage migrate                 Migrate from old storage layout
+
+Storage Location:
+  All indexed data is stored in ~/.dev-agent/indexes/
+  Each repository gets its own subdirectory based on path hash
+  
+What's Stored:
+  • vectors.lance/        Vector embeddings for semantic search
+  • indexer-state.json    Repository indexing state
+  • github-state.json     GitHub issues/PRs state
+  • metadata.json         Repository metadata
+  • metrics.db            Historical metrics (SQLite)
+`
+  );
 
 /**
  * Migrate command - Move local indexes to centralized storage

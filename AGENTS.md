@@ -167,7 +167,7 @@ Command-line interface for repository indexing and MCP setup.
 - `dev mcp install [--cursor]` - Install MCP integration
 - `dev mcp uninstall [--cursor]` - Remove MCP integration
 - `dev mcp list [--cursor]` - List MCP servers
-- `dev gh index` - Index GitHub issues/PRs
+- `dev github index` - Index GitHub issues/PRs
 
 ### @lytics/dev-agent-subagents
 
@@ -391,7 +391,7 @@ pnpm dev                                  # Watch mode
 pnpm lint && pnpm typecheck              # Quality checks
 dev index .                              # Index repository
 dev mcp install --cursor                 # Install for Cursor
-dev gh index                             # Index GitHub
+dev github index                             # Index GitHub
 
 # Debugging
 dev mcp start --verbose                  # Verbose MCP server

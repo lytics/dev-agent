@@ -6,7 +6,7 @@ export default {
   'dev-history': 'dev_history',
   'dev-plan': 'dev_plan',
   'dev-explore': 'dev_explore',
-  'dev-gh': 'dev_gh',
+  'dev-github': 'dev_gh',
   'dev-status': 'dev_status',
   'dev-health': 'dev_health',
 };

@@ -32,16 +32,16 @@ github/
 
 ```bash
 # Index GitHub data (issues, PRs, discussions)
-dev gh index
+dev github index
 
 # Index with options
-dev gh index --issues --prs --limit 100
+dev github index --issues --prs --limit 100
 
 # Search GitHub context
-dev gh search "rate limiting"
+dev github search "rate limiting"
 
 # Get full context for an issue
-dev gh context 42
+dev github context 42
 ```
 
 ### Programmatic Usage
@@ -506,8 +506,8 @@ The agent handles errors gracefully and returns structured error responses:
 4. **Batch processing:** For very large repos, index in batches with lower limits
    ```bash
    # Example: Index open items separately
-   dev gh index --state open --limit 500
-   dev gh index --state closed --limit 100
+   dev github index --state open --limit 500
+   dev github index --state closed --limit 100
    ```
 
 ## Future Enhancements
@@ -539,21 +539,21 @@ gh auth login
 **Solution:**
 ```bash
 # Use lower limit
-dev gh index --limit 100
+dev github index --limit 100
 
 # Or for very large repos
-dev gh index --limit 50
+dev github index --limit 50
 
 # Alternative: Index by state separately
-dev gh index --state open --limit 500
-dev gh index --state closed --limit 100
+dev github index --state open --limit 500
+dev github index --state closed --limit 100
 ```
 
 **Cause:** Buffer overflow when fetching many issues/PRs with large bodies. Default limit of 500 works for most repos, but very active repositories may need lower limits.
 
 ### No results when searching
 
-1. Check if data is indexed: `dev gh index`
+1. Check if data is indexed: `dev github index`
 2. Verify search query matches content
 3. Check `state` filter (default: 'all')
 

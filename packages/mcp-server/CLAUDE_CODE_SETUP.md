@@ -101,7 +101,7 @@ Find issues related to authentication bugs
 - `labels`: Filter by labels (e.g., `["bug", "enhancement"]`)
 - `limit`: Number of results (default: 10)
 
-**Note:** Automatically reloads when you run `dev gh index` to update GitHub data.
+**Note:** Automatically reloads when you run `dev github index` to update GitHub data.
 
 ### `dev_health` - Server Health Check
 Check the health of dev-agent MCP server and its components.
@@ -145,7 +145,7 @@ To enable GitHub issue/PR search:
 ```bash
 # Index GitHub issues and PRs
 cd /path/to/your/repository
-dev gh index
+dev github index
 
 # The dev_gh tool will automatically pick up new data
 ```
@@ -242,7 +242,7 @@ dev index .
 **Solution:**
 ```bash
 cd /path/to/your/repository
-dev gh index
+dev github index
 ```
 
 The `dev_gh` tool will automatically reload the new data.
@@ -283,7 +283,7 @@ Check server health with verbose details
 
 **Common Issues:**
 - **Vector storage warning:** Run `dev index .`
-- **GitHub index stale (>24h):** Run `dev gh index`
+- **GitHub index stale (>24h):** Run `dev github index`
 - **Repository not accessible:** Check paths and permissions
 
 ## Production Features
@@ -342,7 +342,7 @@ npm update -g dev-agent
 # Rebuild indexes (recommended)
 cd /path/to/your/repository
 dev index .
-dev gh index
+dev github index
 
 # Restart Claude Code
 ```
@@ -352,7 +352,7 @@ No need to reinstall MCP integration - it automatically uses the latest version.
 ## Performance Tips
 
 1. **Index Incrementally:** Run `dev index .` after major changes
-2. **GitHub Index:** Update periodically with `dev gh index`
+2. **GitHub Index:** Update periodically with `dev github index`
 3. **Health Checks:** Use `dev_health` to monitor component status
 4. **Verbose Only When Needed:** Keep `LOG_LEVEL: info` for production
 

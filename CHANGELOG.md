@@ -50,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Memory leaks from unbounded array growth
 - Zombie MCP server processes when Cursor closes
-- GitHub index not reloading after `dev gh index`
+- GitHub index not reloading after `dev github index`
 - STDIO transport not handling stdin closure properly
 
 ### Security
@@ -104,7 +104,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    ```bash
    cd /path/to/repo
    dev index .
-   dev gh index  # If using GitHub integration
+   dev github index  # If using GitHub integration
    ```
 
 3. Reinstall MCP integration:

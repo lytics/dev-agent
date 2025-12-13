@@ -2,6 +2,8 @@
 
 Search GitHub issues and pull requests using semantic search. Understand your project's history and context.
 
+> **Note:** The CLI command is `dev github`, but the MCP tool name is `dev_gh` for brevity in AI interactions.
+
 ## Usage
 
 ```
@@ -88,9 +90,9 @@ Find issues/PRs related to a specific one:
 
 ## Requirements
 
-> ⚠️ **Index GitHub first.** Run `dev gh index` to enable semantic search:
+> ⚠️ **Index GitHub first.** Run `dev github index` to enable semantic search:
 > ```bash
-> dev gh index
+> dev github index
 > ```
 
 This fetches and indexes your repository's issues and PRs.
@@ -99,7 +101,7 @@ This fetches and indexes your repository's issues and PRs.
 
 > **Search by intent, not keywords.** Try "issues about slow API responses" instead of "performance".
 
-> **GitHub index auto-reloads.** Changes are detected automatically when you re-run `dev gh index`.
+> **GitHub index auto-reloads.** Changes are detected automatically when you re-run `dev github index`.
 
 ## Response Metadata
 
