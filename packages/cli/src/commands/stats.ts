@@ -158,9 +158,14 @@ What You'll See:
         spinner.stop();
 
         if (!stats) {
-          output.warn('No indexing statistics available');
-          output.log(`Run ${chalk.cyan('dev index')} to index your repository first`);
-          output.log('');
+          output.warn('No indexed data found.');
+          console.log('');
+          console.log(chalk.yellow('📌 This command requires indexing your repository:'));
+          console.log('');
+          console.log(chalk.white('   dev index .'));
+          console.log('');
+          console.log(chalk.dim('   This is a one-time operation. Run in your repository root.'));
+          console.log('');
           return;
         }
 

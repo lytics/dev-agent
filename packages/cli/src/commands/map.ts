@@ -15,6 +15,7 @@ import {
   RepositoryIndexer,
 } from '@lytics/dev-agent-core';
 import { createLogger } from '@lytics/kero';
+import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
 import { loadConfig } from '../utils/config.js';
@@ -100,9 +101,16 @@ Use Case:
       const stats = await indexer.getBasicStats();
       if (!stats || stats.filesScanned === 0) {
         spinner.fail('Repository not indexed');
-        logger.error('Run "dev index" first to index your repository');
         await indexer.close();
-        process.exit(1);
+        logger.warn('No indexed data found.');
+        console.log('');
+        console.log(chalk.yellow('📌 This command requires indexing your repository:'));
+        console.log('');
+        console.log(chalk.white('   dev index .'));
+        console.log('');
+        console.log(chalk.dim('   This is a one-time operation. Run in your repository root.'));
+        console.log('');
+        process.exit(0);
       }
 
       mapLogger.info(

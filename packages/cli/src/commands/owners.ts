@@ -251,6 +251,23 @@ export const ownersCommand = new Command('owners')
       const allFiles = store.getCodeMetadata({ snapshotId: latestSnapshot.id, limit: 10000 });
       const totalFiles = allFiles.length;
 
+      // Check if file_authors data exists
+      const fileAuthors = store.getFileAuthors(latestSnapshot.id);
+      if (fileAuthors.size === 0) {
+        store.close();
+        logger.warn('No author contribution data found.');
+        console.log('');
+        console.log(chalk.yellow('📌 This feature requires re-indexing your repository:'));
+        console.log('');
+        console.log(chalk.white('   dev index .'));
+        console.log('');
+        console.log(
+          chalk.dim('   This is a one-time operation. Future updates will maintain author data.')
+        );
+        console.log('');
+        process.exit(0);
+      }
+
       const developers = calculateDeveloperOwnership(store, latestSnapshot.id, repositoryPath);
       store.close();
 

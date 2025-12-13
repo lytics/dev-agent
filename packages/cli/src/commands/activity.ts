@@ -131,7 +131,16 @@ export const activityCommand = new Command('activity')
       store.close();
 
       if (files.length === 0) {
-        logger.warn('No file metrics available.');
+        logger.warn('No activity metrics found.');
+        console.log('');
+        console.log(chalk.yellow('📌 This feature requires re-indexing your repository:'));
+        console.log('');
+        console.log(chalk.white('   dev index .'));
+        console.log('');
+        console.log(
+          chalk.dim('   This is a one-time operation. Future updates will maintain activity data.')
+        );
+        console.log('');
         process.exit(0);
       }
 
