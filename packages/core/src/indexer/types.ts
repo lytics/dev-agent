@@ -295,6 +295,9 @@ export interface IndexerConfig {
   /** Glob patterns to exclude */
   excludePatterns?: string[];
 
+  /** Logger for warnings and errors */
+  logger?: Logger;
+
   /** Languages to index (default: all supported) */
   languages?: string[];
 }

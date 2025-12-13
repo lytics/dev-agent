@@ -6,6 +6,7 @@
  */
 
 import type { DetailedIndexStats } from '../indexer/types.js';
+import type { CodeMetadata } from '../metrics/types.js';
 
 /**
  * Event handler function type
@@ -147,6 +148,8 @@ export interface IndexUpdatedEvent {
   stats: DetailedIndexStats;
   /** Whether this was an incremental update (vs full index) */
   isIncremental?: boolean;
+  /** Per-file code metadata for metrics storage */
+  codeMetadata?: CodeMetadata[];
 }
 
 export interface IndexErrorEvent {

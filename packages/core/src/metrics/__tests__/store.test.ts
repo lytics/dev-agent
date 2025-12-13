@@ -154,27 +154,29 @@ describe('MetricsStore', () => {
   });
 
   describe('getLatestSnapshot', () => {
-    it('should return the most recent snapshot', async () => {
+    it('should return the most recent snapshot', () => {
       const stats1 = createDetailedIndexStats({ filesScanned: 10 });
       const stats2 = createDetailedIndexStats({ filesScanned: 20 });
 
-      store.recordSnapshot(stats1, 'index');
-      // Wait 1ms to ensure different timestamps
-      await new Promise((resolve) => setTimeout(resolve, 1));
-      const latestId = store.recordSnapshot(stats2, 'update');
+      // Use explicit timestamps to ensure deterministic ordering
+      store.recordSnapshot(stats1, 'index', new Date('2024-01-01T10:00:00Z'));
+      const latestId = store.recordSnapshot(stats2, 'update', new Date('2024-01-01T11:00:00Z'));
 
       const latest = store.getLatestSnapshot();
       expect(latest?.id).toBe(latestId);
       expect(latest?.stats.filesScanned).toBe(20);
     });
 
-    it('should filter by repository path', async () => {
-      store.recordSnapshot(createDetailedIndexStats({ repositoryPath: '/repo1' }), 'index');
-      // Wait 1ms to ensure different timestamps
-      await new Promise((resolve) => setTimeout(resolve, 1));
+    it('should filter by repository path', () => {
+      store.recordSnapshot(
+        createDetailedIndexStats({ repositoryPath: '/repo1' }),
+        'index',
+        new Date('2024-01-01T10:00:00Z')
+      );
       const repo2Id = store.recordSnapshot(
         createDetailedIndexStats({ repositoryPath: '/repo2' }),
-        'index'
+        'index',
+        new Date('2024-01-01T11:00:00Z')
       );
 
       const latest = store.getLatestSnapshot('/repo2');

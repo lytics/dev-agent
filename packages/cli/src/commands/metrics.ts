@@ -113,7 +113,7 @@ const activityCommand = new Command('activity')
         process.exit(0);
       }
 
-      const files = getMostActive(store, latestSnapshot.id, Number.parseInt(options.limit));
+      const files = getMostActive(store, latestSnapshot.id, Number.parseInt(options.limit, 10));
       store.close();
 
       if (files.length === 0) {
@@ -167,7 +167,7 @@ const sizeCommand = new Command('size')
         process.exit(0);
       }
 
-      const files = getLargestFiles(store, latestSnapshot.id, Number.parseInt(options.limit));
+      const files = getLargestFiles(store, latestSnapshot.id, Number.parseInt(options.limit, 10));
       store.close();
 
       if (files.length === 0) {
@@ -223,7 +223,7 @@ const ownershipCommand = new Command('ownership')
       const files = getConcentratedOwnership(
         store,
         latestSnapshot.id,
-        Number.parseInt(options.limit)
+        Number.parseInt(options.limit, 10)
       );
       store.close();
 
