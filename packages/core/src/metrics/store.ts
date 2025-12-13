@@ -10,7 +10,13 @@ import type { Logger } from '@lytics/kero';
 import Database from 'better-sqlite3';
 import type { DetailedIndexStats } from '../indexer/types.js';
 import { initializeDatabase } from './schema.js';
-import { type Snapshot, type SnapshotQuery, SnapshotQuerySchema } from './types.js';
+import {
+  type CodeMetadata,
+  type CodeMetadataQuery,
+  type Snapshot,
+  type SnapshotQuery,
+  SnapshotQuerySchema,
+} from './types.js';
 
 /**
  * Metrics Store Class
@@ -221,6 +227,178 @@ export class MetricsStore {
     }
 
     return result.changes;
+  }
+
+  /**
+   * Calculate risk score for a file
+   * Formula: (commit_count * lines_of_code) / max(author_count, 1)
+   *
+   * Rationale:
+   * - High commit count = frequently changed (more bugs)
+   * - High LOC = more complex (harder to maintain)
+   * - Low author count = knowledge concentrated (bus factor risk)
+   */
+  private calculateRiskScore(metadata: CodeMetadata): number {
+    const commitCount = metadata.commitCount || 0;
+    const authorCount = Math.max(metadata.authorCount || 1, 1);
+    const linesOfCode = metadata.linesOfCode;
+
+    return (commitCount * linesOfCode) / authorCount;
+  }
+
+  /**
+   * Append code metadata for a snapshot
+   *
+   * @param snapshotId - Snapshot ID to associate metadata with
+   * @param metadata - Array of file metadata to store
+   * @returns Number of records inserted
+   */
+  appendCodeMetadata(snapshotId: string, metadata: CodeMetadata[]): number {
+    if (metadata.length === 0) return 0;
+
+    const stmt = this.db.prepare(`
+      INSERT INTO code_metadata 
+      (snapshot_id, file_path, commit_count, last_modified, author_count, 
+       lines_of_code, num_functions, num_imports, risk_score)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const insert = this.db.transaction((items: CodeMetadata[]) => {
+      for (const item of items) {
+        const riskScore = this.calculateRiskScore(item);
+        stmt.run(
+          snapshotId,
+          item.filePath,
+          item.commitCount || null,
+          item.lastModified ? item.lastModified.getTime() : null,
+          item.authorCount || null,
+          item.linesOfCode,
+          item.numFunctions,
+          item.numImports,
+          riskScore
+        );
+      }
+    });
+
+    try {
+      insert(metadata);
+      this.logger?.debug({ snapshotId, count: metadata.length }, 'Appended code metadata');
+      return metadata.length;
+    } catch (error) {
+      this.logger?.error({ error, snapshotId }, 'Failed to append code metadata');
+      throw error;
+    }
+  }
+
+  /**
+   * Get code metadata for a snapshot
+   *
+   * @param query - Query parameters
+   * @returns Array of code metadata
+   */
+  getCodeMetadata(query: CodeMetadataQuery): CodeMetadata[] {
+    let sql = 'SELECT * FROM code_metadata WHERE snapshot_id = ?';
+    const params: unknown[] = [query.snapshotId];
+
+    if (query.minRiskScore !== undefined) {
+      sql += ' AND risk_score >= ?';
+      params.push(query.minRiskScore);
+    }
+
+    // Sort order
+    const sortBy = query.sortBy || 'risk_desc';
+    switch (sortBy) {
+      case 'risk_desc':
+        sql += ' ORDER BY risk_score DESC';
+        break;
+      case 'risk_asc':
+        sql += ' ORDER BY risk_score ASC';
+        break;
+      case 'lines_desc':
+        sql += ' ORDER BY lines_of_code DESC';
+        break;
+      case 'commits_desc':
+        sql += ' ORDER BY commit_count DESC';
+        break;
+    }
+
+    sql += ' LIMIT ?';
+    params.push(query.limit || 100);
+
+    const rows = this.db.prepare(sql).all(...params) as Array<{
+      file_path: string;
+      commit_count: number | null;
+      last_modified: number | null;
+      author_count: number | null;
+      lines_of_code: number;
+      num_functions: number;
+      num_imports: number;
+      risk_score: number;
+    }>;
+
+    return rows.map((row) => ({
+      filePath: row.file_path,
+      commitCount: row.commit_count || undefined,
+      lastModified: row.last_modified ? new Date(row.last_modified) : undefined,
+      authorCount: row.author_count || undefined,
+      linesOfCode: row.lines_of_code,
+      numFunctions: row.num_functions,
+      numImports: row.num_imports,
+      riskScore: row.risk_score,
+    }));
+  }
+
+  /**
+   * Get code metadata for a specific file across snapshots
+   *
+   * @param filePath - File path to query
+   * @param limit - Maximum number of snapshots to return (default: 10)
+   * @returns Array of code metadata ordered by snapshot timestamp (newest first)
+   */
+  getCodeMetadataForFile(filePath: string, limit = 10): CodeMetadata[] {
+    const sql = `
+      SELECT cm.*, s.timestamp 
+      FROM code_metadata cm
+      JOIN snapshots s ON cm.snapshot_id = s.id
+      WHERE cm.file_path = ?
+      ORDER BY s.timestamp DESC
+      LIMIT ?
+    `;
+
+    const rows = this.db.prepare(sql).all(filePath, limit) as Array<{
+      file_path: string;
+      commit_count: number | null;
+      last_modified: number | null;
+      author_count: number | null;
+      lines_of_code: number;
+      num_functions: number;
+      num_imports: number;
+      risk_score: number;
+    }>;
+
+    return rows.map((row) => ({
+      filePath: row.file_path,
+      commitCount: row.commit_count || undefined,
+      lastModified: row.last_modified ? new Date(row.last_modified) : undefined,
+      authorCount: row.author_count || undefined,
+      linesOfCode: row.lines_of_code,
+      numFunctions: row.num_functions,
+      numImports: row.num_imports,
+      riskScore: row.risk_score,
+    }));
+  }
+
+  /**
+   * Get count of code metadata records for a snapshot
+   *
+   * @param snapshotId - Snapshot ID
+   * @returns Total number of code metadata records
+   */
+  getCodeMetadataCount(snapshotId: string): number {
+    const result = this.db
+      .prepare('SELECT COUNT(*) as count FROM code_metadata WHERE snapshot_id = ?')
+      .get(snapshotId) as { count: number };
+    return result.count;
   }
 
   /**

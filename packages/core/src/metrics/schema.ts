@@ -44,6 +44,39 @@ export const METRICS_SCHEMA_V1 = `
   -- Index for filtering by trigger type
   CREATE INDEX IF NOT EXISTS idx_snapshots_trigger 
     ON snapshots(trigger, timestamp DESC);
+
+  -- Code metadata table (per-file metrics for hotspot detection)
+  CREATE TABLE IF NOT EXISTS code_metadata (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    snapshot_id TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    
+    -- Data we have or can easily get:
+    commit_count INTEGER,           -- From change frequency
+    last_modified INTEGER,          -- From change frequency (timestamp)
+    author_count INTEGER,           -- From change frequency
+    lines_of_code INTEGER,          -- Count lines during scan
+    num_functions INTEGER,          -- From document count
+    num_imports INTEGER,            -- From DocumentMetadata.imports
+    
+    -- Calculated risk score
+    risk_score REAL,                -- (commit_count * lines_of_code) / max(author_count, 1)
+    
+    FOREIGN KEY (snapshot_id) REFERENCES snapshots(id) ON DELETE CASCADE,
+    UNIQUE (snapshot_id, file_path)
+  );
+
+  -- Index for querying by snapshot
+  CREATE INDEX IF NOT EXISTS idx_code_metadata_snapshot 
+    ON code_metadata(snapshot_id);
+    
+  -- Index for finding hotspots (highest risk files)
+  CREATE INDEX IF NOT EXISTS idx_code_metadata_risk 
+    ON code_metadata(risk_score DESC);
+    
+  -- Index for file-specific queries
+  CREATE INDEX IF NOT EXISTS idx_code_metadata_file 
+    ON code_metadata(file_path);
 `;
 
 /**
