@@ -284,9 +284,14 @@ export class RepositoryIndexer {
 
       // Build code metadata for metrics storage
       let codeMetadata: CodeMetadata[] | undefined;
+      let authorContributions:
+        | Map<string, Array<{ authorEmail: string; commitCount: number; lastCommit: Date | null }>>
+        | undefined;
       if (this.eventBus) {
         try {
-          codeMetadata = await buildCodeMetadata(this.config.repositoryPath, scanResult.documents);
+          const result = await buildCodeMetadata(this.config.repositoryPath, scanResult.documents);
+          codeMetadata = result.metadata;
+          authorContributions = result.authorContributions;
         } catch (error) {
           // Not critical if metadata collection fails
           this.logger?.warn({ error }, 'Failed to collect code metadata for metrics');
@@ -305,6 +310,7 @@ export class RepositoryIndexer {
             stats,
             isIncremental: false,
             codeMetadata,
+            authorContributions,
           },
           { waitForHandlers: false }
         );
@@ -475,9 +481,14 @@ export class RepositoryIndexer {
 
     // Build code metadata for metrics storage (only for updated files)
     let codeMetadata: CodeMetadata[] | undefined;
+    let authorContributions:
+      | Map<string, Array<{ authorEmail: string; commitCount: number; lastCommit: Date | null }>>
+      | undefined;
     if (this.eventBus && scannedDocuments.length > 0) {
       try {
-        codeMetadata = await buildCodeMetadata(this.config.repositoryPath, scannedDocuments);
+        const result = await buildCodeMetadata(this.config.repositoryPath, scannedDocuments);
+        codeMetadata = result.metadata;
+        authorContributions = result.authorContributions;
       } catch (error) {
         // Not critical if metadata collection fails
         this.logger?.warn({ error }, 'Failed to collect code metadata for metrics during update');
@@ -496,6 +507,7 @@ export class RepositoryIndexer {
           stats,
           isIncremental: true,
           codeMetadata,
+          authorContributions,
         },
         { waitForHandlers: false }
       );

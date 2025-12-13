@@ -1,6 +1,6 @@
 import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import {
   AsyncEventBus,
   ensureStorageDirectory,
@@ -67,7 +67,7 @@ export const indexCommand = new Command('index')
     const spinner = ora('Checking prerequisites...').start();
 
     try {
-      const resolvedRepoPath = repositoryPath;
+      const resolvedRepoPath = resolve(repositoryPath);
 
       // Check prerequisites upfront
       const isGitRepo = isGitRepository(resolvedRepoPath);
@@ -138,6 +138,11 @@ export const indexCommand = new Command('index')
           // Store code metadata if available
           if (event.codeMetadata && event.codeMetadata.length > 0) {
             metricsStore.appendCodeMetadata(snapshotId, event.codeMetadata);
+          }
+
+          // Store file author contributions if available
+          if (event.authorContributions && event.authorContributions.size > 0) {
+            metricsStore.appendFileAuthors(snapshotId, event.authorContributions);
           }
         } catch (error) {
           // Log error but don't fail indexing - metrics are non-critical
