@@ -51,8 +51,21 @@ async function createGitHubIndexer(): Promise<GitHubIndexer> {
   });
 }
 
-export const ghCommand = new Command('gh')
-  .description('GitHub context commands (index issues/PRs, search, get context)')
+export const githubCommand = new Command('github')
+  .description('GitHub issues and pull requests')
+  .addHelpText(
+    'after',
+    `
+Examples:
+  $ dev github index                    Index all issues/PRs for semantic search
+  $ dev github search "auth bug"        Find issues by meaning, not keywords
+  $ dev github stats                    Show indexing statistics
+  $ dev github context 42               Get full details for issue #42
+
+Related:
+  dev_gh         MCP tool for AI assistants (same functionality)
+`
+  )
   .addCommand(
     new Command('index')
       .description('Index GitHub issues and PRs')

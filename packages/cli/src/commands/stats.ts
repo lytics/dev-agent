@@ -128,6 +128,23 @@ function createStatsCommand() {
   const cmd = new Command('stats')
     .description('Show repository indexing statistics')
     .option('--json', 'Output stats as JSON', false)
+    .addHelpText(
+      'after',
+      `
+Examples:
+  $ dev stats                           Show all repository statistics
+  $ dev stats --json                    Export stats as JSON
+  $ dev git stats                       Show git history statistics
+  $ dev github stats                    Show GitHub index statistics
+
+What You'll See:
+  • Total files, components, lines indexed
+  • Breakdown by language with percentages
+  • Component types (functions, classes, etc.)
+  • Package/directory statistics
+  • Storage size and performance metrics
+`
+    )
     .action(async (options) => {
       const spinner = ora('Loading statistics...').start();
 

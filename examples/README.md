@@ -195,7 +195,7 @@ dev_gh:
 
 **First, index GitHub:**
 ```bash
-dev gh index
+dev github index
 ```
 
 ---
@@ -339,7 +339,7 @@ dev_health:
 dev index .
 
 # After new issues/PRs
-dev gh index
+dev github index
 
 # Check health
 dev_health

@@ -46,6 +46,25 @@ import {
 
 export const mcpCommand = new Command('mcp')
   .description('MCP (Model Context Protocol) server integration')
+  .addHelpText(
+    'after',
+    `
+Examples:
+  $ dev mcp install                     Install for Claude Code
+  $ dev mcp install --cursor            Install for Cursor IDE
+  $ dev mcp list --cursor               Show configured MCP servers
+  $ dev mcp start                       Start MCP server (usually automatic)
+
+Setup:
+  1. Index your repository first: dev index
+  2. Install MCP integration: dev mcp install --cursor
+  3. Restart Cursor to activate
+
+Available Tools (9):
+  dev_search, dev_status, dev_plan, dev_explore, dev_gh,
+  dev_health, dev_refs, dev_map, dev_history
+`
+  )
   .addCommand(
     new Command('start')
       .description('Start MCP server for current repository')

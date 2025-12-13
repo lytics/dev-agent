@@ -98,7 +98,7 @@
 
   **Indexer Logging**
 
-  - Add `--verbose` flag to `dev index`, `dev git index`, `dev gh index`
+  - Add `--verbose` flag to `dev index`, `dev git index`, `dev github index`
   - Progress spinner shows actual counts: `Embedding 4480/49151 documents (9%)`
   - Structured logging with kero logger
 

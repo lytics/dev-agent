@@ -136,14 +136,14 @@ The MCP server provides 5 powerful adapters (tools) and 8 guided prompts:
    - Semantic search with filters
    - Full context retrieval
    - Offline operation with cache
-   - **Auto-reload**: Automatically picks up new data when `dev gh index` runs
+   - **Auto-reload**: Automatically picks up new data when `dev github index` runs
 
 ### Auto-Reload Feature
 
 The GitHub adapter automatically reloads index data when it detects changes, eliminating the need to restart the MCP server:
 
 - **How it works**: Monitors GitHub state file modification time
-- **When it reloads**: On next query after `dev gh index` updates the data
+- **When it reloads**: On next query after `dev github index` updates the data
 - **No user action required**: Changes are picked up automatically
 - **Efficient**: Only checks file timestamps (no polling)
 
@@ -153,7 +153,7 @@ The GitHub adapter automatically reloads index data when it detects changes, eli
 > Use dev_gh to search for "authentication issues"
 
 # 2. Update the index (in terminal)
-$ dev gh index
+$ dev github index
 ✓ Indexed 59 documents (32 issues + 27 PRs)
 
 # 3. Query again - new data appears automatically!

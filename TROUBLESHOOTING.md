@@ -350,7 +350,7 @@ dev index .
 
 ## GitHub Integration
 
-### `dev gh index` fails
+### `dev github index` fails
 
 **Common causes:**
 
@@ -386,7 +386,7 @@ Failed to fetch issues: spawnSync /bin/sh ENOBUFS
    dev index --gh-limit 100
 
    # For dedicated GitHub indexing
-   dev gh index --limit 100
+   dev github index --limit 100
    ```
 
 2. **Adjust limit based on repository size:**
@@ -397,10 +397,10 @@ Failed to fetch issues: spawnSync /bin/sh ENOBUFS
 3. **Index in batches:**
    ```bash
    # Index open items only (usually smaller)
-   dev gh index --state open --limit 500
+   dev github index --state open --limit 500
    
    # Then index closed items with lower limit
-   dev gh index --state closed --limit 100
+   dev github index --state closed --limit 100
    ```
 
 **Technical details:**
@@ -424,10 +424,10 @@ Failed to fetch issues: spawnSync /bin/sh ENOBUFS
 
 3. **Re-index:**
    ```bash
-   dev gh index
+   dev github index
    ```
 
-**Note:** The `dev_gh` tool automatically reloads when you run `dev gh index` - no restart needed!
+**Note:** The `dev_gh` tool automatically reloads when you run `dev github index` - no restart needed!
 
 ### GitHub index is stale
 
@@ -438,13 +438,13 @@ Use dev_health tool - warns if GitHub index >24h old
 
 **Solution:**
 ```bash
-dev gh index
+dev github index
 ```
 
 **Automation (optional):**
 ```bash
 # Add to crontab for daily updates
-0 9 * * * cd /path/to/repo && dev gh index
+0 9 * * * cd /path/to/repo && dev github index
 ```
 
 ---
@@ -534,7 +534,7 @@ Use dev_health tool to check component status
 ```bash
 # Re-index everything
 dev index .
-dev gh index
+dev github index
 
 # Restart MCP server
 ```
@@ -689,7 +689,7 @@ rm -rf ~/.dev-agent/indexes/*
 # Re-index your repositories
 cd /path/to/your/repo
 dev index .
-dev gh index
+dev github index
 
 # Reinstall MCP
 dev mcp install --cursor  # or without --cursor for Claude Code
@@ -755,7 +755,7 @@ npm update -g dev-agent
 # Re-index repositories (recommended)
 cd /path/to/your/repo
 dev index .
-dev gh index
+dev github index
 
 # Restart AI tool
 ```
@@ -944,7 +944,7 @@ dev index .
 
 **GitHub Index Stale:**
 ```bash
-dev gh index
+dev github index
 ```
 
 **Repository Not Accessible:**
