@@ -5,6 +5,8 @@
  * Designed for Node.js async patterns.
  */
 
+import type { DetailedIndexStats } from '../indexer/types.js';
+
 /**
  * Event handler function type
  * All handlers are async to support non-blocking operations
@@ -141,6 +143,10 @@ export interface IndexUpdatedEvent {
   documentsCount: number;
   duration: number;
   path: string;
+  /** Full statistics snapshot */
+  stats: DetailedIndexStats;
+  /** Whether this was an incremental update (vs full index) */
+  isIncremental?: boolean;
 }
 
 export interface IndexErrorEvent {

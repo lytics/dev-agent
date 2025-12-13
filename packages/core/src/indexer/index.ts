@@ -5,6 +5,7 @@
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { EventBus } from '../events/types.js';
 import { scanRepository } from '../scanner';
 import type { Document } from '../scanner/types';
 import { getCurrentSystemResources, getOptimalConcurrency } from '../utils/concurrency';
@@ -40,8 +41,9 @@ export class RepositoryIndexer {
   private readonly config: Required<IndexerConfig>;
   private vectorStorage: VectorStorage;
   private state: IndexerState | null = null;
+  private eventBus?: EventBus;
 
-  constructor(config: IndexerConfig) {
+  constructor(config: IndexerConfig, eventBus?: EventBus) {
     this.config = {
       statePath: path.join(config.repositoryPath, DEFAULT_STATE_PATH),
       embeddingModel: 'Xenova/all-MiniLM-L6-v2',
@@ -57,6 +59,8 @@ export class RepositoryIndexer {
       embeddingModel: this.config.embeddingModel,
       dimension: this.config.embeddingDimension,
     });
+
+    this.eventBus = eventBus;
   }
 
   /**
@@ -271,6 +275,22 @@ export class RepositoryIndexer {
         this.state.lastUpdate = endTime;
       }
 
+      // Emit index.updated event (fire-and-forget)
+      if (this.eventBus) {
+        void this.eventBus.emit(
+          'index.updated',
+          {
+            type: 'code',
+            documentsCount: documentsIndexed,
+            duration: stats.duration,
+            path: this.config.repositoryPath,
+            stats,
+            isIncremental: false,
+          },
+          { waitForHandlers: false }
+        );
+      }
+
       return stats;
     } catch (error) {
       errors.push({
@@ -410,7 +430,7 @@ export class RepositoryIndexer {
     const warning = this.getStatsWarning(incrementalUpdatesSince);
 
     // Return incremental stats (what changed) with metadata
-    return {
+    const stats: DetailedIndexStats = {
       filesScanned: filesToReindex.length,
       documentsExtracted,
       documentsIndexed,
@@ -431,6 +451,24 @@ export class RepositoryIndexer {
         warning,
       },
     };
+
+    // Emit index.updated event (fire-and-forget)
+    if (this.eventBus) {
+      void this.eventBus.emit(
+        'index.updated',
+        {
+          type: 'code',
+          documentsCount: documentsIndexed,
+          duration: stats.duration,
+          path: this.config.repositoryPath,
+          stats,
+          isIncremental: true,
+        },
+        { waitForHandlers: false }
+      );
+    }
+
+    return stats;
   }
 
   /**

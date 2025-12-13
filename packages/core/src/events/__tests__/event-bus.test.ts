@@ -3,6 +3,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDetailedIndexStats } from '../../indexer/__tests__/test-factories';
 import { AsyncEventBus, createTypedEventBus } from '../event-bus';
 import type { SystemEventMap } from '../types';
 
@@ -352,11 +353,19 @@ describe('createTypedEventBus', () => {
     const handler = vi.fn();
     bus.on('index.updated', handler);
 
+    const stats = createDetailedIndexStats({
+      filesScanned: 100,
+      documentsIndexed: 100,
+      duration: 1000,
+      repositoryPath: '/test',
+    });
+
     await bus.emit('index.updated', {
       type: 'code',
       documentsCount: 100,
       duration: 1000,
       path: '/test',
+      stats,
     });
     await new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -365,6 +374,7 @@ describe('createTypedEventBus', () => {
       documentsCount: 100,
       duration: 1000,
       path: '/test',
+      stats,
     });
   });
 
