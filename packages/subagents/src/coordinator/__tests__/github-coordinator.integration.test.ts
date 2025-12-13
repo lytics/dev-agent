@@ -46,8 +46,12 @@ describe('Coordinator → GitHub Integration', () => {
   let coordinator: SubagentCoordinator;
   let github: GitHubAgent;
   let tempDir: string;
+  let errorSpy: any; // Mock spy for CoordinatorLogger.error
 
   beforeEach(async () => {
+    // Suppress error logs globally for all tests (expected errors during test setup)
+    errorSpy = vi.spyOn(CoordinatorLogger.prototype, 'error').mockImplementation(() => {});
+
     // Create temp directory
     tempDir = await mkdtemp(join(tmpdir(), 'gh-coordinator-test-'));
 
@@ -70,6 +74,7 @@ describe('Coordinator → GitHub Integration', () => {
   });
 
   afterEach(async () => {
+    errorSpy.mockRestore();
     await coordinator.stop();
     await rm(tempDir, { recursive: true, force: true });
   });
@@ -123,9 +128,6 @@ describe('Coordinator → GitHub Integration', () => {
     });
 
     it('should route search request to GitHub agent', async () => {
-      // Suppress error logs (search without indexed data is expected to be handled)
-      const errorSpy = vi.spyOn(CoordinatorLogger.prototype, 'error').mockImplementation(() => {});
-
       // Index first (required for search)
       const indexResponse = await coordinator.sendMessage({
         type: 'request',
@@ -162,14 +164,9 @@ describe('Coordinator → GitHub Integration', () => {
       const result = searchResponse?.payload as unknown as GitHubContextResult;
       expect(result.action).toBe('search');
       expect(Array.isArray(result.results)).toBe(true);
-
-      errorSpy.mockRestore();
     });
 
     it('should handle context requests', async () => {
-      // Suppress error logs (GitHub data not indexed error is expected)
-      const errorSpy = vi.spyOn(CoordinatorLogger.prototype, 'error').mockImplementation(() => {});
-
       const response = await coordinator.sendMessage({
         type: 'request',
         sender: 'test',
@@ -186,14 +183,9 @@ describe('Coordinator → GitHub Integration', () => {
 
       const result = response?.payload as unknown as GitHubContextResult;
       expect(result.action).toBe('context');
-
-      errorSpy.mockRestore();
     });
 
     it('should handle related requests', async () => {
-      // Suppress error logs (GitHub data not indexed error is expected)
-      const errorSpy = vi.spyOn(CoordinatorLogger.prototype, 'error').mockImplementation(() => {});
-
       const response = await coordinator.sendMessage({
         type: 'request',
         sender: 'test',
@@ -210,8 +202,6 @@ describe('Coordinator → GitHub Integration', () => {
 
       const result = response?.payload as unknown as GitHubContextResult;
       expect(result.action).toBe('related');
-
-      errorSpy.mockRestore();
     });
 
     it('should handle non-request messages gracefully', async () => {
@@ -229,9 +219,6 @@ describe('Coordinator → GitHub Integration', () => {
 
   describe('Error Handling', () => {
     it('should handle invalid actions', async () => {
-      // Suppress error logs for this intentional error test
-      const errorSpy = vi.spyOn(CoordinatorLogger.prototype, 'error').mockImplementation(() => {});
-
       const response = await coordinator.sendMessage({
         type: 'request',
         sender: 'test',
@@ -244,14 +231,9 @@ describe('Coordinator → GitHub Integration', () => {
 
       expect(response).toBeDefined();
       expect(response?.type).toBe('response');
-
-      errorSpy.mockRestore();
     });
 
     it('should handle missing required fields', async () => {
-      // Suppress error logs for this intentional error test
-      const errorSpy = vi.spyOn(CoordinatorLogger.prototype, 'error').mockImplementation(() => {});
-
       const response = await coordinator.sendMessage({
         type: 'request',
         sender: 'test',

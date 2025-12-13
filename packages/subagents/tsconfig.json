@@ -4,9 +4,21 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "composite": true,
+    "declaration": true,
+    "declarationMap": true,
     "types": ["node", "vitest/globals"]
   },
-  "references": [{ "path": "../core" }, { "path": "../logger" }],
+  "references": [
+    { "path": "../core" },
+    { "path": "../logger" },
+    { "path": "../types" }
+  ],
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/__tests__/**"
+  ]
 }

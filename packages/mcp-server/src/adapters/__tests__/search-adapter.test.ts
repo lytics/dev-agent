@@ -46,14 +46,29 @@ describe('SearchAdapter', () => {
   ];
 
   beforeEach(async () => {
+    // Suppress all logger output in tests
+    vi.spyOn(ConsoleLogger.prototype, 'info').mockImplementation(() => {});
+    vi.spyOn(ConsoleLogger.prototype, 'debug').mockImplementation(() => {});
+    vi.spyOn(ConsoleLogger.prototype, 'warn').mockImplementation(() => {});
+    vi.spyOn(ConsoleLogger.prototype, 'error').mockImplementation(() => {});
+
     // Create mock indexer
     mockIndexer = {
       search: vi.fn().mockResolvedValue(mockSearchResults),
     } as unknown as RepositoryIndexer;
 
     // Create adapter
+    // Create mock search service
+    const mockSearchService = {
+      search: mockIndexer.search,
+      findSimilar: vi.fn(),
+      findRelatedTests: vi.fn(),
+      findSymbol: vi.fn(),
+      isIndexed: vi.fn(),
+    };
+
     adapter = new SearchAdapter({
-      repositoryIndexer: mockIndexer,
+      searchService: mockSearchService as any,
       defaultFormat: 'compact',
       defaultLimit: 10,
     });
@@ -61,17 +76,20 @@ describe('SearchAdapter', () => {
     // Create context
     const logger = new ConsoleLogger('error'); // Quiet for tests
     context = {
-      agentName: 'test-agent',
       logger,
-      config: {},
+      config: { repositoryPath: '/test' },
     };
 
     execContext = {
       logger,
-      requestId: 'test-request',
+      config: { repositoryPath: '/test' },
     };
 
     await adapter.initialize(context);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('Tool Definition', () => {

@@ -8,13 +8,32 @@
 import type { Logger } from '@lytics/kero';
 import type { RepositoryIndexer } from '../indexer/index.js';
 
-// Re-define types to avoid cross-package TypeScript issues
+/**
+ * Minimal coordinator interface
+ *
+ * This matches the SubagentCoordinator from @lytics/dev-agent-subagents
+ * but avoids cross-package import issues. TypeScript's structural typing
+ * ensures compatibility at runtime.
+ *
+ * Only defines methods we actually use in CoordinatorService.
+ */
 export interface SubagentCoordinator {
+  /**
+   * Register a subagent with the coordinator
+   */
   registerAgent(agent: unknown): Promise<void>;
+
+  /**
+   * Get the context manager for setting up indexer
+   */
   getContextManager(): {
     setIndexer(indexer: RepositoryIndexer): void;
   };
-  shutdown(): Promise<void>;
+
+  /**
+   * Graceful shutdown (optional for future use)
+   */
+  shutdown?(): Promise<void>;
 }
 
 export interface CoordinatorServiceConfig {

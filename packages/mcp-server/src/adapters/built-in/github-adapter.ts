@@ -3,24 +3,21 @@
  * Exposes GitHub context and search capabilities via MCP (dev_gh tool)
  */
 
-import {
-  type GitHubDocument,
-  GitHubIndexer,
-  type GitHubSearchOptions,
-  type GitHubSearchResult,
-} from '@lytics/dev-agent-subagents';
+import type { GitHubService } from '@lytics/dev-agent-core';
+import type {
+  GitHubDocument,
+  GitHubSearchOptions,
+  GitHubSearchResult,
+} from '@lytics/dev-agent-types/github';
 import { estimateTokensForText } from '../../formatters/utils';
-import { GitHubArgsSchema } from '../../schemas/index.js';
+import { GitHubArgsSchema, type GitHubOutput, GitHubOutputSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
 import { validateArgs } from '../validation.js';
 
 export interface GitHubAdapterConfig {
+  githubService: GitHubService;
   repositoryPath: string;
-  // Either pass an initialized indexer OR paths for lazy initialization
-  githubIndexer?: GitHubIndexer;
-  vectorStorePath?: string;
-  statePath?: string;
   defaultLimit?: number;
   defaultFormat?: 'compact' | 'verbose';
 }
@@ -38,29 +35,17 @@ export class GitHubAdapter extends ToolAdapter {
     description: 'GitHub issues and PRs search and context',
   };
 
+  private githubService: GitHubService;
   private repositoryPath: string;
-  public githubIndexer?: GitHubIndexer; // Public for cleanup in shutdown
-  private vectorStorePath?: string;
-  private statePath?: string;
   private defaultLimit: number;
   private defaultFormat: 'compact' | 'verbose';
-  private lastStateFileModTime?: number; // Track state file modification time for auto-reload
 
   constructor(config: GitHubAdapterConfig) {
     super();
+    this.githubService = config.githubService;
     this.repositoryPath = config.repositoryPath;
-    this.githubIndexer = config.githubIndexer;
-    this.vectorStorePath = config.vectorStorePath;
-    this.statePath = config.statePath;
     this.defaultLimit = config.defaultLimit ?? 10;
     this.defaultFormat = config.defaultFormat ?? 'compact';
-
-    // Validate: either githubIndexer OR both paths must be provided
-    if (!this.githubIndexer && (!this.vectorStorePath || !this.statePath)) {
-      throw new Error(
-        'GitHubAdapter requires either githubIndexer or both vectorStorePath and statePath'
-      );
-    }
   }
 
   async initialize(context: AdapterContext): Promise<void> {
@@ -68,102 +53,7 @@ export class GitHubAdapter extends ToolAdapter {
       repositoryPath: this.repositoryPath,
       defaultLimit: this.defaultLimit,
       defaultFormat: this.defaultFormat,
-      lazyInit: !this.githubIndexer,
     });
-  }
-
-  /**
-   * Check if state file has been modified since last load
-   * Returns true if file was modified and indexer needs reload
-   */
-  private async hasStateFileChanged(): Promise<boolean> {
-    if (!this.statePath || !this.lastStateFileModTime) {
-      return false;
-    }
-
-    try {
-      const fs = await import('node:fs/promises');
-      const stats = await fs.stat(this.statePath);
-      const currentModTime = stats.mtimeMs;
-
-      return currentModTime > this.lastStateFileModTime;
-    } catch {
-      // File doesn't exist or can't be accessed
-      return false;
-    }
-  }
-
-  /**
-   * Reload the GitHubIndexer to pick up fresh data
-   */
-  private async reloadIndexer(): Promise<void> {
-    if (!this.githubIndexer || !this.statePath) {
-      return;
-    }
-
-    try {
-      // Close existing indexer
-      await this.githubIndexer.close();
-
-      // Clear reference to force re-initialization
-      this.githubIndexer = undefined;
-      this.lastStateFileModTime = undefined;
-
-      // Re-initialize with fresh data
-      await this.ensureGitHubIndexer();
-    } catch (error) {
-      // Log error but don't crash - old indexer might still work
-      console.error('[GitHubAdapter] Failed to reload indexer:', error);
-    }
-  }
-
-  /**
-   * Ensure indexer is loaded and up-to-date
-   * Checks for file modifications and reloads if needed
-   */
-  private async ensureGitHubIndexer(): Promise<GitHubIndexer> {
-    // Check if state file was modified (index updated by CLI)
-    if (this.githubIndexer && (await this.hasStateFileChanged())) {
-      await this.reloadIndexer();
-    }
-
-    if (this.githubIndexer) {
-      return this.githubIndexer;
-    }
-
-    // Validate paths are available
-    if (!this.vectorStorePath || !this.statePath) {
-      throw new Error('GitHubAdapter not configured for lazy initialization');
-    }
-
-    // Lazy initialization
-    // Try to load repository from state file to avoid gh CLI call
-    let repository: string | undefined;
-    try {
-      const fs = await import('node:fs/promises');
-      const stateContent = await fs.readFile(this.statePath, 'utf-8');
-      const state = JSON.parse(stateContent);
-      repository = state.repository;
-
-      // Track state file modification time
-      const stats = await fs.stat(this.statePath);
-      this.lastStateFileModTime = stats.mtimeMs;
-    } catch {
-      // State file doesn't exist or can't be read
-      // GitHubIndexer will try gh CLI as fallback
-    }
-
-    this.githubIndexer = new GitHubIndexer(
-      {
-        vectorStorePath: this.vectorStorePath,
-        statePath: this.statePath,
-        autoUpdate: false, // We handle updates via file watching
-      },
-      repository // Pass repository to avoid gh CLI call
-    );
-
-    await this.githubIndexer.initialize();
-    return this.githubIndexer;
   }
 
   getToolDefinition(): ToolDefinition {
@@ -224,6 +114,32 @@ export class GitHubAdapter extends ToolAdapter {
         },
         required: ['action'],
       },
+      outputSchema: {
+        type: 'object',
+        properties: {
+          action: {
+            type: 'string',
+            description: 'The action that was executed',
+          },
+          format: {
+            type: 'string',
+            description: 'The output format used',
+          },
+          content: {
+            type: 'string',
+            description: 'Formatted GitHub data',
+          },
+          resultsTotal: {
+            type: 'number',
+            description: 'Total number of results found (for search/related actions)',
+          },
+          resultsReturned: {
+            type: 'number',
+            description: 'Number of results returned (for search/related actions)',
+          },
+        },
+        required: ['action', 'format', 'content'],
+      },
     };
   }
 
@@ -279,14 +195,24 @@ export class GitHubAdapter extends ToolAdapter {
       const duration_ms = Date.now() - startTime;
       const tokens = estimateTokensForText(content);
 
+      // Validate output with Zod
+      const outputData: GitHubOutput = {
+        action,
+        format,
+        content,
+        resultsTotal: resultsTotal > 0 ? resultsTotal : undefined,
+        resultsReturned: resultsReturned > 0 ? resultsReturned : undefined,
+      };
+
+      const outputValidation = GitHubOutputSchema.safeParse(outputData);
+      if (!outputValidation.success) {
+        context.logger.error('Output validation failed', { error: outputValidation.error });
+        throw new Error(`Output validation failed: ${outputValidation.error.message}`);
+      }
+
       return {
         success: true,
-        data: {
-          action,
-          query: query || number,
-          format,
-          content,
-        },
+        data: outputValidation.data,
         metadata: {
           tokens,
           duration_ms,
@@ -341,9 +267,7 @@ export class GitHubAdapter extends ToolAdapter {
     options: GitHubSearchOptions,
     format: string
   ): Promise<{ content: string; resultsTotal: number; resultsReturned: number }> {
-    const indexer = await this.ensureGitHubIndexer();
-
-    const results = await indexer.search(query, options);
+    const results = await this.githubService.search(query, options);
 
     if (results.length === 0) {
       const content =
@@ -367,28 +291,11 @@ export class GitHubAdapter extends ToolAdapter {
    * Get full context for an issue/PR
    */
   private async getIssueContext(number: number, format: string): Promise<string> {
-    const indexer = await this.ensureGitHubIndexer();
-
-    // First try to get document by ID (more efficient)
-    let doc = await indexer.getDocument(number, 'issue');
+    // Get document using the service
+    const doc = await this.githubService.getContext(number);
 
     if (!doc) {
-      // Try as pull request if not found as issue
-      doc = await indexer.getDocument(number, 'pull_request');
-    }
-
-    if (!doc) {
-      // Fallback: search by number in title/content
-      const results = await indexer.search(`${number}`, { limit: 10 });
-
-      // Find exact number match
-      const exactMatch = results.find((r) => r.document.number === number);
-
-      if (exactMatch) {
-        doc = exactMatch.document;
-      } else {
-        throw new Error(`Issue/PR #${number} not found`);
-      }
+      throw new Error(`Issue/PR #${number} not found`);
     }
 
     if (format === 'verbose') {
@@ -406,32 +313,15 @@ export class GitHubAdapter extends ToolAdapter {
     limit: number,
     format: string
   ): Promise<{ content: string; resultsTotal: number; resultsReturned: number }> {
-    // First get the main issue/PR using the same logic as getIssueContext
-    const indexer = await this.ensureGitHubIndexer();
-
-    let mainDoc = await indexer.getDocument(number, 'issue');
+    // Get the main document
+    const mainDoc = await this.githubService.getContext(number);
 
     if (!mainDoc) {
-      mainDoc = await indexer.getDocument(number, 'pull_request');
+      throw new Error(`Issue/PR #${number} not found`);
     }
 
-    if (!mainDoc) {
-      // Fallback: search by number
-      const mainResults = await indexer.search(`${number}`, { limit: 10 });
-      const exactMatch = mainResults.find((r) => r.document.number === number);
-
-      if (exactMatch) {
-        mainDoc = exactMatch.document;
-      } else {
-        throw new Error(`Issue/PR #${number} not found`);
-      }
-    }
-
-    // Search for related items using the title
-    const relatedResults = await indexer.search(mainDoc.title, { limit: limit + 1 });
-
-    // Filter out the main item itself
-    const related = relatedResults.filter((r) => r.document.number !== number).slice(0, limit);
+    // Get related items using the service
+    const related = await this.githubService.findRelated(number, limit);
 
     if (related.length === 0) {
       return {

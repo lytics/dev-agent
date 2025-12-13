@@ -7,11 +7,16 @@ import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import {
+  CoordinatorService,
+  type GitHubIndexerFactory,
+  GitHubService,
   GitIndexer,
   getStorageFilePaths,
   getStoragePath,
   LocalGitExtractor,
   RepositoryIndexer,
+  SearchService,
+  StatsService,
   VectorStorage,
 } from '@lytics/dev-agent-core';
 import {
@@ -26,12 +31,7 @@ import {
   SearchAdapter,
   StatusAdapter,
 } from '@lytics/dev-agent-mcp';
-import {
-  ExplorerAgent,
-  PlannerAgent,
-  PrAgent,
-  SubagentCoordinator,
-} from '@lytics/dev-agent-subagents';
+import type { SubagentCoordinator } from '@lytics/dev-agent-subagents';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
@@ -83,30 +83,40 @@ export const mcpCommand = new Command('mcp')
 
           await indexer.initialize();
 
-          // Create and configure the subagent coordinator
-          const coordinator = new SubagentCoordinator({
+          // Create and configure the subagent coordinator using CoordinatorService
+          const coordinatorService = new CoordinatorService({
+            repositoryPath,
             maxConcurrentTasks: 5,
             defaultMessageTimeout: 30000,
             logLevel: logLevel as 'debug' | 'info' | 'warn' | 'error',
           });
+          // Type assertion: CoordinatorService returns a minimal interface
+          const coordinator = (await coordinatorService.createCoordinator(
+            indexer
+          )) as SubagentCoordinator;
 
-          // Set up context manager with indexer
-          coordinator.getContextManager().setIndexer(indexer);
-
-          // Register subagents
-          await coordinator.registerAgent(new ExplorerAgent());
-          await coordinator.registerAgent(new PlannerAgent());
-          await coordinator.registerAgent(new PrAgent());
+          // Create services
+          const searchService = new SearchService({ repositoryPath });
 
           // Create all adapters
           const searchAdapter = new SearchAdapter({
-            repositoryIndexer: indexer,
+            searchService,
             defaultFormat: 'compact',
             defaultLimit: 10,
           });
 
+          const statsService = new StatsService({ repositoryPath });
+          const createGitHubIndexer: GitHubIndexerFactory = async (config) => {
+            const { GitHubIndexer } = await import('@lytics/dev-agent-subagents');
+            // biome-ignore lint/suspicious/noExplicitAny: Dynamic import requires type coercion
+            return new GitHubIndexer(config) as any;
+          };
+
+          const githubService = new GitHubService({ repositoryPath }, createGitHubIndexer);
+
           const statusAdapter = new StatusAdapter({
-            repositoryIndexer: indexer,
+            statsService,
+            githubService,
             repositoryPath,
             vectorStorePath: vectors,
             defaultSection: 'summary',
@@ -122,8 +132,7 @@ export const mcpCommand = new Command('mcp')
 
           const githubAdapter = new GitHubAdapter({
             repositoryPath,
-            vectorStorePath: `${vectors}-github`,
-            statePath: getStorageFilePaths(storagePath).githubState,
+            githubService,
             defaultLimit: 10,
             defaultFormat: 'compact',
           });
@@ -205,9 +214,7 @@ export const mcpCommand = new Command('mcp')
             await server.stop();
             await indexer.close();
             await gitVectorStorage.close();
-            if (githubAdapter.githubIndexer) {
-              await githubAdapter.githubIndexer.close();
-            }
+            await githubService.shutdown();
             process.exit(0);
           };
 

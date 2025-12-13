@@ -217,7 +217,7 @@ export function apiResponseToDocument(
     closedAt: response.closedAt,
     url: response.url,
     repository,
-    comments: response.comments || 0,
+    comments: Array.isArray(response.comments) ? response.comments.length : 0,
     reactions: response.reactions || {},
     relatedIssues: [],
     relatedPRs: [],
