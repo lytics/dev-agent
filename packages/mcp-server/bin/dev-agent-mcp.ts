@@ -185,7 +185,7 @@ async function main() {
 
     const exploreAdapter = new ExploreAdapter({
       repositoryPath,
-      repositoryIndexer: indexer,
+      searchService,
       defaultLimit: 10,
       defaultThreshold: 0.7,
       defaultFormat: 'compact',
@@ -205,7 +205,7 @@ async function main() {
     });
 
     const refsAdapter = new RefsAdapter({
-      repositoryIndexer: indexer,
+      searchService,
       defaultLimit: 20,
     });
 

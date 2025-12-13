@@ -149,7 +149,7 @@ Available Tools (9):
 
           const exploreAdapter = new ExploreAdapter({
             repositoryPath,
-            repositoryIndexer: indexer,
+            searchService,
             defaultLimit: 10,
             defaultThreshold: 0.7,
             defaultFormat: 'compact',
@@ -169,7 +169,7 @@ Available Tools (9):
           });
 
           const refsAdapter = new RefsAdapter({
-            repositoryIndexer: indexer,
+            searchService,
             defaultLimit: 20,
           });
 

@@ -2,26 +2,27 @@
  * ExploreAdapter Unit Tests
  */
 
-import type { RepositoryIndexer, SearchResult } from '@lytics/dev-agent-core';
+import type { SearchResult, SearchService } from '@lytics/dev-agent-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ExploreAdapter } from '../built-in/explore-adapter';
 import type { ToolExecutionContext } from '../types';
 
 describe('ExploreAdapter', () => {
   let adapter: ExploreAdapter;
-  let mockIndexer: RepositoryIndexer;
+  let mockSearchService: SearchService;
   let mockContext: ToolExecutionContext;
 
   beforeEach(() => {
-    // Mock RepositoryIndexer
-    mockIndexer = {
+    // Mock SearchService
+    mockSearchService = {
       search: vi.fn(),
-    } as unknown as RepositoryIndexer;
+      findSimilar: vi.fn(),
+    } as unknown as SearchService;
 
     // Create adapter
     adapter = new ExploreAdapter({
       repositoryPath: '/test/repo',
-      repositoryIndexer: mockIndexer,
+      searchService: mockSearchService,
       defaultLimit: 10,
       defaultThreshold: 0.7,
       defaultFormat: 'compact',
@@ -151,7 +152,7 @@ describe('ExploreAdapter', () => {
         },
       ];
 
-      vi.mocked(mockIndexer.search).mockResolvedValue(mockResults);
+      vi.mocked(mockSearchService.search).mockResolvedValue(mockResults);
 
       const result = await adapter.execute(
         {
@@ -183,7 +184,7 @@ describe('ExploreAdapter', () => {
         },
       ];
 
-      vi.mocked(mockIndexer.search).mockResolvedValue(mockResults);
+      vi.mocked(mockSearchService.search).mockResolvedValue(mockResults);
 
       const result = await adapter.execute(
         {
@@ -221,7 +222,7 @@ describe('ExploreAdapter', () => {
         },
       ];
 
-      vi.mocked(mockIndexer.search).mockResolvedValue(mockResults);
+      vi.mocked(mockSearchService.search).mockResolvedValue(mockResults);
 
       const result = await adapter.execute(
         {
@@ -238,7 +239,7 @@ describe('ExploreAdapter', () => {
     });
 
     it('should handle no results found', async () => {
-      vi.mocked(mockIndexer.search).mockResolvedValue([]);
+      vi.mocked(mockSearchService.search).mockResolvedValue([]);
 
       const result = await adapter.execute(
         {
@@ -276,7 +277,7 @@ describe('ExploreAdapter', () => {
         },
       ];
 
-      vi.mocked(mockIndexer.search).mockResolvedValue(mockResults);
+      vi.mocked(mockSearchService.findSimilar).mockResolvedValue(mockResults);
 
       const result = await adapter.execute(
         {
@@ -296,7 +297,7 @@ describe('ExploreAdapter', () => {
     });
 
     it('should handle no similar files', async () => {
-      vi.mocked(mockIndexer.search).mockResolvedValue([
+      vi.mocked(mockSearchService.findSimilar).mockResolvedValue([
         {
           id: '1',
           score: 1.0,
@@ -344,7 +345,7 @@ describe('ExploreAdapter', () => {
         },
       ];
 
-      vi.mocked(mockIndexer.search).mockResolvedValue(mockResults);
+      vi.mocked(mockSearchService.search).mockResolvedValue(mockResults);
 
       const result = await adapter.execute(
         {
@@ -360,7 +361,7 @@ describe('ExploreAdapter', () => {
     });
 
     it('should handle no relationships found', async () => {
-      vi.mocked(mockIndexer.search).mockResolvedValue([]);
+      vi.mocked(mockSearchService.search).mockResolvedValue([]);
 
       const result = await adapter.execute(
         {
@@ -377,7 +378,7 @@ describe('ExploreAdapter', () => {
 
   describe('Error Handling', () => {
     it('should handle file not found errors', async () => {
-      vi.mocked(mockIndexer.search).mockRejectedValue(new Error('File not found'));
+      vi.mocked(mockSearchService.findSimilar).mockRejectedValue(new Error('File not found'));
 
       const result = await adapter.execute(
         {
@@ -392,7 +393,7 @@ describe('ExploreAdapter', () => {
     });
 
     it('should handle index not ready errors', async () => {
-      vi.mocked(mockIndexer.search).mockRejectedValue(new Error('Index not indexed'));
+      vi.mocked(mockSearchService.search).mockRejectedValue(new Error('Index not indexed'));
 
       const result = await adapter.execute(
         {
@@ -407,7 +408,7 @@ describe('ExploreAdapter', () => {
     });
 
     it('should handle generic errors', async () => {
-      vi.mocked(mockIndexer.search).mockRejectedValue(new Error('Unknown error'));
+      vi.mocked(mockSearchService.search).mockRejectedValue(new Error('Unknown error'));
 
       const result = await adapter.execute(
         {

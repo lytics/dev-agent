@@ -5,12 +5,11 @@ import {
   getStoragePath,
   RepositoryIndexer,
 } from '@lytics/dev-agent-core';
-import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
 import { loadConfig } from '../utils/config.js';
 import { logger } from '../utils/logger.js';
-import { output, printCompactResults } from '../utils/output.js';
+import { printCompactResults } from '../utils/output.js';
 
 export const compactCommand = new Command('compact')
   .description('🗜️  Optimize and compact the vector store')

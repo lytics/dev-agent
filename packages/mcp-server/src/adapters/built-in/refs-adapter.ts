@@ -3,7 +3,7 @@
  * Provides call graph queries via the dev_refs tool
  */
 
-import type { CalleeInfo, RepositoryIndexer, SearchResult } from '@lytics/dev-agent-core';
+import type { CalleeInfo, SearchResult, SearchService } from '@lytics/dev-agent-core';
 import { estimateTokensForText, startTimer } from '../../formatters/utils';
 import { RefsArgsSchema, type RefsOutput, RefsOutputSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
@@ -20,9 +20,9 @@ export type RefDirection = 'callees' | 'callers' | 'both';
  */
 export interface RefsAdapterConfig {
   /**
-   * Repository indexer instance
+   * Search service instance
    */
-  repositoryIndexer: RepositoryIndexer;
+  searchService: SearchService;
 
   /**
    * Default result limit
@@ -53,14 +53,16 @@ export class RefsAdapter extends ToolAdapter {
     author: 'Dev-Agent Team',
   };
 
-  private indexer: RepositoryIndexer;
-  private config: Required<RefsAdapterConfig>;
+  private searchService: SearchService;
+  private config: Required<Omit<RefsAdapterConfig, 'searchService'>> & {
+    searchService: SearchService;
+  };
 
   constructor(config: RefsAdapterConfig) {
     super();
-    this.indexer = config.repositoryIndexer;
+    this.searchService = config.searchService;
     this.config = {
-      repositoryIndexer: config.repositoryIndexer,
+      searchService: config.searchService,
       defaultLimit: config.defaultLimit ?? 20,
     };
   }
@@ -156,7 +158,7 @@ export class RefsAdapter extends ToolAdapter {
       context.logger.debug('Executing refs query', { name, direction, limit });
 
       // First, find the target component
-      const searchResults = await this.indexer.search(name, { limit: 10 });
+      const searchResults = await this.searchService.search(name, { limit: 10 });
       const target = this.findBestMatch(searchResults, name);
 
       if (!target) {
@@ -288,7 +290,7 @@ export class RefsAdapter extends ToolAdapter {
 
     // Search for components that might call this target
     // We search broadly and then filter by callees
-    const candidates = await this.indexer.search(targetName, { limit: 100 });
+    const candidates = await this.searchService.search(targetName, { limit: 100 });
 
     const callers: RefResult[] = [];
 

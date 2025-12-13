@@ -14,7 +14,6 @@ import { createLogger } from '@lytics/kero';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
-import { loadConfig } from '../utils/config.js';
 import { keroLogger, logger } from '../utils/logger.js';
 import { output, printGitStats } from '../utils/output.js';
 
