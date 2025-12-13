@@ -7,6 +7,7 @@ export * from './git';
 export * from './github';
 export * from './indexer';
 export * from './map';
+export * from './metrics';
 export * from './observability';
 export * from './scanner';
 export * from './storage';
