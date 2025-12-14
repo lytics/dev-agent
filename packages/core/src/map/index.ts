@@ -487,6 +487,26 @@ function computeHotPaths(docs: SearchResult[], maxPaths: number): HotPath[] {
 }
 
 /**
+ * Get file icon based on extension
+ */
+function getFileIcon(ext: string): string {
+  const iconMap: Record<string, string> = {
+    ts: '📘',
+    tsx: '⚛️',
+    js: '📜',
+    jsx: '⚛️',
+    go: '🐹',
+    py: '🐍',
+    rs: '🦀',
+    md: '📝',
+    json: '📋',
+    yaml: '⚙️',
+    yml: '⚙️',
+  };
+  return iconMap[ext] || '📄';
+}
+
+/**
  * Format codebase map as readable text
  */
 export function formatCodebaseMap(map: CodebaseMap, options: MapOptions = {}): string {
@@ -501,8 +521,20 @@ export function formatCodebaseMap(map: CodebaseMap, options: MapOptions = {}): s
     lines.push('## Hot Paths (most referenced)');
     for (let i = 0; i < map.hotPaths.length; i++) {
       const hp = map.hotPaths[i];
-      const component = hp.primaryComponent ? ` (${hp.primaryComponent})` : '';
-      lines.push(`${i + 1}. \`${hp.file}\`${component} - ${hp.incomingRefs} refs`);
+      const isLast = i === map.hotPaths.length - 1;
+      const prefix = isLast ? '└─' : '├─';
+
+      // Get file extension for icon
+      const ext = hp.file.split('.').pop() || '';
+      const icon = getFileIcon(ext);
+
+      // Extract just the filename for cleaner display
+      const fileName = hp.file.split('/').pop() || hp.file;
+      const dirPath = hp.file.substring(0, hp.file.lastIndexOf('/'));
+
+      const component = hp.primaryComponent ? ` • ${hp.primaryComponent}` : '';
+      lines.push(`  ${prefix} ${icon} **${fileName}**${component} • ${hp.incomingRefs} refs`);
+      lines.push(`     ${dirPath}`);
     }
     lines.push('');
   }

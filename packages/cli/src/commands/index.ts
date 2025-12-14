@@ -199,17 +199,20 @@ export const indexCommand = new Command('index')
             }
 
             // Update embedding progress
-            const pct = Math.round((progress.documentsIndexed / progress.totalDocuments) * 100);
-            const embeddingElapsed = (Date.now() - embeddingStartTime) / 1000;
-            const docsPerSec =
-              embeddingElapsed > 0 ? progress.documentsIndexed / embeddingElapsed : 0;
-            progressRenderer.updateSection(
-              `${progress.documentsIndexed.toLocaleString()}/${progress.totalDocuments.toLocaleString()} documents (${pct}%, ${docsPerSec.toFixed(0)} docs/sec)`
+            progressRenderer.updateSectionWithRate(
+              progress.documentsIndexed,
+              progress.totalDocuments,
+              'documents',
+              embeddingStartTime
             );
           } else {
             // Scanning phase
-            const percent = progress.percentComplete || 0;
-            progressRenderer.updateSection(`${percent.toFixed(0)}% complete`);
+            progressRenderer.updateSectionWithRate(
+              progress.filesProcessed,
+              progress.totalFiles,
+              'files',
+              scanStartTime
+            );
           }
         },
       });
@@ -260,9 +263,11 @@ export const indexCommand = new Command('index')
           logger: indexLogger,
           onProgress: (progress) => {
             if (progress.phase === 'storing' && progress.totalCommits > 0) {
-              const pct = Math.round((progress.commitsProcessed / progress.totalCommits) * 100);
-              progressRenderer.updateSection(
-                `${progress.commitsProcessed}/${progress.totalCommits} commits (${pct}%)`
+              progressRenderer.updateSectionWithRate(
+                progress.commitsProcessed,
+                progress.totalCommits,
+                'commits',
+                gitStartTime
               );
             }
           },
@@ -280,6 +285,7 @@ export const indexCommand = new Command('index')
       let ghStats = { totalDocuments: 0, indexDuration: 0 };
       if (canIndexGitHub) {
         const ghStartTime = Date.now();
+        let ghEmbeddingStartTime = 0;
         const ghVectorPath = `${filePaths.vectors}-github`;
         const ghIndexer = new GitHubIndexer({
           vectorStorePath: ghVectorPath,
@@ -295,9 +301,14 @@ export const indexCommand = new Command('index')
             if (progress.phase === 'fetching') {
               progressRenderer.updateSection('Fetching issues/PRs...');
             } else if (progress.phase === 'embedding') {
-              const pct = Math.round((progress.documentsProcessed / progress.totalDocuments) * 100);
-              progressRenderer.updateSection(
-                `${progress.documentsProcessed}/${progress.totalDocuments} documents (${pct}%)`
+              if (ghEmbeddingStartTime === 0) {
+                ghEmbeddingStartTime = Date.now();
+              }
+              progressRenderer.updateSectionWithRate(
+                progress.documentsProcessed,
+                progress.totalDocuments,
+                'documents',
+                ghEmbeddingStartTime
               );
             }
           },

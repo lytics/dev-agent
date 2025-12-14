@@ -98,9 +98,11 @@ export const gitCommand = new Command('git')
                 }
 
                 // Update embedding progress
-                const pct = Math.round((progress.commitsProcessed / progress.totalCommits) * 100);
-                progressRenderer.updateSection(
-                  `${progress.commitsProcessed}/${progress.totalCommits} commits (${pct}%)`
+                progressRenderer.updateSectionWithRate(
+                  progress.commitsProcessed,
+                  progress.totalCommits,
+                  'commits',
+                  embeddingStartTime
                 );
               }
             },
