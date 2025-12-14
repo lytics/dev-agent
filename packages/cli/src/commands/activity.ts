@@ -5,6 +5,7 @@
 import * as path from 'node:path';
 import {
   type FileMetrics,
+  getFileIcon,
   getMostActive,
   getStoragePath,
   MetricsStore,
@@ -31,43 +32,38 @@ function formatRelativeTime(date: Date): string {
 }
 
 /**
- * Format files as a compact table
+ * Format files with tree branches and icons
  */
 function formatFileMetricsTable(files: FileMetrics[]): string {
   if (files.length === 0) return '';
 
-  // Calculate column widths
-  const maxPathLen = Math.max(...files.map((f) => f.filePath.length), 40);
-  const pathWidth = Math.min(maxPathLen, 55);
+  let output = '';
 
-  // Header
-  let output = chalk.bold(
-    `${'FILE'.padEnd(pathWidth)}  ${'COMMITS'.padStart(7)}  ${'LOC'.padStart(6)}  ${'AUTHORS'.padStart(7)}  ${'LAST CHANGE'}\n`
-  );
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const isLast = i === files.length - 1;
+    const branch = isLast ? '└─' : '├─';
+    const connector = isLast ? ' ' : '│'; // Vertical line for non-last items
+    const icon = getFileIcon(file.filePath);
 
-  // Separator line
-  output += chalk.dim(`${'─'.repeat(pathWidth + 2 + 7 + 2 + 6 + 2 + 7 + 2 + 12)}\n`);
-
-  // Rows
-  for (const file of files) {
-    // Truncate path if too long
-    let displayPath = file.filePath;
-    if (displayPath.length > pathWidth) {
-      displayPath = `...${displayPath.slice(-(pathWidth - 3))}`;
-    }
-    displayPath = displayPath.padEnd(pathWidth);
-
-    const commits = String(file.commitCount).padStart(7);
-    const loc = String(file.linesOfCode).padStart(6);
-
-    // Author count with emoji
-    const authorIcon = file.authorCount === 1 ? ' 👤' : file.authorCount === 2 ? ' 👥' : '👥👥';
-    const authors = `${String(file.authorCount).padStart(5)}${authorIcon}`;
+    // Author info
+    const authorIcon = file.authorCount === 1 ? '👤' : file.authorCount === 2 ? '👥' : '👥👥';
 
     // Relative time
     const lastChange = file.lastModified ? formatRelativeTime(file.lastModified) : 'unknown';
 
-    output += `${chalk.dim(displayPath)}  ${chalk.cyan(commits)}  ${chalk.yellow(loc)}  ${chalk.green(authors)}  ${chalk.gray(lastChange)}\n`;
+    // File path line with icon and branch
+    output += `${chalk.dim(branch)} ${icon} ${file.filePath}\n`;
+
+    // Metrics line with vertical connector
+    output += chalk.dim(
+      `${connector}     ${file.commitCount} commits • ${file.authorCount} ${authorIcon} • Last: ${lastChange}\n`
+    );
+
+    // Add vertical line separator between items (except after last)
+    if (!isLast) {
+      output += chalk.dim(`${connector}\n`);
+    }
   }
 
   return output;

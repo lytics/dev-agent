@@ -110,7 +110,9 @@ export interface GitHubIndexerState {
   lastIndexed: string; // ISO date
   totalDocuments: number;
   byType: Record<GitHubDocumentType, number>;
-  byState: Record<GitHubState, number>;
+  byState: Record<GitHubState, number>; // Deprecated: aggregate counts (kept for compatibility)
+  issuesByState: { open: number; closed: number };
+  prsByState: { open: number; closed: number; merged: number };
 }
 
 /**
@@ -145,7 +147,9 @@ export interface GitHubIndexStats {
   repository: string;
   totalDocuments: number;
   byType: Record<GitHubDocumentType, number>;
-  byState: Record<GitHubState, number>;
+  byState: Record<GitHubState, number>; // Deprecated: aggregate counts (kept for compatibility)
+  issuesByState: { open: number; closed: number };
+  prsByState: { open: number; closed: number; merged: number };
   lastIndexed: string; // ISO date
   indexDuration: number; // milliseconds
 }
