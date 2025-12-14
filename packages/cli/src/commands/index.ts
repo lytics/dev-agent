@@ -205,8 +205,8 @@ export const indexCommand = new Command('index')
               'documents',
               embeddingStartTime
             );
-          } else {
-            // Scanning phase
+          } else if (progress.phase === 'scanning') {
+            // Scanning phase - show file progress
             progressRenderer.updateSectionWithRate(
               progress.filesProcessed,
               progress.totalFiles,

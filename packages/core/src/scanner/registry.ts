@@ -132,7 +132,21 @@ export class ScannerRegistry {
       });
 
       try {
-        const documents = await scanner.scan(scannerFiles, options.repoRoot, logger);
+        const documents = await scanner.scan(
+          scannerFiles,
+          options.repoRoot,
+          logger,
+          (filesProcessed, _totalFiles) => {
+            // Emit progress updates from scanner
+            emitProgress({
+              phase: 'scanning',
+              language: scanner.language,
+              filesTotal: files.length,
+              filesScanned: totalFilesScanned + filesProcessed,
+              documentsExtracted: allDocuments.length,
+            });
+          }
+        );
         allDocuments.push(...documents);
         totalFilesScanned += scannerFiles.length;
 

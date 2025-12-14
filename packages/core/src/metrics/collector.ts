@@ -4,17 +4,25 @@
  * Builds CodeMetadata from scanner results and change frequency data.
  */
 
-// Note: We import FileAuthorContribution type only for internal use in deriving change frequency
-import type { FileAuthorContribution } from '../indexer/utils/change-frequency.js';
-import { calculateFileAuthorContributions } from '../indexer/utils/change-frequency.js';
+import { calculateChangeFrequency } from '../indexer/utils/change-frequency.js';
 import type { Document } from '../scanner/types.js';
 import type { CodeMetadata } from './types.js';
 
 /**
- * Count lines of code in a snippet
+ * Count lines of code in a file
  */
-function countLines(content: string): number {
-  return content.split('\n').length;
+async function countFileLines(repositoryPath: string, filePath: string): Promise<number> {
+  const fs = await import('node:fs/promises');
+  const path = await import('node:path');
+
+  try {
+    const fullPath = path.join(repositoryPath, filePath);
+    const content = await fs.readFile(fullPath, 'utf-8');
+    return content.split('\n').length;
+  } catch {
+    // File doesn't exist or can't be read - return 0
+    return 0;
+  }
 }
 
 /**
@@ -32,45 +40,11 @@ export async function buildCodeMetadata(
   repositoryPath: string,
   documents: Document[]
 ): Promise<CodeMetadata[]> {
-  // Use fast batched author contributions call to derive change frequency
-  // This is much faster than the old calculateChangeFrequency which made individual git calls per file
-  const authorContributions = await calculateFileAuthorContributions({ repositoryPath }).catch(
-    () => new Map()
-  );
-
-  // Derive change frequency from author contributions (no additional git calls!)
-  const changeFreq = new Map<
-    string,
-    { commitCount: number; lastModified: Date; authorCount: number }
-  >();
-
-  for (const [filePath, contributions] of authorContributions) {
-    // Sum commit counts across all authors
-    const commitCount = contributions.reduce(
-      (sum: number, c: FileAuthorContribution) => sum + c.commitCount,
-      0
-    );
-
-    // Get most recent commit across all authors
-    const lastModified =
-      contributions.reduce(
-        (latest: Date | null, c: FileAuthorContribution) => {
-          if (!c.lastCommit) return latest;
-          if (!latest) return c.lastCommit;
-          return c.lastCommit > latest ? c.lastCommit : latest;
-        },
-        null as Date | null
-      ) || new Date(0);
-
-    // Author count is number of unique contributors
-    const authorCount = contributions.length;
-
-    changeFreq.set(filePath, {
-      commitCount,
-      lastModified,
-      authorCount,
-    });
-  }
+  // Calculate change frequency using git log
+  const changeFreq = await calculateChangeFrequency({
+    repositoryPath,
+    maxCommits: 1000,
+  }).catch(() => new Map());
 
   // Group documents by file
   const fileToDocuments = new Map<string, Document[]>();
@@ -81,38 +55,50 @@ export async function buildCodeMetadata(
     fileToDocuments.set(filePath, existing);
   }
 
-  // Build metadata for each file
+  // Build metadata for each file - process in parallel for speed
+  const CONCURRENCY = 50; // Read 50 files at a time
+  const fileEntries = Array.from(fileToDocuments.entries());
+  const batches: Array<[string, Document[]][]> = [];
+
+  // Create batches
+  for (let i = 0; i < fileEntries.length; i += CONCURRENCY) {
+    batches.push(fileEntries.slice(i, i + CONCURRENCY));
+  }
+
   const metadata: CodeMetadata[] = [];
 
-  for (const [filePath, docs] of fileToDocuments) {
-    const freq = changeFreq.get(filePath);
+  // Process each batch in parallel
+  for (const batch of batches) {
+    const batchResults = await Promise.all(
+      batch.map(async ([filePath, docs]) => {
+        const freq = changeFreq.get(filePath);
 
-    // Estimate LOC from first document's snippet (approximate)
-    // In practice, this is an underestimate since snippet is truncated
-    // But it's good enough for relative comparisons
-    const linesOfCode = docs[0]?.metadata.snippet
-      ? countLines(docs[0].metadata.snippet)
-      : docs[0]?.metadata.endLine - docs[0]?.metadata.startLine || 0;
+        // Count actual lines of code from the file on disk
+        const linesOfCode = await countFileLines(repositoryPath, filePath);
 
-    // Count unique imports across all documents in this file
-    const allImports = new Set<string>();
-    for (const doc of docs) {
-      if (doc.metadata.imports) {
-        for (const imp of doc.metadata.imports) {
-          allImports.add(imp);
+        // Count unique imports across all documents in this file
+        const allImports = new Set<string>();
+        for (const doc of docs) {
+          if (doc.metadata.imports) {
+            for (const imp of doc.metadata.imports) {
+              allImports.add(imp);
+            }
+          }
         }
-      }
-    }
 
-    metadata.push({
-      filePath,
-      commitCount: freq?.commitCount,
-      lastModified: freq?.lastModified,
-      authorCount: freq?.authorCount,
-      linesOfCode,
-      numFunctions: docs.length, // Each document is a function/component
-      numImports: allImports.size,
-    });
+        return {
+          filePath,
+          commitCount: freq?.commitCount,
+          lastModified: freq?.lastModified,
+          authorCount: freq?.authorCount,
+          linesOfCode,
+          numFunctions: docs.length, // Each document is a function/component
+          numImports: allImports.size,
+        };
+      })
+    );
+
+    metadata.push(...batchResults);
   }
 
   return metadata;

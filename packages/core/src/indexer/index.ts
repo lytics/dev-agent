@@ -108,6 +108,19 @@ export class RepositoryIndexer {
         exclude: [...this.config.excludePatterns, ...(options.excludePatterns || [])],
         languages: options.languages,
         logger: options.logger,
+        onProgress: (scanProgress) => {
+          // Forward scanner progress to indexer progress callback
+          onProgress?.({
+            phase: 'scanning',
+            filesProcessed: scanProgress.filesScanned,
+            totalFiles: scanProgress.filesTotal,
+            documentsIndexed: scanProgress.documentsExtracted,
+            percentComplete:
+              scanProgress.filesTotal > 0
+                ? Math.round((scanProgress.filesScanned / scanProgress.filesTotal) * 100)
+                : 0,
+          });
+        },
       });
 
       filesScanned = scanResult.stats.filesScanned;
@@ -283,7 +296,6 @@ export class RepositoryIndexer {
       }
 
       // Build code metadata for metrics storage (git change frequency only)
-      // Author contributions are calculated on-demand in `dev owners` command
       let codeMetadata: CodeMetadata[] | undefined;
       if (this.eventBus) {
         try {
@@ -476,7 +488,7 @@ export class RepositoryIndexer {
 
     // Build code metadata for metrics storage (only for updated files)
     // Build code metadata for metrics storage (git change frequency only)
-    // Author contributions are calculated on-demand in `dev owners` command
+    // Author contributions are calculated on-demand if needed
     let codeMetadata: CodeMetadata[] | undefined;
     if (this.eventBus && scannedDocuments.length > 0) {
       try {

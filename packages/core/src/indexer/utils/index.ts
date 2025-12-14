@@ -11,8 +11,6 @@ export {
   aggregateChangeFrequency,
   type ChangeFrequencyOptions,
   calculateChangeFrequency,
-  calculateFileAuthorContributions,
-  type FileAuthorContribution,
   type FileChangeFrequency,
 } from './change-frequency';
 
