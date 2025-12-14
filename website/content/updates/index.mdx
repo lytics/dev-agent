@@ -9,6 +9,83 @@ What's new in dev-agent. We ship improvements regularly to help AI assistants un
 
 ---
 
+## v0.8.4 — Refocus on Semantic Value
+
+*December 14, 2025*
+
+**Removed git analytics commands to refocus on dev-agent's unique semantic capabilities.**
+
+### What Changed
+
+**🗑️ Removed Features**
+
+Eliminated CLI commands that duplicate git/GitHub functionality:
+
+- **`dev owners`** — Use `git log --format="%ae" <path> | sort | uniq -c | sort -rn` or GitHub Contributors
+- **`dev activity`** — Use `git log --since="1 month" --name-only | sort | uniq -c | sort -rn`
+
+**Impact:** -1,006 lines removed, cleaner codebase focused on unique semantic value.
+
+### Why This Matters
+
+Dev-agent's **unique value** is semantic understanding:
+
+- ✅ **Semantic code search** (`dev_search`) — Find code by meaning, not keywords
+- ✅ **Semantic commit search** (`dev_history`) — Search git history by concept
+- ✅ **Code structure analysis** (`dev_map`, `dev_explore`) — AST + embeddings
+- ✅ **GitHub context** (`dev_plan`, `dev_gh`) — Cross-reference issues with code
+
+Git analytics (ownership, activity) are better served by existing tools:
+- Git CLI has excellent built-in analytics
+- GitHub provides rich contributor visualizations
+- No need to duplicate what already works
+
+### What's Kept
+
+**Core semantic tools remain:**
+- `dev_search` — Semantic code search
+- `dev_history` — Semantic commit search
+- `dev_map` — Codebase structure with change frequency
+- `dev_plan` — GitHub issue context assembly
+- `dev_explore` — Code similarity and relationships
+- `dev_gh` — GitHub semantic search
+
+**Supporting infrastructure:**
+- `code_metadata` table — Introspection of indexed code (LOC, functions, imports)
+- `calculateChangeFrequency` — Powers `dev_map` change frequency display
+
+### Migration Guide
+
+For git analytics, use standard tools:
+
+```bash
+# Ownership by contributor
+git log --format="%ae" packages/core/ | sort | uniq -c | sort -rn
+
+# Recent activity
+git log --since="1 month" --name-only | sort | uniq -c | sort -rn
+
+# GitHub visualization
+# Visit: https://github.com/{org}/{repo}/graphs/contributors
+```
+
+### Philosophy
+
+**Dev-agent is an MCP context provider, not a CLI analytics dashboard.**
+
+Focus on what AI assistants can't get elsewhere:
+- Semantic search over code and commits
+- AST-powered code structure analysis
+- Cross-referencing multiple data sources
+- Contextual code understanding
+
+Leverage existing tools for what they do best:
+- Git for commit/author analytics
+- GitHub for contributor visualization
+- Dev-agent for semantic understanding
+
+---
+
 ## v0.8.2 — Massive Indexing Performance & UX Improvements
 
 *December 13, 2025*
@@ -52,52 +129,9 @@ dev index .
 
 💡 Next steps:
    dev map       Explore codebase structure
-   dev owners    See contributor stats
-   dev activity  Find active files
 ```
 
 **Applied to 4 commands:** `dev index`, `dev update`, `dev git index`, `dev github index`
-
-**🔍 Context-Aware `dev owners` Command**
-
-Completely redesigned to provide actionable insights based on your current context:
-
-**Three Intelligent Modes:**
-
-1. **Changed Files Mode** — Shows ownership of uncommitted changes (perfect for PR reviews)
-2. **Root Directory Mode** — High-level overview of top areas (`packages/cli/`, `packages/core/`)
-3. **Subdirectory Mode** — Detailed expertise for the specific area you're in
-
-**Smart Ownership Display:**
-
-```bash
-# Your file (minimal noise)
-└─ src/auth.ts
-     @you • 50 commits • Last: 6 months ago
-
-# Your file + recent activity by others (coordination warning)
-└─ src/auth.ts
-     @you • 50 commits • Last: 6 months ago
-     ⚠️  Recent activity by @alice (yesterday)
-
-💡 Suggested reviewers: @alice
-
-# Someone else's stale file (review required)
-└─ ⚠️  src/legacy.ts
-     @alice • 12 commits • Last: 2 years ago
-
-# New file (no history)
-└─ 🆕 src/feature.ts
-     New file
-```
-
-**Key Features:**
-
-- **Asymmetric icons** — Only flags exceptions (⚠️ others' files, 🆕 new files)
-- **Last touched timestamps** — Catches stale code and active development
-- **Recent activity detection** — Warns when others recently modified your files
-- **Suggested reviewers** — Auto-identifies who to loop in for code reviews
-- **Real-time git log analysis** — Works for uncommitted changes
 - **Git root detection** — Works from any subdirectory
 
 ### Architecture Simplifications
@@ -161,6 +195,8 @@ No re-index required. Changes take effect immediately.
 ## v0.8.0 — Developer Insights & Performance
 
 *December 13, 2025*
+
+> **⚠️ Deprecation Notice:** `dev owners` and `dev activity` were removed in v0.8.4. Use `git log` or GitHub for contributor analytics. Dev-agent now focuses on semantic search and code understanding.
 
 **New developer activity and ownership commands with 35x faster queries via indexed author contributions.**
 
