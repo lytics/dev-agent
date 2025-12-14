@@ -59,6 +59,56 @@ function getDisplayName(email: string, repositoryPath: string): string {
 }
 
 /**
+ * Get current user as GitHub handle
+ */
+function getCurrentUser(repositoryPath: string): string {
+  const { execSync } = require('node:child_process');
+  try {
+    const email = execSync('git config user.email', {
+      cwd: repositoryPath,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'ignore'],
+    }).trim();
+    return getDisplayName(email, repositoryPath);
+  } catch {
+    return 'unknown';
+  }
+}
+
+/**
+ * Get list of changed files (uncommitted changes)
+ */
+function getChangedFiles(repositoryPath: string): string[] {
+  const { execSync } = require('node:child_process');
+  try {
+    const output = execSync('git diff --name-only HEAD', {
+      cwd: repositoryPath,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'ignore'],
+    });
+    return output.trim().split('\n').filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Check if current directory is at repo root
+ */
+function isAtRepoRoot(repositoryPath: string): boolean {
+  return process.cwd() === repositoryPath;
+}
+
+/**
+ * Get current directory relative to repo root
+ */
+function getCurrentDirectory(repositoryPath: string): string {
+  const cwd = process.cwd();
+  if (cwd === repositoryPath) return '';
+  return cwd.replace(repositoryPath, '').replace(/^\//, '') + '/';
+}
+
+/**
  * Calculate developer ownership from indexed data (instant, no git calls!)
  */
 async function calculateDeveloperOwnership(
@@ -170,7 +220,170 @@ async function calculateDeveloperOwnership(
 }
 
 /**
- * Format developer stats as a table
+ * Format changed files mode with tree branches
+ */
+function formatChangedFilesMode(
+  changedFiles: string[],
+  fileOwners: Map<string, { owner: string; commits: number; lastActive: Date | null }>,
+  currentUser: string,
+  repositoryPath: string
+): string {
+  let output = '';
+  output += chalk.bold('📝 Modified files') + chalk.gray(` (${changedFiles.length}):\n`);
+
+  const reviewers = new Set<string>();
+
+  for (let i = 0; i < changedFiles.length; i++) {
+    const file = changedFiles[i];
+    const isLast = i === changedFiles.length - 1;
+    const prefix = isLast ? '└─' : '├─';
+    const ownerInfo = fileOwners.get(file);
+
+    // Shorten file path for display
+    const displayPath = file.length > 60 ? `...${file.slice(-57)}` : file;
+
+    if (!ownerInfo) {
+      output += chalk.dim(`  ${prefix} ${displayPath}\n`);
+      output += chalk.dim(`  ${isLast ? ' ' : '│'}    Owner: Unknown (new file?)\n`);
+    } else {
+      const isYours = ownerInfo.owner === currentUser;
+      const icon = isYours ? '✅' : '⚠️ ';
+
+      output += `  ${chalk.gray(prefix)} ${icon} ${chalk.white(displayPath)}\n`;
+      output += chalk.dim(
+        `  ${isLast ? ' ' : '│'}    Owner: ${isYours ? 'You' : ownerInfo.owner} (${chalk.cyan(ownerInfo.owner)})`
+      );
+      output += chalk.dim(` • ${ownerInfo.commits} commits\n`);
+
+      if (!isYours) {
+        reviewers.add(ownerInfo.owner);
+      }
+    }
+
+    if (!isLast) output += chalk.dim(`  │\n`);
+  }
+
+  if (reviewers.size > 0) {
+    output += '\n';
+    output += chalk.yellow(`💡 Suggested reviewers: ${Array.from(reviewers).join(', ')}\n`);
+  }
+
+  return output;
+}
+
+/**
+ * Format root directory mode with tree branches
+ */
+function formatRootDirectoryMode(developers: DeveloperStats[], repositoryPath: string): string {
+  // Group files by top-level directory
+  const dirMap = new Map<string, { files: Set<string>; owner: string; lastActive: Date | null }>();
+
+  for (const dev of developers) {
+    for (const fileData of dev.topFiles) {
+      const parts = fileData.path.replace(repositoryPath + '/', '').split('/');
+      const topDir = parts[0] || '';
+
+      if (!topDir) continue;
+
+      let dirData = dirMap.get(topDir);
+      if (!dirData) {
+        dirData = { files: new Set(), owner: dev.displayName, lastActive: dev.lastActive };
+        dirMap.set(topDir, dirData);
+      }
+      dirData.files.add(fileData.path);
+
+      // Use most recently active owner
+      if (dev.lastActive && (!dirData.lastActive || dev.lastActive > dirData.lastActive)) {
+        dirData.owner = dev.displayName;
+        dirData.lastActive = dev.lastActive;
+      }
+    }
+  }
+
+  const repoName = repositoryPath.split('/').pop() || 'repository';
+  let output = chalk.bold(`📦 ${repoName}\n\n`);
+  output += chalk.bold('Top areas:\n');
+
+  const dirs = Array.from(dirMap.entries()).sort((a, b) => b[1].files.size - a[1].files.size);
+
+  for (let i = 0; i < Math.min(dirs.length, 10); i++) {
+    const [dirName, data] = dirs[i];
+    const isLast = i === Math.min(dirs.length, 10) - 1;
+    const prefix = isLast ? '└─' : '├─';
+    const relTime = data.lastActive ? formatRelativeTime(data.lastActive) : 'unknown';
+
+    output += chalk.dim(`  ${prefix} `) + chalk.cyan(`📁 ${dirName}/`);
+    output += chalk.gray(`  ${data.owner} • ${data.files.size} files • Active ${relTime}\n`);
+  }
+
+  output += '\n';
+  output += chalk.dim(
+    `💡 Tip: Use ${chalk.cyan(`'dev owners ${dirs[0]?.[0]}/'`)} to see details\n`
+  );
+
+  return output;
+}
+
+/**
+ * Format subdirectory mode with tree branches
+ */
+function formatSubdirectoryMode(
+  developers: DeveloperStats[],
+  currentDir: string,
+  repositoryPath: string
+): string {
+  // Filter developers to only those with files in current directory
+  const relevantDevs = developers.filter((dev) =>
+    dev.topFiles.some((f) => f.path.startsWith(repositoryPath + '/' + currentDir))
+  );
+
+  if (relevantDevs.length === 0) {
+    return chalk.yellow('No ownership data found for this directory\n');
+  }
+
+  const primary = relevantDevs[0];
+  let output = chalk.bold(`📁 ${currentDir}\n\n`);
+
+  output += chalk.bold(`👤 ${primary.displayName}`) + chalk.gray(' (Primary expert)\n');
+  output += chalk.dim(`  ├─ ${primary.files} files owned\n`);
+  output += chalk.dim(`  ├─ ${primary.commits} commits total\n`);
+  const lastActiveStr = primary.lastActive ? formatRelativeTime(primary.lastActive) : 'unknown';
+  output += chalk.dim(`  └─ Last active: ${lastActiveStr}\n`);
+
+  // Show top files in this directory
+  const filesInDir = primary.topFiles
+    .filter((f) => f.path.startsWith(repositoryPath + '/' + currentDir))
+    .slice(0, 5);
+
+  if (filesInDir.length > 0) {
+    output += '\n';
+    output += chalk.bold('Recent files:\n');
+
+    for (let i = 0; i < filesInDir.length; i++) {
+      const file = filesInDir[i];
+      const isLast = i === filesInDir.length - 1;
+      const prefix = isLast ? '└─' : '├─';
+      const fileName = file.path.split('/').pop() || file.path;
+      const locStr = file.loc >= 1000 ? `${(file.loc / 1000).toFixed(1)}k` : String(file.loc);
+
+      output += chalk.dim(`  ${prefix} ${fileName} • ${file.commits} commits • ${locStr} LOC\n`);
+    }
+  }
+
+  output += '\n';
+  if (relevantDevs.length === 1) {
+    output += chalk.dim(`💡 Tip: You're the main contributor here\n`);
+  } else {
+    output += chalk.dim(
+      `💡 Tip: Run ${chalk.cyan("'dev owners --all'")} to see all ${relevantDevs.length} contributors\n`
+    );
+  }
+
+  return output;
+}
+
+/**
+ * Format developer stats as a table (legacy --all mode)
  */
 function formatDeveloperTable(developers: DeveloperStats[]): string {
   if (developers.length === 0) return '';
@@ -179,13 +392,14 @@ function formatDeveloperTable(developers: DeveloperStats[]): string {
   const maxNameLen = Math.max(...developers.map((d) => d.displayName.length), 15);
   const nameWidth = Math.min(maxNameLen, 30);
 
-  // Header
+  // Header - add 5 extra spaces after DEVELOPER to accommodate longer file paths
+  const extraSpacing = '     '; // 5 extra spaces for file path display
   let output = chalk.bold(
-    `${'DEVELOPER'.padEnd(nameWidth)}  ${'FILES'.padStart(6)}  ${'COMMITS'.padStart(8)}  ${'LOC'.padStart(8)}  ${'LAST ACTIVE'}\n`
+    `${'DEVELOPER'.padEnd(nameWidth)}${extraSpacing}  ${'FILES'.padStart(6)}  ${'COMMITS'.padStart(8)}  ${'LOC'.padStart(8)}  ${'LAST ACTIVE'}\n`
   );
 
-  // Separator (calculate exact width)
-  const separatorWidth = nameWidth + 2 + 6 + 2 + 8 + 2 + 8 + 2 + 12;
+  // Separator (calculate exact width including extra spacing)
+  const separatorWidth = nameWidth + 5 + 2 + 6 + 2 + 8 + 2 + 8 + 2 + 12;
   output += chalk.dim(`${'─'.repeat(separatorWidth)}\n`);
 
   // Rows
@@ -207,7 +421,8 @@ function formatDeveloperTable(developers: DeveloperStats[]): string {
 
     const lastActive = dev.lastActive ? formatRelativeTime(dev.lastActive) : 'unknown';
 
-    output += `${chalk.cyan(displayName)}  ${chalk.yellow(files)}  ${chalk.green(commits)}  ${chalk.magenta(loc)}  ${chalk.gray(lastActive)}\n`;
+    // Add extra spacing to match header
+    output += `${chalk.cyan(displayName)}${extraSpacing}  ${chalk.yellow(files)}  ${chalk.green(commits)}  ${chalk.magenta(loc)}  ${chalk.gray(lastActive)}\n`;
 
     // Show top files owned by this developer
     if (dev.topFiles.length > 0) {
@@ -216,20 +431,23 @@ function formatDeveloperTable(developers: DeveloperStats[]): string {
         const isLast = i === dev.topFiles.length - 1;
         const prefix = isLast ? '└─' : '├─';
 
-        // Shorten file path for display
+        // Calculate file path width to align with columns
+        // Tree takes 5 chars: "  ├─ "
+        // File path should extend to where FILES column ends, plus 5 extra chars
+        const filePathWidth = nameWidth + 2 + 6 - 5 + 5;
         let filePath = file.path;
-        const maxPathLen = 50;
-        if (filePath.length > maxPathLen) {
-          filePath = `...${filePath.slice(-(maxPathLen - 3))}`;
+        if (filePath.length > filePathWidth) {
+          filePath = `...${filePath.slice(-(filePathWidth - 3))}`;
         }
 
-        // Format stats with proper spacing
-        const fileCommits = String(file.commits).padStart(3);
+        // Format numeric columns to match header (COMMITS=8, LOC=8)
+        const fileCommits = String(file.commits).padStart(8);
         const fileLoc = file.loc >= 1000 ? `${(file.loc / 1000).toFixed(1)}k` : String(file.loc);
+        const fileLocPadded = fileLoc.padStart(8);
 
-        // Align the numeric columns
+        // Align exactly with header columns
         output += chalk.dim(
-          `  ${chalk.gray(prefix)} ${filePath.padEnd(maxPathLen)}  ${chalk.green(fileCommits)}  ${chalk.magenta(fileLoc.padStart(6))}\n`
+          `  ${chalk.gray(prefix)} ${filePath.padEnd(filePathWidth)}  ${chalk.green(fileCommits)}  ${chalk.magenta(fileLocPadded)}\n`
         );
       }
     }
@@ -258,9 +476,10 @@ function formatRelativeTime(date: Date): string {
  * Owners command - Show developer contributions
  */
 export const ownersCommand = new Command('owners')
-  .description('Show developer contributions and code ownership')
-  .option('-n, --limit <number>', 'Number of top developers to display (by files owned)', '10')
-  .option('--json', 'Output as JSON (includes all developers)', false)
+  .description('Show code ownership and developer contributions (context-aware)')
+  .option('-n, --limit <number>', 'Number of developers to display (default: 10)', '10')
+  .option('--all', 'Show all contributors (legacy table view)', false)
+  .option('--json', 'Output as JSON', false)
   .action(async (options) => {
     try {
       const config = await loadConfig();
@@ -297,42 +516,81 @@ export const ownersCommand = new Command('owners')
         process.exit(0);
       }
 
-      const limit = Number.parseInt(options.limit, 10);
-      const topDevelopers = developers.slice(0, limit);
-
       // JSON output for programmatic use
       if (options.json) {
+        const limit = Number.parseInt(options.limit, 10);
+        const topDevelopers = developers.slice(0, limit);
         console.log(
           JSON.stringify({ developers: topDevelopers, total: developers.length }, null, 2)
         );
         return;
       }
 
-      // Human-readable table output
-      console.log('');
-      console.log(
-        chalk.bold.cyan(`👥 Developer Contributions (${developers.length} total contributors)`)
-      );
-      console.log('');
-      console.log(formatDeveloperTable(topDevelopers));
-      console.log('');
+      // Legacy --all mode: show table of all contributors
+      if (options.all) {
+        const limit = Number.parseInt(options.limit, 10);
+        const topDevelopers = developers.slice(0, limit);
 
-      // Add summary insights
-      const totalFiles = developers.reduce((sum, d) => sum + d.files, 0);
-      const totalCommits = developers.reduce((sum, d) => sum + d.commits, 0);
-      const topContributor = developers[0];
-
-      console.log(chalk.dim('Summary:'));
-      console.log(
-        chalk.dim(`  • ${totalFiles} files total, ${totalCommits.toLocaleString()} commits`)
-      );
-      if (topContributor && developers.length > 1) {
-        const percentage = Math.round((topContributor.files / totalFiles) * 100);
+        console.log('');
         console.log(
-          chalk.dim(`  • ${topContributor.displayName} is primary owner of ${percentage}% of files`)
+          chalk.bold.cyan(`👥 Developer Contributions (${developers.length} total contributors)`)
         );
+        console.log('');
+        console.log(formatDeveloperTable(topDevelopers));
+        console.log('');
+
+        const totalFiles = developers.reduce((sum, d) => sum + d.files, 0);
+        const totalCommits = developers.reduce((sum, d) => sum + d.commits, 0);
+
+        console.log(chalk.dim('Summary:'));
+        console.log(
+          chalk.dim(`  • ${totalFiles} files total, ${totalCommits.toLocaleString()} commits`)
+        );
+        console.log('');
+        return;
       }
 
+      // Context-aware modes
+      console.log('');
+
+      // Mode 1: Changed files (if there are uncommitted changes)
+      const changedFiles = getChangedFiles(repositoryPath);
+      if (changedFiles.length > 0) {
+        const currentUser = getCurrentUser(repositoryPath);
+
+        // Build file ownership map
+        const fileOwners = new Map<
+          string,
+          { owner: string; commits: number; lastActive: Date | null }
+        >();
+        for (const dev of developers) {
+          for (const fileData of dev.topFiles) {
+            const relativePath = fileData.path.replace(repositoryPath + '/', '');
+            if (!fileOwners.has(relativePath)) {
+              fileOwners.set(relativePath, {
+                owner: dev.displayName,
+                commits: fileData.commits,
+                lastActive: dev.lastActive,
+              });
+            }
+          }
+        }
+
+        console.log(formatChangedFilesMode(changedFiles, fileOwners, currentUser, repositoryPath));
+        console.log('');
+        return;
+      }
+
+      // Mode 2: Root directory (show high-level areas)
+      if (isAtRepoRoot(repositoryPath)) {
+        console.log(formatRootDirectoryMode(developers, repositoryPath));
+        console.log('');
+        return;
+      }
+
+      // Mode 3: Subdirectory (show expertise for current area)
+      const currentDir = getCurrentDirectory(repositoryPath);
+      console.log(formatSubdirectoryMode(developers, currentDir, repositoryPath));
       console.log('');
     } catch (error) {
       logger.error(
