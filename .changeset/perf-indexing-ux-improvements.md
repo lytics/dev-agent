@@ -27,8 +27,13 @@ Massive indexing performance and UX improvements
 - **Slow file detection**: Debug logs for files/batches taking >5s to process
 - **Cleaner completion summary**: Removed storage size from index output (shown in `dev stats` instead)
 - **Continuous feedback**: Maximum 1-second gaps between progress updates
+- **Context-aware `dev owners` command**: Adapts output based on git status and current directory
+  - **Changed files mode**: Shows ownership of uncommitted changes (for PR reviews)
+  - **Root directory mode**: High-level overview of top areas (packages/cli/, packages/core/)
+  - **Subdirectory mode**: Detailed expertise for specific area
+  - **Visual hierarchy**: Tree branches (├─, └─) and emojis (📝, 📁, 👤) for better readability
+  - **Activity-focused**: Sorted by last active, not file count (no more leaderboard vibes)
 - **Better developer grouping**: `dev owners` now groups by GitHub handle instead of email (merges multiple emails for same developer)
-- **File breakdown per developer**: Shows top 5 files owned with commit counts and LOC
 - **Graceful degradation**: Verbose mode and non-TTY environments show traditional log output
 
 **Technical Details:**
