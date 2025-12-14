@@ -1,6 +1,7 @@
 ---
 "@lytics/dev-agent-core": minor
 "@lytics/dev-agent-cli": minor
+"@lytics/dev-agent": patch
 ---
 
 Massive indexing performance and UX improvements
@@ -28,11 +29,16 @@ Massive indexing performance and UX improvements
 - **Cleaner completion summary**: Removed storage size from index output (shown in `dev stats` instead)
 - **Continuous feedback**: Maximum 1-second gaps between progress updates
 - **Context-aware `dev owners` command**: Adapts output based on git status and current directory
-  - **Changed files mode**: Shows ownership of uncommitted changes (for PR reviews)
+  - **Changed files mode**: Shows ownership of uncommitted changes with real-time git log analysis
   - **Root directory mode**: High-level overview of top areas (packages/cli/, packages/core/)
   - **Subdirectory mode**: Detailed expertise for specific area
+  - **Smart ownership display**: Asymmetric icons that only flag exceptions (⚠️ for others' files, 🆕 for new files)
+  - **Last touched timestamps**: Shows when files were last modified (catches stale code and active development)
+  - **Recent activity detection**: Warns when others recently touched your files (prevents conflicts)
+  - **Suggested reviewers**: Automatically identifies who to loop in for code reviews
   - **Visual hierarchy**: Tree branches (├─, └─) and emojis (📝, 📁, 👤) for better readability
   - **Activity-focused**: Sorted by last active, not file count (no more leaderboard vibes)
+  - **Git root detection**: Works from any subdirectory within the repository
 - **Better developer grouping**: `dev owners` now groups by GitHub handle instead of email (merges multiple emails for same developer)
 - **Graceful degradation**: Verbose mode and non-TTY environments show traditional log output
 

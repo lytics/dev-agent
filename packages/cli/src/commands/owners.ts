@@ -2,11 +2,11 @@
  * Owners command - Show code ownership and developer contributions
  */
 
+import { execSync } from 'node:child_process';
 import * as path from 'node:path';
 import { getStoragePath, MetricsStore } from '@lytics/dev-agent-core';
 import chalk from 'chalk';
 import { Command } from 'commander';
-import { loadConfig } from '../utils/config.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -106,6 +106,119 @@ function getCurrentDirectory(repositoryPath: string): string {
   const cwd = process.cwd();
   if (cwd === repositoryPath) return '';
   return `${cwd.replace(repositoryPath, '').replace(/^\//, '')}/`;
+}
+
+/**
+ * Get git repository root (or process.cwd() if not in git repo)
+ */
+function getGitRoot(): string {
+  try {
+    const output = execSync('git rev-parse --show-toplevel', {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'ignore'],
+    });
+    return output.trim();
+  } catch {
+    return process.cwd();
+  }
+}
+
+/**
+ * Get ownership for specific files using git log (for uncommitted changes)
+ */
+function getFileOwnership(
+  repositoryPath: string,
+  filePaths: string[]
+): Map<
+  string,
+  {
+    owner: string;
+    commits: number;
+    lastActive: Date | null;
+    recentContributor?: { name: string; lastActive: Date | null };
+  }
+> {
+  const fileOwners = new Map<
+    string,
+    {
+      owner: string;
+      commits: number;
+      lastActive: Date | null;
+      recentContributor?: { name: string; lastActive: Date | null };
+    }
+  >();
+
+  for (const filePath of filePaths) {
+    try {
+      const absolutePath = path.join(repositoryPath, filePath);
+      const output = execSync(
+        `git log --follow --format='%ae|%aI' --numstat -- "${absolutePath}" | head -100`,
+        {
+          cwd: repositoryPath,
+          encoding: 'utf-8',
+          stdio: ['pipe', 'pipe', 'ignore'],
+        }
+      );
+
+      const lines = output.trim().split('\n');
+      const authors = new Map<string, { commits: number; lastActive: Date | null }>();
+
+      let currentEmail = '';
+      let currentDate: Date | null = null;
+
+      for (const line of lines) {
+        if (line.includes('|')) {
+          // Author line: email|date
+          const [email, dateStr] = line.split('|');
+          currentEmail = email.trim();
+          currentDate = new Date(dateStr);
+
+          const existing = authors.get(currentEmail);
+          if (!existing) {
+            authors.set(currentEmail, { commits: 1, lastActive: currentDate });
+          } else {
+            existing.commits++;
+            if (!existing.lastActive || currentDate > existing.lastActive) {
+              existing.lastActive = currentDate;
+            }
+          }
+        }
+      }
+
+      if (authors.size > 0) {
+        // Get primary author (most commits)
+        const sortedByCommits = Array.from(authors.entries()).sort(
+          (a, b) => b[1].commits - a[1].commits
+        );
+        const [primaryEmail, primaryData] = sortedByCommits[0];
+        const primaryHandle = getDisplayName(primaryEmail, repositoryPath);
+
+        // Find most recent contributor
+        const sortedByRecency = Array.from(authors.entries()).sort((a, b) => {
+          const dateA = a[1].lastActive?.getTime() || 0;
+          const dateB = b[1].lastActive?.getTime() || 0;
+          return dateB - dateA;
+        });
+        const [recentEmail, recentData] = sortedByRecency[0];
+        const recentHandle = getDisplayName(recentEmail, repositoryPath);
+
+        // Check if recent contributor is different from primary owner
+        const recentContributor =
+          recentHandle !== primaryHandle
+            ? { name: recentHandle, lastActive: recentData.lastActive }
+            : undefined;
+
+        fileOwners.set(filePath, {
+          owner: primaryHandle,
+          commits: primaryData.commits,
+          lastActive: primaryData.lastActive,
+          recentContributor,
+        });
+      }
+    } catch {}
+  }
+
+  return fileOwners;
 }
 
 /**
@@ -224,7 +337,15 @@ async function calculateDeveloperOwnership(
  */
 function formatChangedFilesMode(
   changedFiles: string[],
-  fileOwners: Map<string, { owner: string; commits: number; lastActive: Date | null }>,
+  fileOwners: Map<
+    string,
+    {
+      owner: string;
+      commits: number;
+      lastActive: Date | null;
+      recentContributor?: { name: string; lastActive: Date | null };
+    }
+  >,
   currentUser: string,
   _repositoryPath: string
 ): string {
@@ -243,19 +364,38 @@ function formatChangedFilesMode(
     const displayPath = file.length > 60 ? `...${file.slice(-57)}` : file;
 
     if (!ownerInfo) {
-      output += chalk.dim(`  ${prefix} ${displayPath}\n`);
-      output += chalk.dim(`  ${isLast ? ' ' : '│'}    Owner: Unknown (new file?)\n`);
+      // New file - no history
+      output += `  ${chalk.gray(prefix)} 🆕 ${chalk.white(displayPath)}\n`;
+      output += chalk.dim(`  ${isLast ? ' ' : '│'}    New file\n`);
     } else {
       const isYours = ownerInfo.owner === currentUser;
-      const icon = isYours ? '✅' : '⚠️ ';
+      const lastTouched = ownerInfo.lastActive
+        ? formatRelativeTime(ownerInfo.lastActive)
+        : 'unknown';
 
-      output += `  ${chalk.gray(prefix)} ${icon} ${chalk.white(displayPath)}\n`;
-      output += chalk.dim(
-        `  ${isLast ? ' ' : '│'}    Owner: ${isYours ? 'You' : ownerInfo.owner} (${chalk.cyan(ownerInfo.owner)})`
-      );
-      output += chalk.dim(` • ${ownerInfo.commits} commits\n`);
+      if (isYours) {
+        // Your file - no icon, minimal noise
+        output += `  ${chalk.gray(prefix)} ${chalk.white(displayPath)}\n`;
+        output += chalk.dim(
+          `  ${isLast ? ' ' : '│'}    ${chalk.cyan(ownerInfo.owner)} • ${ownerInfo.commits} commits • Last: ${lastTouched}\n`
+        );
 
-      if (!isYours) {
+        // Check if someone else touched it recently
+        if (ownerInfo.recentContributor) {
+          const recentTime = ownerInfo.recentContributor.lastActive
+            ? formatRelativeTime(ownerInfo.recentContributor.lastActive)
+            : 'recently';
+          output += chalk.dim(
+            `  ${isLast ? ' ' : '│'}    ${chalk.yellow(`⚠️  Recent activity by ${chalk.cyan(ownerInfo.recentContributor.name)} (${recentTime})`)}\n`
+          );
+          reviewers.add(ownerInfo.recentContributor.name);
+        }
+      } else {
+        // Someone else's file - flag for review
+        output += `  ${chalk.gray(prefix)} ⚠️  ${chalk.white(displayPath)}\n`;
+        output += chalk.dim(
+          `  ${isLast ? ' ' : '│'}    ${chalk.cyan(ownerInfo.owner)} • ${ownerInfo.commits} commits • Last: ${lastTouched}\n`
+        );
         reviewers.add(ownerInfo.owner);
       }
     }
@@ -411,15 +551,8 @@ export const ownersCommand = new Command('owners')
   .option('--json', 'Output as JSON', false)
   .action(async (options) => {
     try {
-      const config = await loadConfig();
-      if (!config) {
-        logger.error('No config found. Run "dev init" first.');
-        process.exit(1);
-      }
-
-      const repositoryPath = path.resolve(
-        config.repository?.path || config.repositoryPath || process.cwd()
-      );
+      // Always use git root for metrics lookup (config paths may be relative)
+      const repositoryPath = getGitRoot();
       const storagePath = await getStoragePath(repositoryPath);
       const metricsDbPath = path.join(storagePath, 'metrics.db');
 
@@ -463,23 +596,8 @@ export const ownersCommand = new Command('owners')
       if (changedFiles.length > 0) {
         const currentUser = getCurrentUser(repositoryPath);
 
-        // Build file ownership map
-        const fileOwners = new Map<
-          string,
-          { owner: string; commits: number; lastActive: Date | null }
-        >();
-        for (const dev of developers) {
-          for (const fileData of dev.topFiles) {
-            const relativePath = fileData.path.replace(`${repositoryPath}/`, '');
-            if (!fileOwners.has(relativePath)) {
-              fileOwners.set(relativePath, {
-                owner: dev.displayName,
-                commits: fileData.commits,
-                lastActive: dev.lastActive,
-              });
-            }
-          }
-        }
+        // Get real-time ownership for changed files using git log
+        const fileOwners = getFileOwnership(repositoryPath, changedFiles);
 
         console.log(formatChangedFilesMode(changedFiles, fileOwners, currentUser, repositoryPath));
         console.log('');
