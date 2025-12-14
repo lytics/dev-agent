@@ -174,13 +174,18 @@ export class GoScanner implements Scanner {
     }
 
     const startTime = Date.now();
+    let lastLogTime = startTime;
 
     for (let i = 0; i < total; i++) {
       const file = files[i];
+      const fileStartTime = Date.now();
 
-      // Log progress every 50 files (more frequent feedback)
-      if (logger && i > 0 && i % 50 === 0) {
-        const elapsed = Date.now() - startTime;
+      // Log progress every 50 files OR every 10 seconds
+      const now = Date.now();
+      const timeSinceLastLog = now - lastLogTime;
+      if (logger && i > 0 && (i % 50 === 0 || timeSinceLastLog > 10000)) {
+        lastLogTime = now;
+        const elapsed = now - startTime;
         const filesPerSecond = i / (elapsed / 1000);
         const remainingFiles = total - i;
         const etaSeconds = Math.ceil(remainingFiles / filesPerSecond);
@@ -228,6 +233,15 @@ export class GoScanner implements Scanner {
 
         const fileDocs = await this.extractFromFile(sourceText, file);
         documents.push(...fileDocs);
+
+        // Flag slow files (>5s)
+        const fileDuration = Date.now() - fileStartTime;
+        if (logger && fileDuration > 5000) {
+          logger.debug(
+            { file, duration: fileDuration, documents: fileDocs.length },
+            `Slow file: ${file} took ${(fileDuration / 1000).toFixed(1)}s (${fileDocs.length} docs)`
+          );
+        }
       } catch (error) {
         // Collect detailed error information
         const errorMessage = error instanceof Error ? error.message : String(error);

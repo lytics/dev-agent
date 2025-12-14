@@ -73,9 +73,17 @@ async function loadCurrentStats(): Promise<{
   try {
     const metadataContent = await fs.readFile(path.join(storagePath, 'metadata.json'), 'utf-8');
     const meta = JSON.parse(metadataContent);
+
+    // Calculate storage size on-demand if not set (for performance during indexing)
+    let storageSize = meta.indexed?.size || 0;
+    if (storageSize === 0) {
+      const { getDirectorySize } = await import('../utils/file.js');
+      storageSize = await getDirectorySize(storagePath);
+    }
+
     metadata = {
       timestamp: meta.indexed?.timestamp || '',
-      storageSize: meta.indexed?.size || 0,
+      storageSize,
       repository: meta.repository || { path: resolvedRepoPath },
     };
   } catch {

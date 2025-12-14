@@ -282,16 +282,12 @@ export class RepositoryIndexer {
         this.state.lastUpdate = endTime;
       }
 
-      // Build code metadata for metrics storage
+      // Build code metadata for metrics storage (git change frequency only)
+      // Author contributions are calculated on-demand in `dev owners` command
       let codeMetadata: CodeMetadata[] | undefined;
-      let authorContributions:
-        | Map<string, Array<{ authorEmail: string; commitCount: number; lastCommit: Date | null }>>
-        | undefined;
       if (this.eventBus) {
         try {
-          const result = await buildCodeMetadata(this.config.repositoryPath, scanResult.documents);
-          codeMetadata = result.metadata;
-          authorContributions = result.authorContributions;
+          codeMetadata = await buildCodeMetadata(this.config.repositoryPath, scanResult.documents);
         } catch (error) {
           // Not critical if metadata collection fails
           this.logger?.warn({ error }, 'Failed to collect code metadata for metrics');
@@ -310,7 +306,6 @@ export class RepositoryIndexer {
             stats,
             isIncremental: false,
             codeMetadata,
-            authorContributions,
           },
           { waitForHandlers: false }
         );
@@ -480,15 +475,12 @@ export class RepositoryIndexer {
     };
 
     // Build code metadata for metrics storage (only for updated files)
+    // Build code metadata for metrics storage (git change frequency only)
+    // Author contributions are calculated on-demand in `dev owners` command
     let codeMetadata: CodeMetadata[] | undefined;
-    let authorContributions:
-      | Map<string, Array<{ authorEmail: string; commitCount: number; lastCommit: Date | null }>>
-      | undefined;
     if (this.eventBus && scannedDocuments.length > 0) {
       try {
-        const result = await buildCodeMetadata(this.config.repositoryPath, scannedDocuments);
-        codeMetadata = result.metadata;
-        authorContributions = result.authorContributions;
+        codeMetadata = await buildCodeMetadata(this.config.repositoryPath, scannedDocuments);
       } catch (error) {
         // Not critical if metadata collection fails
         this.logger?.warn({ error }, 'Failed to collect code metadata for metrics during update');
@@ -507,7 +499,6 @@ export class RepositoryIndexer {
           stats,
           isIncremental: true,
           codeMetadata,
-          authorContributions,
         },
         { waitForHandlers: false }
       );

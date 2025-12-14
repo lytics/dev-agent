@@ -1033,7 +1033,7 @@ export function formatDetailedLanguageTable(
  * Format index success summary (compact)
  */
 export function formatIndexSummary(stats: {
-  code: { files: number; documents: number; vectors: number; duration: number; size: string };
+  code: { files: number; documents: number; vectors: number; duration: number; size?: string };
   git?: { commits: number; duration: number };
   github?: { documents: number; duration: number };
   total: { duration: number; storage: string };
@@ -1049,10 +1049,8 @@ export function formatIndexSummary(stats: {
 
   lines.push(`📊 ${chalk.bold('Indexed:')} ${parts.join(' • ')}`);
 
-  // Timing and storage
-  lines.push(
-    `   ${chalk.gray('Duration:')} ${stats.total.duration}s • ${chalk.gray('Storage:')} ${stats.code.size}`
-  );
+  // Timing (storage size calculated on-demand in `dev stats`)
+  lines.push(`   ${chalk.gray('Duration:')} ${stats.total.duration.toFixed(1)}s`);
 
   // Next step
   lines.push('');

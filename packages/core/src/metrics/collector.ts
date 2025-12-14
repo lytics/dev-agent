@@ -4,11 +4,9 @@
  * Builds CodeMetadata from scanner results and change frequency data.
  */
 
-import {
-  calculateChangeFrequency,
-  calculateFileAuthorContributions,
-  type FileAuthorContribution,
-} from '../indexer/utils/change-frequency.js';
+// Note: We import FileAuthorContribution type only for internal use in deriving change frequency
+import type { FileAuthorContribution } from '../indexer/utils/change-frequency.js';
+import { calculateFileAuthorContributions } from '../indexer/utils/change-frequency.js';
 import type { Document } from '../scanner/types.js';
 import type { CodeMetadata } from './types.js';
 
@@ -24,24 +22,55 @@ function countLines(content: string): number {
  *
  * Combines data from:
  * - Scanner results (documents, imports)
- * - Git history (change frequency)
+ * - Git history (change frequency) - calculated on-demand
  *
  * @param repositoryPath - Repository path
  * @param documents - Scanned documents
- * @returns Object with code metadata and author contributions
+ * @returns Code metadata array
  */
 export async function buildCodeMetadata(
   repositoryPath: string,
   documents: Document[]
-): Promise<{
-  metadata: CodeMetadata[];
-  authorContributions: Map<string, FileAuthorContribution[]>;
-}> {
-  // Calculate change frequency and author contributions for all files (in parallel)
-  const [changeFreq, authorContributions] = await Promise.all([
-    calculateChangeFrequency({ repositoryPath }).catch(() => new Map()),
-    calculateFileAuthorContributions({ repositoryPath }).catch(() => new Map()),
-  ]);
+): Promise<CodeMetadata[]> {
+  // Use fast batched author contributions call to derive change frequency
+  // This is much faster than the old calculateChangeFrequency which made individual git calls per file
+  const authorContributions = await calculateFileAuthorContributions({ repositoryPath }).catch(
+    () => new Map()
+  );
+
+  // Derive change frequency from author contributions (no additional git calls!)
+  const changeFreq = new Map<
+    string,
+    { commitCount: number; lastModified: Date; authorCount: number }
+  >();
+
+  for (const [filePath, contributions] of authorContributions) {
+    // Sum commit counts across all authors
+    const commitCount = contributions.reduce(
+      (sum: number, c: FileAuthorContribution) => sum + c.commitCount,
+      0
+    );
+
+    // Get most recent commit across all authors
+    const lastModified =
+      contributions.reduce(
+        (latest: Date | null, c: FileAuthorContribution) => {
+          if (!c.lastCommit) return latest;
+          if (!latest) return c.lastCommit;
+          return c.lastCommit > latest ? c.lastCommit : latest;
+        },
+        null as Date | null
+      ) || new Date(0);
+
+    // Author count is number of unique contributors
+    const authorCount = contributions.length;
+
+    changeFreq.set(filePath, {
+      commitCount,
+      lastModified,
+      authorCount,
+    });
+  }
 
   // Group documents by file
   const fileToDocuments = new Map<string, Document[]>();
@@ -86,5 +115,5 @@ export async function buildCodeMetadata(
     });
   }
 
-  return { metadata, authorContributions };
+  return metadata;
 }
