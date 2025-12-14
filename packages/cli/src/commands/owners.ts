@@ -280,8 +280,14 @@ function formatRootDirectoryMode(developers: DeveloperStats[], repositoryPath: s
 
   for (const dev of developers) {
     for (const fileData of dev.topFiles) {
-      const parts = fileData.path.replace(repositoryPath + '/', '').split('/');
-      const topDir = parts[0] || '';
+      const relativePath = fileData.path.replace(`${repositoryPath}/`, '');
+      const parts = relativePath.split('/');
+
+      // For monorepos (packages/*, apps/*), show 2 levels. Otherwise, 1 level.
+      let topDir = parts[0] || '';
+      if (topDir === 'packages' || topDir === 'apps' || topDir === 'libs') {
+        topDir = parts.slice(0, 2).join('/');
+      }
 
       if (!topDir) continue;
 
