@@ -107,7 +107,7 @@ Steps:
               type: 'text',
               text: `Find all code related to "${args.description}" in the repository.
 
-Use dev_explore with action "pattern" to search for: ${args.description}${args.file_types ? `\nFilter by file types: ${args.file_types}` : ''}
+Use dev_search to search for: ${args.description}${args.file_types ? `\nNote: You can use fileTypes parameter if needed` : ''}
 
 Then provide:
 1. Summary of what you found
@@ -176,8 +176,8 @@ Then provide:
               type: 'text',
               text: `Find code that is similar to "${args.file_path}":
 
-Use dev_explore with:
-- action: "similar"
+Use dev_inspect with:
+- action: "compare"
 - query: "${args.file_path}"${args.threshold ? `\n- threshold: ${args.threshold}` : ''}
 
 Then explain:
@@ -262,9 +262,13 @@ Provide:
               type: 'text',
               text: `Analyze the relationships and dependencies for "${args.file_path}":
 
-Use dev_explore with:
-- action: "relationships"
+Use dev_refs to find what calls or is called by functions in this file.
+
+Alternatively, use dev_inspect with:
+- action: "compare"
 - query: "${args.file_path}"
+
+to find similar implementations.
 
 Then explain:
 1. What this file depends on (imports)

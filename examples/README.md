@@ -200,20 +200,20 @@ dev github index
 
 ---
 
-### `dev_explore` - Code Exploration
+### `dev_inspect` - File Analysis
 
-Find patterns and similar code:
+Inspect files and compare implementations:
 
 ```
-# Find patterns
-dev_explore:
-  action: "pattern"
-  query: "error handling middleware"
+# Compare similar implementations
+dev_inspect:
+  action: "compare"
+  query: "src/utils/retry.ts"
 
-# Find similar code
-dev_explore:
-  action: "similar"
-  path: "src/utils/retry.ts"
+# Validate pattern consistency (coming soon)
+dev_inspect:
+  action: "validate"
+  query: "src/hooks/useAuth.ts"
 ```
 
 ---
@@ -294,9 +294,9 @@ dev_health:
    dev_plan: { issue: 123 }
    ```
 
-2. **Explore relevant patterns:**
+2. **Search for relevant patterns:**
    ```
-   dev_explore: { action: "pattern", query: "feature type from issue" }
+   dev_search: { query: "feature type from issue" }
    ```
 
 ### Code Review Prep

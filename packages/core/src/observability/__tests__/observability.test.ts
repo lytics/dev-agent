@@ -184,11 +184,11 @@ describe('RequestTracker', () => {
   describe('startRequest', () => {
     it('should create request context with unique ID', () => {
       const ctx1 = tracker.startRequest('dev_search', { query: 'auth' });
-      const ctx2 = tracker.startRequest('dev_explore', { action: 'pattern' });
+      const ctx2 = tracker.startRequest('dev_inspect', { action: 'compare' });
 
       expect(ctx1.requestId).not.toBe(ctx2.requestId);
       expect(ctx1.tool).toBe('dev_search');
-      expect(ctx2.tool).toBe('dev_explore');
+      expect(ctx2.tool).toBe('dev_inspect');
     });
 
     it('should emit request.started event', async () => {
@@ -208,7 +208,7 @@ describe('RequestTracker', () => {
 
     it('should track parent ID for nested requests', () => {
       const parent = tracker.startRequest('dev_plan', { issue: 1 });
-      const child = tracker.startRequest('dev_explore', { action: 'pattern' }, parent.requestId);
+      const child = tracker.startRequest('dev_inspect', { action: 'compare' }, parent.requestId);
 
       expect(child.parentId).toBe(parent.requestId);
     });
@@ -282,7 +282,7 @@ describe('RequestTracker', () => {
         tracker.completeRequest(ctx.requestId);
       }
 
-      const ctx = tracker.startRequest('dev_explore', {});
+      const ctx = tracker.startRequest('dev_inspect', {});
       tracker.failRequest(ctx.requestId, 'error');
 
       const metrics = tracker.getMetrics();
@@ -291,7 +291,7 @@ describe('RequestTracker', () => {
       expect(metrics.failed).toBe(1);
       expect(metrics.avgDuration).toBeGreaterThan(0);
       expect(metrics.byTool.dev_search.count).toBe(5);
-      expect(metrics.byTool.dev_explore.count).toBe(1);
+      expect(metrics.byTool.dev_inspect.count).toBe(1);
     });
 
     it('should calculate percentiles', async () => {

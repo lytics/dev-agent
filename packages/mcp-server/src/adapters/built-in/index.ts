@@ -3,12 +3,18 @@
  * Production-ready adapters included with the MCP server
  */
 
-export { ExploreAdapter, type ExploreAdapterConfig } from './explore-adapter';
-export { GitHubAdapter, type GitHubAdapterConfig } from './github-adapter';
-export { HealthAdapter, type HealthCheckConfig } from './health-adapter';
-export { HistoryAdapter, type HistoryAdapterConfig } from './history-adapter';
-export { MapAdapter, type MapAdapterConfig } from './map-adapter';
-export { PlanAdapter, type PlanAdapterConfig } from './plan-adapter';
-export { RefsAdapter, type RefsAdapterConfig } from './refs-adapter';
-export { SearchAdapter, type SearchAdapterConfig } from './search-adapter';
-export { StatusAdapter, type StatusAdapterConfig } from './status-adapter';
+export { GitHubAdapter, type GitHubAdapterConfig } from './github-adapter.js';
+export { HealthAdapter, type HealthCheckConfig } from './health-adapter.js';
+export { HistoryAdapter, type HistoryAdapterConfig } from './history-adapter.js';
+// Legacy: Re-export InspectAdapter as ExploreAdapter for backward compatibility (deprecated)
+export {
+  InspectAdapter,
+  InspectAdapter as ExploreAdapter,
+  type InspectAdapterConfig,
+  type InspectAdapterConfig as ExploreAdapterConfig,
+} from './inspect-adapter.js';
+export { MapAdapter, type MapAdapterConfig } from './map-adapter.js';
+export { PlanAdapter, type PlanAdapterConfig } from './plan-adapter.js';
+export { RefsAdapter, type RefsAdapterConfig } from './refs-adapter.js';
+export { SearchAdapter, type SearchAdapterConfig } from './search-adapter.js';
+export { StatusAdapter, type StatusAdapterConfig } from './status-adapter.js';

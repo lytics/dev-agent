@@ -127,10 +127,10 @@ The MCP server provides 5 powerful adapters (tools) and 8 guided prompts:
    - Find relevant code
    - Break down into tasks
 
-4. **`dev_explore`** - Code pattern discovery and relationships
-   - Pattern search
-   - Similar code detection
-   - Dependency mapping
+4. **`dev_inspect`** - File analysis and pattern validation
+   - Compare similar implementations
+   - Validate pattern consistency
+   - File-focused deep analysis
 
 5. **`dev_gh`** - GitHub issue and PR search
    - Semantic search with filters
@@ -400,9 +400,9 @@ All adapters are fully tested and production-ready:
   - Semantic code search for relevant files
   - Task breakdown with complexity estimates
 
-- **ExploreAdapter** (`dev_explore`) - Code pattern discovery
-  - Pattern search across codebase
-  - Similar code detection
+- **InspectAdapter** (`dev_inspect`) - File analysis
+  - Compare similar implementations
+  - Pattern consistency checking
   - Relationship mapping
 
 - **GitHubAdapter** (`dev_gh`) - GitHub issue and PR management

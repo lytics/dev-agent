@@ -456,7 +456,7 @@ dev github index
 **Expected:**
 - `dev_search`: 100-500ms
 - `dev_status`: 50-100ms
-- `dev_explore`: 200-800ms
+- `dev_inspect`: 200-800ms
 - `dev_plan`: 5-15 seconds
 - `dev_gh`: 100-300ms
 
@@ -546,7 +546,7 @@ dev github index
 **Solution:**
 Check the tool's input schema:
 - `dev_search`: Requires `query` (string)
-- `dev_explore`: Requires `action` and `query`
+- `dev_inspect`: Requires `action` and `query` (file path)
 - `dev_plan`: Requires `issue` (number)
 - `dev_gh`: Requires `action`
 
@@ -655,7 +655,7 @@ dev mcp start --verbose
 # In another terminal, send test message
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | dev mcp start
 
-# Should list all 9 tools: dev_search, dev_refs, dev_map, dev_history, dev_status, dev_plan, dev_explore, dev_gh, dev_health
+# Should list all 9 tools: dev_search, dev_refs, dev_map, dev_history, dev_status, dev_plan, dev_inspect, dev_gh, dev_health
 ```
 
 ### Inspect storage
@@ -875,7 +875,7 @@ dev_health
 **Solution:**
 - Index at monorepo root
 - Search works across all projects
-- Use `dev_explore` to find related code
+- Use `dev_inspect` to analyze specific files
 
 ### Non-git repositories
 
@@ -890,7 +890,7 @@ dev_health
 dev index .
 
 # Skip GitHub indexing
-# Just use dev_search, dev_status, dev_explore, dev_plan
+# Just use dev_search, dev_status, dev_inspect, dev_plan
 ```
 
 ### Very large files (>10MB)

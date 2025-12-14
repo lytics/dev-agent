@@ -15,7 +15,7 @@ dev-agent indexes your codebase and provides 9 MCP tools to AI assistants. Inste
 - `dev_map` — Codebase structure with change frequency
 - `dev_history` — Semantic search over git commits
 - `dev_plan` — Assemble context for GitHub issues
-- `dev_explore` — Find similar code, trace relationships
+- `dev_inspect` — Inspect files (compare similar code, check patterns)
 - `dev_gh` — Search GitHub issues/PRs semantically
 - `dev_status` / `dev_health` — Monitoring
 
@@ -157,12 +157,12 @@ Assemble context for issue #42
 
 **Note:** This tool no longer generates task breakdowns. It provides comprehensive context so the AI assistant can create better plans.
 
-### `dev_explore` - Code Exploration
-Discover patterns, find similar code, analyze relationships.
+### `dev_inspect` - File Analysis
+Inspect specific files, compare implementations, validate patterns.
 
 ```
-Find code similar to src/auth/middleware.ts
-Search for error handling patterns
+Compare src/auth/middleware.ts with similar implementations
+Validate pattern consistency in src/hooks/useAuth.ts
 ```
 
 ### `dev_status` - Repository Status
