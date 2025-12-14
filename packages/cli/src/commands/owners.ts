@@ -105,7 +105,7 @@ function isAtRepoRoot(repositoryPath: string): boolean {
 function getCurrentDirectory(repositoryPath: string): string {
   const cwd = process.cwd();
   if (cwd === repositoryPath) return '';
-  return cwd.replace(repositoryPath, '').replace(/^\//, '') + '/';
+  return `${cwd.replace(repositoryPath, '').replace(/^\//, '')}/`;
 }
 
 /**
@@ -226,7 +226,7 @@ function formatChangedFilesMode(
   changedFiles: string[],
   fileOwners: Map<string, { owner: string; commits: number; lastActive: Date | null }>,
   currentUser: string,
-  repositoryPath: string
+  _repositoryPath: string
 ): string {
   let output = '';
   output += chalk.bold('📝 Modified files') + chalk.gray(` (${changedFiles.length}):\n`);
@@ -340,7 +340,7 @@ function formatSubdirectoryMode(
 ): string {
   // Filter developers to only those with files in current directory
   const relevantDevs = developers.filter((dev) =>
-    dev.topFiles.some((f) => f.path.startsWith(repositoryPath + '/' + currentDir))
+    dev.topFiles.some((f) => f.path.startsWith(`${repositoryPath}/${currentDir}`))
   );
 
   if (relevantDevs.length === 0) {
@@ -358,7 +358,7 @@ function formatSubdirectoryMode(
 
   // Show top files in this directory
   const filesInDir = primary.topFiles
-    .filter((f) => f.path.startsWith(repositoryPath + '/' + currentDir))
+    .filter((f) => f.path.startsWith(`${repositoryPath}/${currentDir}`))
     .slice(0, 5);
 
   if (filesInDir.length > 0) {
@@ -470,7 +470,7 @@ export const ownersCommand = new Command('owners')
         >();
         for (const dev of developers) {
           for (const fileData of dev.topFiles) {
-            const relativePath = fileData.path.replace(repositoryPath + '/', '');
+            const relativePath = fileData.path.replace(`${repositoryPath}/`, '');
             if (!fileOwners.has(relativePath)) {
               fileOwners.set(relativePath, {
                 owner: dev.displayName,
