@@ -191,7 +191,7 @@ MCP server with built-in adapters for AI tools.
 - **HistoryAdapter:** Semantic git commit search (`dev_history`)
 - **StatusAdapter:** Repository status (`dev_status`)
 - **PlanAdapter:** Context assembly for issues (`dev_plan`)
-- **ExploreAdapter:** Code exploration (`dev_explore`)
+- **InspectAdapter:** File analysis and pattern checking (`dev_inspect`)
 - **GitHubAdapter:** Issue/PR search (`dev_gh`)
 - **HealthAdapter:** Server health checks (`dev_health`)
 

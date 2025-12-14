@@ -25,9 +25,22 @@ export const BaseQuerySchema = z.object({
 });
 
 // ============================================================================
-// Explore Adapter
+// Inspect Adapter
 // ============================================================================
 
+export const InspectArgsSchema = z
+  .object({
+    action: z.enum(['compare', 'validate']),
+    query: z.string().min(1, 'Query must be a non-empty string (file path)'),
+    limit: z.number().int().min(1).max(100).default(10),
+    threshold: z.number().min(0).max(1).default(0.7),
+    format: FormatSchema.default('compact'),
+  })
+  .strict(); // Reject unknown properties
+
+export type InspectArgs = z.infer<typeof InspectArgsSchema>;
+
+// Legacy: Keep ExploreArgsSchema for backward compatibility (deprecated)
 export const ExploreArgsSchema = z
   .object({
     action: z.enum(['pattern', 'similar', 'relationships']),
@@ -37,7 +50,7 @@ export const ExploreArgsSchema = z
     fileTypes: z.array(z.string()).optional(),
     format: FormatSchema.default('compact'),
   })
-  .strict(); // Reject unknown properties
+  .strict();
 
 export type ExploreArgs = z.infer<typeof ExploreArgsSchema>;
 
@@ -322,7 +335,19 @@ export const RefsOutputSchema = z.object({
 export type RefsOutput = z.infer<typeof RefsOutputSchema>;
 
 /**
- * Explore output schema
+ * Inspect output schema
+ */
+export const InspectOutputSchema = z.object({
+  action: z.string(),
+  query: z.string(),
+  format: z.string(),
+  content: z.string(),
+});
+
+export type InspectOutput = z.infer<typeof InspectOutputSchema>;
+
+/**
+ * Explore output schema (legacy, deprecated)
  */
 export const ExploreOutputSchema = z.object({
   action: z.string(),

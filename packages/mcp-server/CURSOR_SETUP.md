@@ -48,24 +48,23 @@ Show me the repository status
 - `section`: `summary`, `repo`, `indexes`, `github`, `health` (default: `summary`)
 - `format`: `compact` (default) or `verbose`
 
-### `dev_explore` - Code Exploration
-Explore code patterns, find similar code, analyze relationships.
+### `dev_inspect` - File Analysis
+Inspect specific files, compare implementations, validate patterns.
 
 ```
-Find code similar to src/auth/middleware.ts
+Compare src/auth/middleware.ts with similar implementations
 ```
 
 **Actions:**
-- `pattern`: Search by concept/pattern
-- `similar`: Find similar code to a file
-- `relationships`: Map dependencies
+- `compare`: Find similar code implementations
+- `validate`: Check pattern consistency (coming soon)
 
 **Parameters:**
-- `action`: Exploration type (required)
-- `query`: Search query or file path (required)
+- `action`: Inspection type (required)
+- `query`: File path to inspect (required)
 - `threshold`: Similarity threshold (0-1, default: 0.7)
-- `limit`: Number of results (default: 10)
-- `fileTypes`: Filter by extensions (e.g., `[".ts", ".js"]`)
+- `limit`: Number of results (default: 10, for compare action)
+- `format`: Output format (`compact` or `verbose`)
 
 ### `dev_plan` - Generate Implementation Plans
 Create actionable implementation plans from GitHub issues.

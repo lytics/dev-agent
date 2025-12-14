@@ -44,7 +44,7 @@ Dev-agent provides semantic code search, codebase intelligence, and GitHub integ
 | Adapter framework | ✅ Done | `@lytics/dev-agent-mcp` |
 | `dev_search` - Semantic code search | ✅ Done | MCP adapter |
 | `dev_status` - Repository status | ✅ Done | MCP adapter |
-| `dev_explore` - Code exploration | ✅ Done | MCP adapter |
+| `dev_inspect` - File analysis | ✅ Done | MCP adapter |
 | `dev_plan` - Issue planning | ✅ Done | MCP adapter |
 | `dev_gh` - GitHub search | ✅ Done | MCP adapter |
 | `dev_health` - Health checks | ✅ Done | MCP adapter |
@@ -219,8 +219,8 @@ Git history is valuable context that LLMs can't easily access. We add intelligen
 | Phase | Tool | Status |
 |-------|------|--------|
 | 1 (v0.4.4) | `dev_search` | ✅ Done |
-| 2 | `dev_refs`, `dev_explore` | 🔲 Todo |
-| 3 | `dev_map`, `dev_status` | 🔲 Todo |
+| 2 | `dev_refs`, `dev_inspect` | ✅ Done |
+| 3 | `dev_map`, `dev_status` | ✅ Done |
 
 **Implementation (Phase 1):**
 - After search results, check filesystem for test siblings
@@ -234,7 +234,7 @@ Git history is valuable context that LLMs can't easily access. We add intelligen
 |------|--------|
 | Improved dev_search description ("USE THIS FIRST") | ✅ Done |
 | Improved dev_map description (vs list_dir) | ✅ Done |
-| Improved dev_explore description (workflow hints) | ✅ Done |
+| Improved dev_inspect description (file analysis) | ✅ Done |
 | Improved dev_refs description (specific symbols) | ✅ Done |
 | All 9 adapters registered in CLI | ✅ Done |
 

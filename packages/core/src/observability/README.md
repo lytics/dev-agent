@@ -126,7 +126,7 @@ Track parent-child relationships:
 
 ```typescript
 const parent = tracker.startRequest('dev_plan', { issue: 42 });
-const child = tracker.startRequest('dev_explore', { action: 'pattern' }, parent.requestId);
+const child = tracker.startRequest('dev_inspect', { action: 'compare' }, parent.requestId);
 // child.parentId === parent.requestId
 ```
 
@@ -144,7 +144,7 @@ const metrics = tracker.getMetrics();
 //   p99Duration: 890,
 //   byTool: {
 //     'dev_search': { count: 500, avgDuration: 100 },
-//     'dev_explore': { count: 300, avgDuration: 200 },
+//     'dev_inspect': { count: 300, avgDuration: 200 },
 //     'dev_plan': { count: 200, avgDuration: 180 }
 //   }
 // }

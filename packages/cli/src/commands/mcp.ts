@@ -61,7 +61,7 @@ Setup:
   3. Restart Cursor to activate
 
 Available Tools (9):
-  dev_search, dev_status, dev_plan, dev_explore, dev_gh,
+  dev_search, dev_status, dev_plan, dev_inspect, dev_gh,
   dev_health, dev_refs, dev_map, dev_history
 `
   )
@@ -251,7 +251,7 @@ Available Tools (9):
 
           logger.info(chalk.green('MCP server started successfully!'));
           logger.info(
-            'Available tools: dev_search, dev_status, dev_plan, dev_explore, dev_gh, dev_health, dev_refs, dev_map, dev_history'
+            'Available tools: dev_search, dev_status, dev_plan, dev_inspect, dev_gh, dev_health, dev_refs, dev_map, dev_history'
           );
 
           if (options.transport === 'stdio') {

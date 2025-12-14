@@ -36,7 +36,7 @@ When integrated with Cursor or Claude Code, you get 6 powerful tools:
 
 - `dev_search` - Semantic code search
 - `dev_status` - Repository status and health
-- `dev_explore` - Code pattern discovery
+- `dev_inspect` - File analysis and pattern checking
 - `dev_plan` - Implementation planning from issues
 - `dev_gh` - GitHub issue/PR search
 - `dev_health` - Component health checks
@@ -114,7 +114,7 @@ dev_search: "JWT token validation middleware"
 dev_plan: issue #42
 
 # Find similar code patterns
-dev_explore: similar src/auth/middleware.ts
+dev_inspect: { action: "compare", query: "src/auth/middleware.ts" }
 
 # Search GitHub issues semantically
 dev_gh: search "memory leak in vector storage"

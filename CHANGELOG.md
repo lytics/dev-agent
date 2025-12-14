@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `dev_search` - Semantic code search with type-aware understanding
   - `dev_status` - Repository health and statistics
   - `dev_plan` - Implementation planning from GitHub issues
-  - `dev_explore` - Code pattern discovery and relationship mapping
+  - `dev_inspect` - File analysis (similarity + pattern checking)
   - `dev_gh` - GitHub issue/PR search with offline caching
 - **Multi-language Support** - TypeScript, JavaScript, Go, Python, Rust, Markdown
 - **Local-first Architecture** - All embeddings and indexing run locally

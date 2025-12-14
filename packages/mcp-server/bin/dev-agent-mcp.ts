@@ -20,10 +20,10 @@ import {
 } from '@lytics/dev-agent-core';
 import type { SubagentCoordinator } from '@lytics/dev-agent-subagents';
 import {
-  ExploreAdapter,
   GitHubAdapter,
   HealthAdapter,
   HistoryAdapter,
+  InspectAdapter,
   MapAdapter,
   PlanAdapter,
   RefsAdapter,
@@ -183,7 +183,7 @@ async function main() {
       timeout: 60000, // 60 seconds
     });
 
-    const exploreAdapter = new ExploreAdapter({
+    const inspectAdapter = new InspectAdapter({
       repositoryPath,
       searchService,
       defaultLimit: 10,
@@ -238,7 +238,7 @@ async function main() {
         searchAdapter,
         statusAdapter,
         planAdapter,
-        exploreAdapter,
+        inspectAdapter,
         githubAdapter,
         healthAdapter,
         refsAdapter,

@@ -1,0 +1,114 @@
+# dev_inspect
+
+Inspect specific files for deep analysis. Find similar implementations and check pattern consistency.
+
+## Usage
+
+```
+dev_inspect(action, query, format?, limit?, threshold?)
+```
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `action` | `"compare"` \| `"validate"` | required | Inspection type |
+| `query` | string | required | File path to inspect |
+| `format` | `"compact"` \| `"verbose"` | `"compact"` | Output format |
+| `limit` | number | 10 | Maximum results (for compare) |
+| `threshold` | number | 0.7 | Similarity threshold (0-1) |
+
+## Actions
+
+### Compare Implementations
+
+Find similar code implementations:
+
+> "Use dev_inspect with action compare, query 'src/hooks/useAuth.ts'"
+
+```
+Similar to: src/hooks/useAuth.ts
+
+1. [92%] src/hooks/useSession.ts - Session management hook
+2. [87%] src/hooks/useUser.ts - User data hook
+3. [81%] src/auth/hooks/usePermissions.ts - Permissions hook
+```
+
+**Use this to:**
+- Find existing patterns before writing new code
+- Discover alternative implementations
+- Ensure consistency across similar features
+
+### Validate Patterns (Coming Soon)
+
+Check code against codebase patterns:
+
+> "Use dev_inspect with action validate, query 'src/hooks/useAuth.ts'"
+
+```
+Pattern Validation
+
+File: src/hooks/useAuth.ts
+
+Status: Feature coming soon
+
+This action will validate:
+- Naming conventions vs. similar files
+- Error handling patterns
+- Code structure consistency
+- Framework-specific best practices
+```
+
+## Examples
+
+### Find Similar Components
+
+> "Use dev_inspect action compare, query 'src/components/Button.tsx'"
+
+Returns other button-like components in the codebase.
+
+### High Similarity Only
+
+> "Use dev_inspect action compare, query 'src/utils/date.ts', threshold 0.9"
+
+Only returns very similar code (90%+ match).
+
+### Verbose Output
+
+> "Use dev_inspect action compare, query 'src/api/client.ts', format 'verbose'"
+
+Returns detailed information about each similar file.
+
+## Use Cases
+
+| Use Case | Description |
+|----------|-------------|
+| **Code Review** | Find how others solved similar problems |
+| **Refactoring** | Discover patterns before consolidating |
+| **Learning** | See how patterns are used across the codebase |
+| **Consistency** | Ensure new code follows established patterns |
+
+## Workflow
+
+**Typical usage pattern:**
+
+1. **Search** for concepts: `dev_search { query: "authentication middleware" }`
+2. **Inspect** what you found: `dev_inspect { action: "compare", query: "src/auth/middleware.ts" }`
+3. **Analyze** dependencies: `dev_refs { name: "authMiddleware" }`
+
+## Tips
+
+> **Always provide a file path.** Unlike `dev_search`, `dev_inspect` requires a specific file to analyze.
+
+> **Use compare for patterns.** Finding similar implementations helps maintain consistency.
+
+> **Validate is coming soon.** Pattern validation will analyze naming, structure, and best practices.
+
+## Migration from dev_explore
+
+If you previously used `dev_explore`:
+
+- `action: "similar"` → `dev_inspect { action: "compare" }`
+- `action: "pattern"` → Use `dev_search` instead
+- `action: "relationships"` → Use `dev_refs` instead
+
