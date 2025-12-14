@@ -480,7 +480,10 @@ function formatSubdirectoryMode(
 ): string {
   // Filter developers to only those with files in current directory
   const relevantDevs = developers.filter((dev) =>
-    dev.topFiles.some((f) => f.path.startsWith(`${repositoryPath}/${currentDir}`))
+    dev.topFiles.some((f) => {
+      const relativePath = f.path.replace(`${repositoryPath}/`, '');
+      return relativePath.startsWith(currentDir);
+    })
   );
 
   if (relevantDevs.length === 0) {
@@ -498,7 +501,10 @@ function formatSubdirectoryMode(
 
   // Show top files in this directory
   const filesInDir = primary.topFiles
-    .filter((f) => f.path.startsWith(`${repositoryPath}/${currentDir}`))
+    .filter((f) => {
+      const relativePath = f.path.replace(`${repositoryPath}/`, '');
+      return relativePath.startsWith(currentDir);
+    })
     .slice(0, 5);
 
   if (filesInDir.length > 0) {
