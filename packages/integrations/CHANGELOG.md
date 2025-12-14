@@ -1,5 +1,14 @@
 # @lytics/dev-agent-integrations
 
+## 0.1.18
+
+### Patch Changes
+
+- Updated dependencies [f20406e]
+  - @lytics/dev-agent-cli@0.5.1
+  - @lytics/dev-agent-core@0.9.1
+  - @lytics/dev-agent-subagents@0.5.2
+
 ## 0.1.17
 
 ### Patch Changes

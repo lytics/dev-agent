@@ -1,5 +1,14 @@
 # @lytics/dev-agent-mcp
 
+## 0.5.2
+
+### Patch Changes
+
+- Updated dependencies [f20406e]
+  - @lytics/dev-agent-core@0.9.1
+  - @lytics/dev-agent-subagents@0.5.2
+  - @lytics/dev-agent-types@0.2.1
+
 ## 0.5.1
 
 ### Patch Changes
