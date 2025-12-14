@@ -77,31 +77,6 @@ export const METRICS_SCHEMA_V1 = `
   -- Index for file-specific queries
   CREATE INDEX IF NOT EXISTS idx_code_metadata_file 
     ON code_metadata(file_path);
-
-  -- File authors table (per-file author breakdown)
-  CREATE TABLE IF NOT EXISTS file_authors (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    snapshot_id TEXT NOT NULL,
-    file_path TEXT NOT NULL,
-    author_email TEXT NOT NULL,
-    commit_count INTEGER NOT NULL,
-    last_commit INTEGER,  -- Timestamp of last commit by this author
-    
-    FOREIGN KEY (snapshot_id) REFERENCES snapshots(id) ON DELETE CASCADE,
-    UNIQUE (snapshot_id, file_path, author_email)
-  );
-
-  -- Index for querying by snapshot
-  CREATE INDEX IF NOT EXISTS idx_file_authors_snapshot 
-    ON file_authors(snapshot_id);
-    
-  -- Index for querying by file
-  CREATE INDEX IF NOT EXISTS idx_file_authors_file 
-    ON file_authors(snapshot_id, file_path);
-    
-  -- Index for querying by author
-  CREATE INDEX IF NOT EXISTS idx_file_authors_author 
-    ON file_authors(author_email);
 `;
 
 /**

@@ -19,9 +19,10 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
 import { getDefaultConfig, loadConfig } from '../utils/config.js';
-import { formatBytes, getDirectorySize } from '../utils/file.js';
+// Storage size calculation moved to on-demand in `dev stats` command
 import { createIndexLogger, logger } from '../utils/logger.js';
-import { formatIndexSummary, output } from '../utils/output.js';
+import { output } from '../utils/output.js';
+import { formatFinalSummary, ProgressRenderer } from '../utils/progress.js';
 
 /**
  * Check if a command is available
@@ -78,30 +79,30 @@ export const indexCommand = new Command('index')
       const canIndexGit = isGitRepo && options.git !== false;
       const canIndexGitHub = isGitRepo && hasGhCli && ghAuthenticated && options.github !== false;
 
-      // Show what will be indexed
+      // Show what will be indexed (clean output without timestamps)
       spinner.stop();
-      logger.log('');
-      logger.log(chalk.bold('Indexing plan:'));
-      logger.log(`  ${chalk.green('✓')} Code (always)`);
+      console.log('');
+      console.log(chalk.bold('Indexing Plan:'));
+      console.log(`  ${chalk.green('✓')} Code (always)`);
       if (canIndexGit) {
-        logger.log(`  ${chalk.green('✓')} Git history`);
+        console.log(`  ${chalk.green('✓')} Git history`);
       } else if (options.git === false) {
-        logger.log(`  ${chalk.gray('○')} Git history (skipped via --no-git)`);
+        console.log(`  ${chalk.gray('○')} Git history (skipped via --no-git)`);
       } else {
-        logger.log(`  ${chalk.yellow('○')} Git history (not a git repository)`);
+        console.log(`  ${chalk.yellow('○')} Git history (not a git repository)`);
       }
       if (canIndexGitHub) {
-        logger.log(`  ${chalk.green('✓')} GitHub issues/PRs`);
+        console.log(`  ${chalk.green('✓')} GitHub issues/PRs`);
       } else if (options.github === false) {
-        logger.log(`  ${chalk.gray('○')} GitHub (skipped via --no-github)`);
+        console.log(`  ${chalk.gray('○')} GitHub (skipped via --no-github)`);
       } else if (!isGitRepo) {
-        logger.log(`  ${chalk.yellow('○')} GitHub (not a git repository)`);
+        console.log(`  ${chalk.yellow('○')} GitHub (not a git repository)`);
       } else if (!hasGhCli) {
-        logger.log(`  ${chalk.yellow('○')} GitHub (gh CLI not installed)`);
+        console.log(`  ${chalk.yellow('○')} GitHub (gh CLI not installed)`);
       } else {
-        logger.log(`  ${chalk.yellow('○')} GitHub (gh not authenticated - run "gh auth login")`);
+        console.log(`  ${chalk.yellow('○')} GitHub (gh not authenticated - run "gh auth login")`);
       }
-      logger.log('');
+      console.log('');
 
       spinner.start('Loading configuration...');
 
@@ -139,11 +140,6 @@ export const indexCommand = new Command('index')
           if (event.codeMetadata && event.codeMetadata.length > 0) {
             metricsStore.appendCodeMetadata(snapshotId, event.codeMetadata);
           }
-
-          // Store file author contributions if available
-          if (event.authorContributions && event.authorContributions.size > 0) {
-            metricsStore.appendFileAuthors(snapshotId, event.authorContributions);
-          }
         } catch (error) {
           // Log error but don't fail indexing - metrics are non-critical
           logger.error(
@@ -167,53 +163,88 @@ export const indexCommand = new Command('index')
 
       await indexer.initialize();
 
-      spinner.text = 'Scanning repository...';
-
       // Create logger for indexing (verbose mode shows debug logs)
       const indexLogger = createIndexLogger(options.verbose);
 
+      // Stop spinner and switch to section-based progress (unless verbose)
+      spinner.stop();
+
+      // Initialize progress renderer
+      const progressRenderer = new ProgressRenderer({ verbose: options.verbose });
+      const sections: string[] = ['Scanning Repository', 'Embedding Vectors'];
+      if (canIndexGit) sections.push('Git History');
+      if (canIndexGitHub) sections.push('GitHub Issues/PRs');
+      progressRenderer.setSections(sections);
+
       const startTime = Date.now();
-      let lastUpdate = startTime;
+      const scanStartTime = startTime;
+      let embeddingStartTime = 0;
+      let inEmbeddingPhase = false;
 
       const stats = await indexer.index({
         force: options.force,
         logger: indexLogger,
         onProgress: (progress) => {
-          const now = Date.now();
-          // Update spinner every 100ms to avoid flickering
-          if (now - lastUpdate > 100) {
-            if (progress.phase === 'storing' && progress.totalDocuments) {
-              // Show document count with percentage
-              const pct = Math.round((progress.documentsIndexed / progress.totalDocuments) * 100);
-              spinner.text = `Embedding ${progress.documentsIndexed}/${progress.totalDocuments} documents (${pct}%)`;
-            } else {
-              const percent = progress.percentComplete || 0;
-              spinner.text = `${progress.phase} (${percent.toFixed(0)}%)`;
+          if (progress.phase === 'storing' && progress.totalDocuments) {
+            // Transitioning to embedding phase
+            if (!inEmbeddingPhase) {
+              // Complete scanning section and move to embedding
+              const scanDuration = (Date.now() - scanStartTime) / 1000;
+              progressRenderer.completeSection(
+                `${progress.totalDocuments.toLocaleString()} components extracted`,
+                scanDuration
+              );
+              embeddingStartTime = Date.now();
+              inEmbeddingPhase = true;
             }
-            lastUpdate = now;
+
+            // Update embedding progress
+            const pct = Math.round((progress.documentsIndexed / progress.totalDocuments) * 100);
+            const embeddingElapsed = (Date.now() - embeddingStartTime) / 1000;
+            const docsPerSec =
+              embeddingElapsed > 0 ? progress.documentsIndexed / embeddingElapsed : 0;
+            progressRenderer.updateSection(
+              `${progress.documentsIndexed.toLocaleString()}/${progress.totalDocuments.toLocaleString()} documents (${pct}%, ${docsPerSec.toFixed(0)} docs/sec)`
+            );
+          } else {
+            // Scanning phase
+            const percent = progress.percentComplete || 0;
+            progressRenderer.updateSection(`${percent.toFixed(0)}% complete`);
           }
         },
       });
 
-      // Update metadata with indexing stats (calculate actual storage size)
-      const storageSize = await getDirectorySize(storagePath);
-      await updateIndexedStats(storagePath, {
-        files: stats.filesScanned,
-        components: stats.documentsIndexed,
-        size: storageSize,
-      });
+      // Complete embedding section
+      if (inEmbeddingPhase) {
+        const embeddingDuration = (Date.now() - embeddingStartTime) / 1000;
+        progressRenderer.completeSection(
+          `${stats.documentsIndexed.toLocaleString()} documents`,
+          embeddingDuration
+        );
+      } else {
+        // If we never entered embedding phase (edge case), complete scanning
+        const scanDuration = (Date.now() - scanStartTime) / 1000;
+        progressRenderer.completeSection(
+          `${stats.filesScanned.toLocaleString()} files → ${stats.documentsIndexed.toLocaleString()} components`,
+          scanDuration
+        );
+      }
 
+      // Finalize indexing (silent - no UI update needed)
       await indexer.close();
       metricsStore.close();
 
-      const codeDuration = (Date.now() - startTime) / 1000;
-
-      spinner.succeed(chalk.green('Code indexed successfully!'));
+      // Update metadata with indexing stats (storage size calculated on-demand)
+      await updateIndexedStats(storagePath, {
+        files: stats.filesScanned,
+        components: stats.documentsIndexed,
+        size: 0, // Calculated on-demand in `dev stats`
+      });
 
       // Index git history if available
       let gitStats = { commitsIndexed: 0, durationMs: 0 };
       if (canIndexGit) {
-        spinner.start('Indexing git history...');
+        const gitStartTime = Date.now();
         const gitVectorPath = `${filePaths.vectors}-git`;
         const gitExtractor = new LocalGitExtractor(resolvedRepoPath);
         const gitVectorStore = new VectorStorage({ storePath: gitVectorPath });
@@ -230,19 +261,25 @@ export const indexCommand = new Command('index')
           onProgress: (progress) => {
             if (progress.phase === 'storing' && progress.totalCommits > 0) {
               const pct = Math.round((progress.commitsProcessed / progress.totalCommits) * 100);
-              spinner.text = `Embedding ${progress.commitsProcessed}/${progress.totalCommits} commits (${pct}%)`;
+              progressRenderer.updateSection(
+                `${progress.commitsProcessed}/${progress.totalCommits} commits (${pct}%)`
+              );
             }
           },
         });
         await gitVectorStore.close();
 
-        spinner.succeed(chalk.green('Git history indexed!'));
+        const gitDuration = (Date.now() - gitStartTime) / 1000;
+        progressRenderer.completeSection(
+          `${gitStats.commitsIndexed.toLocaleString()} commits`,
+          gitDuration
+        );
       }
 
       // Index GitHub issues/PRs if available
       let ghStats = { totalDocuments: 0, indexDuration: 0 };
       if (canIndexGitHub) {
-        spinner.start('Indexing GitHub issues/PRs...');
+        const ghStartTime = Date.now();
         const ghVectorPath = `${filePaths.vectors}-github`;
         const ghIndexer = new GitHubIndexer({
           vectorStorePath: ghVectorPath,
@@ -256,38 +293,38 @@ export const indexCommand = new Command('index')
           logger: indexLogger,
           onProgress: (progress) => {
             if (progress.phase === 'fetching') {
-              spinner.text = 'Fetching GitHub issues/PRs...';
+              progressRenderer.updateSection('Fetching issues/PRs...');
             } else if (progress.phase === 'embedding') {
-              spinner.text = `Embedding ${progress.documentsProcessed}/${progress.totalDocuments} GitHub docs`;
+              const pct = Math.round((progress.documentsProcessed / progress.totalDocuments) * 100);
+              progressRenderer.updateSection(
+                `${progress.documentsProcessed}/${progress.totalDocuments} documents (${pct}%)`
+              );
             }
           },
         });
-        spinner.succeed(chalk.green('GitHub indexed!'));
+
+        const ghDuration = (Date.now() - ghStartTime) / 1000;
+        progressRenderer.completeSection(
+          `${ghStats.totalDocuments.toLocaleString()} documents`,
+          ghDuration
+        );
       }
 
       const totalDuration = (Date.now() - startTime) / 1000;
 
-      // Compact summary output
-      output.log('');
+      // Finalize progress display
+      progressRenderer.done();
+
+      // Show final summary with next steps
       output.log(
-        formatIndexSummary({
+        formatFinalSummary({
           code: {
             files: stats.filesScanned,
             documents: stats.documentsIndexed,
-            vectors: stats.vectorsStored,
-            duration: codeDuration,
-            size: formatBytes(storageSize),
           },
-          git: canIndexGit
-            ? { commits: gitStats.commitsIndexed, duration: gitStats.durationMs / 1000 }
-            : undefined,
-          github: canIndexGitHub
-            ? { documents: ghStats.totalDocuments, duration: ghStats.indexDuration / 1000 }
-            : undefined,
-          total: {
-            duration: totalDuration,
-            storage: storagePath,
-          },
+          git: canIndexGit ? { commits: gitStats.commitsIndexed } : undefined,
+          github: canIndexGitHub ? { documents: ghStats.totalDocuments } : undefined,
+          totalDuration,
         })
       );
 

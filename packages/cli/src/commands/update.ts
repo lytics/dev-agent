@@ -12,8 +12,9 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
 import { loadConfig } from '../utils/config.js';
-import { logger } from '../utils/logger.js';
-import { formatUpdateSummary, output } from '../utils/output.js';
+import { createIndexLogger, logger } from '../utils/logger.js';
+import { output } from '../utils/output.js';
+import { ProgressRenderer } from '../utils/progress.js';
 
 export const updateCommand = new Command('update')
   .description('Update index with changed files')
@@ -61,11 +62,6 @@ export const updateCommand = new Command('update')
           if (event.codeMetadata && event.codeMetadata.length > 0) {
             metricsStore.appendCodeMetadata(snapshotId, event.codeMetadata);
           }
-
-          // Store file author contributions if available
-          if (event.authorContributions && event.authorContributions.size > 0) {
-            metricsStore.appendFileAuthors(snapshotId, event.authorContributions);
-          }
         } catch (error) {
           // Log error but don't fail update - metrics are non-critical
           logger.error(
@@ -87,39 +83,86 @@ export const updateCommand = new Command('update')
 
       await indexer.initialize();
 
-      spinner.text = 'Detecting changed files...';
+      // Create logger for updating (verbose mode shows debug logs)
+      const indexLogger = createIndexLogger(options.verbose);
+
+      // Stop spinner and switch to section-based progress
+      spinner.stop();
+
+      // Initialize progress renderer
+      const progressRenderer = new ProgressRenderer({ verbose: options.verbose });
+      progressRenderer.setSections(['Scanning Changed Files', 'Embedding Vectors']);
 
       const startTime = Date.now();
-      let lastUpdate = startTime;
+      const scanStartTime = startTime;
+      let embeddingStartTime = 0;
+      let inEmbeddingPhase = false;
 
       const stats = await indexer.update({
+        logger: indexLogger,
         onProgress: (progress) => {
-          const now = Date.now();
-          if (now - lastUpdate > 100) {
+          if (progress.phase === 'storing' && progress.totalDocuments) {
+            // Transitioning to embedding phase
+            if (!inEmbeddingPhase) {
+              const scanDuration = (Date.now() - scanStartTime) / 1000;
+              progressRenderer.completeSection(
+                `${progress.totalDocuments.toLocaleString()} components updated`,
+                scanDuration
+              );
+              embeddingStartTime = Date.now();
+              inEmbeddingPhase = true;
+            }
+
+            // Update embedding progress
+            const pct = Math.round((progress.documentsIndexed / progress.totalDocuments) * 100);
+            const embeddingElapsed = (Date.now() - embeddingStartTime) / 1000;
+            const docsPerSec =
+              embeddingElapsed > 0 ? progress.documentsIndexed / embeddingElapsed : 0;
+            progressRenderer.updateSection(
+              `${progress.documentsIndexed.toLocaleString()}/${progress.totalDocuments.toLocaleString()} documents (${pct}%, ${docsPerSec.toFixed(0)} docs/sec)`
+            );
+          } else {
+            // Scanning phase
             const percent = progress.percentComplete || 0;
-            const currentFile = progress.currentFile ? ` ${progress.currentFile}` : '';
-            spinner.text = `${progress.phase}:${currentFile} (${percent.toFixed(0)}%)`;
-            lastUpdate = now;
+            progressRenderer.updateSection(`${percent.toFixed(0)}% complete`);
           }
         },
       });
+
+      // Complete embedding section
+      if (inEmbeddingPhase) {
+        const embeddingDuration = (Date.now() - embeddingStartTime) / 1000;
+        progressRenderer.completeSection(
+          `${stats.documentsIndexed.toLocaleString()} documents`,
+          embeddingDuration
+        );
+      } else {
+        // If we never entered embedding phase (no changes), complete scanning
+        const scanDuration = (Date.now() - scanStartTime) / 1000;
+        progressRenderer.completeSection(
+          `${stats.filesScanned.toLocaleString()} files checked`,
+          scanDuration
+        );
+      }
 
       await indexer.close();
       metricsStore.close();
 
       const duration = (Date.now() - startTime) / 1000;
 
-      spinner.stop();
+      // Finalize progress display
+      progressRenderer.done();
 
-      // Compact output
+      // Show completion message
       output.log('');
-      output.log(
-        formatUpdateSummary({
-          filesUpdated: stats.filesScanned,
-          documentsReindexed: stats.documentsIndexed,
-          duration: Number.parseFloat(duration.toFixed(2)),
-        })
-      );
+      if (stats.filesScanned === 0) {
+        output.success('No changes detected');
+      } else {
+        output.success(
+          `Updated ${stats.filesScanned.toLocaleString()} files in ${duration.toFixed(1)}s`
+        );
+      }
+      output.log('');
 
       // Show errors if any
       if (stats.errors.length > 0) {

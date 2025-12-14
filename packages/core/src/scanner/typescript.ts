@@ -160,12 +160,25 @@ export class TypeScriptScanner implements Scanner {
       }
     };
 
+    // Track last log time for time-based progress updates
+    let lastLogTime = startTime;
+
     // Process batches sequentially, files within batch in parallel
     for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
       const batch = batches[batchIndex];
+      const batchStartTime = Date.now();
       const results = await Promise.all(
         batch.map(([file, sourceFile]) => extractFile(file, sourceFile))
       );
+      const batchDuration = Date.now() - batchStartTime;
+
+      // Flag slow batches (>5s) - indicates large files
+      if (logger && batchDuration > 5000) {
+        logger.debug(
+          { batchIndex: batchIndex + 1, duration: batchDuration, files: batch.length },
+          `Slow batch detected: batch ${batchIndex + 1} took ${(batchDuration / 1000).toFixed(1)}s`
+        );
+      }
 
       // Collect results
       for (const result of results) {
@@ -198,8 +211,15 @@ export class TypeScriptScanner implements Scanner {
         }
       }
 
-      // Log progress after each batch (or every 50 files)
-      if (logger && (processedCount % 50 === 0 || batchIndex === batches.length - 1)) {
+      const now = Date.now();
+      const timeSinceLastLog = now - lastLogTime;
+
+      // Log progress: every 2 batches OR every 10 seconds OR last batch
+      if (
+        logger &&
+        (batchIndex % 2 === 0 || timeSinceLastLog > 10000 || batchIndex === batches.length - 1)
+      ) {
+        lastLogTime = now;
         const elapsed = Date.now() - startTime;
         const filesPerSecond = processedCount / (elapsed / 1000);
         const remainingFiles = total - processedCount;

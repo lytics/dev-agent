@@ -10,12 +10,12 @@ import {
   LocalGitExtractor,
   VectorStorage,
 } from '@lytics/dev-agent-core';
-import { createLogger } from '@lytics/kero';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
-import { keroLogger, logger } from '../utils/logger.js';
+import { createIndexLogger, logger } from '../utils/logger.js';
 import { output, printGitStats } from '../utils/output.js';
+import { ProgressRenderer } from '../utils/progress.js';
 
 /**
  * Create Git indexer with centralized storage
@@ -48,26 +48,37 @@ export const gitCommand = new Command('git')
   .addCommand(
     new Command('index')
       .description('Index git commit history for semantic search')
-      .option('--limit <number>', 'Maximum commits to index (default: 500)', Number.parseInt, 500)
+      .option(
+        '--limit <number>',
+        'Maximum commits to index (default: 500)',
+        (val) => Number.parseInt(val, 10),
+        500
+      )
       .option(
         '--since <date>',
         'Only index commits after this date (e.g., "2024-01-01", "6 months ago")'
       )
       .option('-v, --verbose', 'Verbose output', false)
       .action(async (options) => {
-        const spinner = ora('Loading configuration...').start();
+        const spinner = ora('Initializing git indexer...').start();
 
         // Create logger for indexing
-        const indexLogger = options.verbose
-          ? createLogger({ level: 'debug', format: 'pretty' })
-          : keroLogger.child({ command: 'git-index' });
+        const indexLogger = createIndexLogger(options.verbose);
 
         try {
-          spinner.text = 'Initializing git indexer...';
-
           const { indexer, vectorStore } = await createGitIndexer();
 
-          spinner.text = 'Indexing git commits...';
+          // Stop spinner and switch to section-based progress
+          spinner.stop();
+
+          // Initialize progress renderer
+          const progressRenderer = new ProgressRenderer({ verbose: options.verbose });
+          progressRenderer.setSections(['Extracting Commits', 'Embedding Commits']);
+
+          const startTime = Date.now();
+          const extractStartTime = startTime;
+          let embeddingStartTime = 0;
+          let inEmbeddingPhase = false;
 
           const stats = await indexer.index({
             limit: options.limit,
@@ -75,22 +86,53 @@ export const gitCommand = new Command('git')
             logger: indexLogger,
             onProgress: (progress) => {
               if (progress.phase === 'storing' && progress.totalCommits > 0) {
+                // Transitioning to embedding phase
+                if (!inEmbeddingPhase) {
+                  const extractDuration = (Date.now() - extractStartTime) / 1000;
+                  progressRenderer.completeSection(
+                    `${progress.totalCommits.toLocaleString()} commits extracted`,
+                    extractDuration
+                  );
+                  embeddingStartTime = Date.now();
+                  inEmbeddingPhase = true;
+                }
+
+                // Update embedding progress
                 const pct = Math.round((progress.commitsProcessed / progress.totalCommits) * 100);
-                spinner.text = `Embedding ${progress.commitsProcessed}/${progress.totalCommits} commits (${pct}%)`;
+                progressRenderer.updateSection(
+                  `${progress.commitsProcessed}/${progress.totalCommits} commits (${pct}%)`
+                );
               }
             },
           });
 
-          spinner.succeed(chalk.green('Git history indexed!'));
+          // Complete embedding section
+          if (inEmbeddingPhase) {
+            const embeddingDuration = (Date.now() - embeddingStartTime) / 1000;
+            progressRenderer.completeSection(
+              `${stats.commitsIndexed.toLocaleString()} commits`,
+              embeddingDuration
+            );
+          }
 
-          // Display stats
-          logger.log('');
-          logger.log(chalk.bold('Indexing Stats:'));
-          logger.log(`  Commits indexed: ${chalk.yellow(stats.commitsIndexed)}`);
-          logger.log(`  Duration: ${chalk.cyan(stats.durationMs)}ms`);
-          logger.log('');
-          logger.log(chalk.gray('Now you can search with: dev git search "<query>"'));
-          logger.log('');
+          const totalDuration = (Date.now() - startTime) / 1000;
+
+          // Finalize progress display
+          progressRenderer.done();
+
+          // Display success message
+          output.log('');
+          output.success(`Git history indexed successfully!`);
+          output.log(
+            `  ${chalk.bold('Indexed:')} ${stats.commitsIndexed.toLocaleString()} commits`
+          );
+          output.log(`  ${chalk.bold('Duration:')} ${totalDuration.toFixed(1)}s`);
+          output.log('');
+          output.log(chalk.dim('💡 Next step:'));
+          output.log(
+            `   ${chalk.cyan('dev git search "<query>"')}  ${chalk.dim('Search commit history')}`
+          );
+          output.log('');
 
           await vectorStore.close();
         } catch (error) {
@@ -111,7 +153,7 @@ export const gitCommand = new Command('git')
     new Command('search')
       .description('Semantic search over git commit messages')
       .argument('<query>', 'Search query (e.g., "authentication bug fix")')
-      .option('--limit <number>', 'Number of results', Number.parseInt, 10)
+      .option('--limit <number>', 'Number of results', (val) => Number.parseInt(val, 10), 10)
       .option('--json', 'Output as JSON')
       .action(async (query, options) => {
         const spinner = ora('Loading configuration...').start();

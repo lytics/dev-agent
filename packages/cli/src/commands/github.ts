@@ -5,18 +5,17 @@
 
 import { getStorageFilePaths, getStoragePath } from '@lytics/dev-agent-core';
 import { GitHubIndexer } from '@lytics/dev-agent-subagents';
-import { createLogger } from '@lytics/kero';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import ora from 'ora';
-import { formatNumber } from '../utils/formatters.js';
-import { keroLogger, logger } from '../utils/logger.js';
+import { createIndexLogger, logger } from '../utils/logger.js';
 import {
   output,
   printGitHubContext,
   printGitHubSearchResults,
   printGitHubStats,
 } from '../utils/output.js';
+import { ProgressRenderer } from '../utils/progress.js';
 
 /**
  * Create GitHub indexer with centralized storage
@@ -72,24 +71,27 @@ Related:
       .option('--issues-only', 'Index only issues')
       .option('--prs-only', 'Index only pull requests')
       .option('--state <state>', 'Filter by state (open, closed, merged, all)', 'all')
-      .option('--limit <number>', 'Limit number of items to fetch', Number.parseInt)
+      .option('--limit <number>', 'Limit number of items to fetch', (val) =>
+        Number.parseInt(val, 10)
+      )
       .option('-v, --verbose', 'Verbose output', false)
       .action(async (options) => {
-        const spinner = ora('Loading configuration...').start();
+        const spinner = ora('Initializing GitHub indexer...').start();
 
         // Create logger for indexing
-        const indexLogger = options.verbose
-          ? createLogger({ level: 'debug', format: 'pretty' })
-          : keroLogger.child({ command: 'gh-index' });
+        const indexLogger = createIndexLogger(options.verbose);
 
         try {
-          spinner.text = 'Initializing indexers...';
-
           // Create GitHub indexer with centralized vector storage
           const ghIndexer = await createGitHubIndexer();
           await ghIndexer.initialize();
 
-          spinner.text = 'Fetching GitHub data...';
+          // Stop spinner and switch to section-based progress
+          spinner.stop();
+
+          // Initialize progress renderer
+          const progressRenderer = new ProgressRenderer({ verbose: options.verbose });
+          progressRenderer.setSections(['Fetching Issues/PRs', 'Embedding Documents']);
 
           // Determine types to index
           const types = [];
@@ -104,6 +106,11 @@ Related:
             state = [options.state];
           }
 
+          const startTime = Date.now();
+          const fetchStartTime = startTime;
+          let embeddingStartTime = 0;
+          let inEmbeddingPhase = false;
+
           // Index
           const stats = await ghIndexer.index({
             types: types as ('issue' | 'pull_request')[],
@@ -112,24 +119,58 @@ Related:
             logger: indexLogger,
             onProgress: (progress) => {
               if (progress.phase === 'fetching') {
-                spinner.text = 'Fetching GitHub issues/PRs...';
+                progressRenderer.updateSection('Fetching from GitHub...');
               } else if (progress.phase === 'embedding') {
-                spinner.text = `Embedding ${progress.documentsProcessed}/${progress.totalDocuments} GitHub docs`;
+                // Transitioning to embedding phase
+                if (!inEmbeddingPhase) {
+                  const fetchDuration = (Date.now() - fetchStartTime) / 1000;
+                  progressRenderer.completeSection(
+                    `${progress.totalDocuments.toLocaleString()} documents fetched`,
+                    fetchDuration
+                  );
+                  embeddingStartTime = Date.now();
+                  inEmbeddingPhase = true;
+                }
+
+                // Update embedding progress
+                const pct = Math.round(
+                  (progress.documentsProcessed / progress.totalDocuments) * 100
+                );
+                progressRenderer.updateSection(
+                  `${progress.documentsProcessed}/${progress.totalDocuments} documents (${pct}%)`
+                );
               }
             },
           });
 
-          spinner.stop();
+          // Complete embedding section
+          if (inEmbeddingPhase) {
+            const embeddingDuration = (Date.now() - embeddingStartTime) / 1000;
+            progressRenderer.completeSection(
+              `${stats.totalDocuments.toLocaleString()} documents`,
+              embeddingDuration
+            );
+          }
+
+          const totalDuration = (Date.now() - startTime) / 1000;
+
+          // Finalize progress display
+          progressRenderer.done();
 
           // Compact summary
           const issues = stats.byType.issue || 0;
           const prs = stats.byType.pull_request || 0;
-          const duration = (stats.indexDuration / 1000).toFixed(2);
 
           output.log('');
-          output.success(`Indexed ${formatNumber(stats.totalDocuments)} GitHub documents`);
-          output.log(`   ${chalk.gray('Repository:')} ${chalk.bold(stats.repository)}`);
-          output.log(`   ${issues} issues • ${prs} PRs • ${duration}s`);
+          output.success('GitHub data indexed successfully!');
+          output.log(`  ${chalk.bold('Repository:')} ${stats.repository}`);
+          output.log(`  ${chalk.bold('Indexed:')} ${issues} issues • ${prs} PRs`);
+          output.log(`  ${chalk.bold('Duration:')} ${totalDuration.toFixed(1)}s`);
+          output.log('');
+          output.log(chalk.dim('💡 Next step:'));
+          output.log(
+            `   ${chalk.cyan('dev github search "<query>"')}  ${chalk.dim('Search issues/PRs')}`
+          );
           output.log('');
         } catch (error) {
           spinner.fail('Indexing failed');
@@ -155,7 +196,7 @@ Related:
       .option('--state <state>', 'Filter by state (default: open)', 'open')
       .option('--author <author>', 'Filter by author')
       .option('--label <labels...>', 'Filter by labels')
-      .option('--limit <number>', 'Number of results', Number.parseInt, 10)
+      .option('--limit <number>', 'Number of results', (val) => Number.parseInt(val, 10), 10)
       .option('--json', 'Output as JSON')
       .action(async (query, options) => {
         const spinner = ora('Loading configuration...').start();

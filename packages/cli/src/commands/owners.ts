@@ -61,24 +61,26 @@ function getDisplayName(email: string, repositoryPath: string): string {
 /**
  * Calculate developer ownership from indexed data (instant, no git calls!)
  */
-function calculateDeveloperOwnership(
+async function calculateDeveloperOwnership(
   store: MetricsStore,
   snapshotId: string,
   repositoryPath: string
-): DeveloperStats[] {
+): Promise<DeveloperStats[]> {
   // Get all files with metrics
   const allFiles = store.getCodeMetadata({ snapshotId, limit: 10000 });
 
   // Build file path lookup map
   const fileMetadataMap = new Map(allFiles.map((f) => [f.filePath, f]));
 
-  // Get indexed file author contributions
-  const fileAuthors = store.getFileAuthors(snapshotId);
+  // Calculate file author contributions on-demand (fast batched git call)
+  const { calculateFileAuthorContributions } = await import('@lytics/dev-agent-core');
+  const fileAuthors = await calculateFileAuthorContributions({ repositoryPath });
 
-  // Build developer stats from indexed data
+  // Build developer stats grouped by GitHub handle (normalized identity)
   const devMap = new Map<
     string,
     {
+      emails: Set<string>; // Track all emails for this developer
       files: Set<string>;
       commits: number;
       linesOfCode: number;
@@ -98,18 +100,25 @@ function calculateDeveloperOwnership(
     const fileMetadata = fileMetadataMap.get(filePath);
     if (!fileMetadata) continue;
 
-    // Update developer stats
-    let devData = devMap.get(primaryAuthor.authorEmail);
+    // Normalize to GitHub handle (groups multiple emails for same developer)
+    const displayName = getDisplayName(primaryAuthor.authorEmail, repositoryPath);
+
+    // Update developer stats (grouped by display name, not email)
+    let devData = devMap.get(displayName);
     if (!devData) {
       devData = {
+        emails: new Set(),
         files: new Set(),
         commits: 0,
         linesOfCode: 0,
         lastActive: null,
         fileCommits: new Map(),
       };
-      devMap.set(primaryAuthor.authorEmail, devData);
+      devMap.set(displayName, devData);
     }
+
+    // Track this email for this developer
+    devData.emails.add(primaryAuthor.authorEmail);
 
     devData.files.add(filePath);
     devData.commits += primaryAuthor.commitCount;
@@ -130,15 +139,18 @@ function calculateDeveloperOwnership(
 
   // Convert to array and sort by file count
   const developers: DeveloperStats[] = [];
-  for (const [email, data] of devMap) {
+  for (const [displayName, data] of devMap) {
     // Get top 5 files by commit count
     const sortedFiles = Array.from(data.fileCommits.entries())
       .sort((a, b) => b[1].commits - a[1].commits)
       .slice(0, 5);
 
+    // Use first email for identity (already normalized by displayName)
+    const primaryEmail = Array.from(data.emails)[0] || displayName;
+
     developers.push({
-      email,
-      displayName: getDisplayName(email, repositoryPath),
+      email: primaryEmail,
+      displayName,
       files: data.files.size,
       commits: data.commits,
       linesOfCode: data.linesOfCode,
@@ -196,6 +208,31 @@ function formatDeveloperTable(developers: DeveloperStats[]): string {
     const lastActive = dev.lastActive ? formatRelativeTime(dev.lastActive) : 'unknown';
 
     output += `${chalk.cyan(displayName)}  ${chalk.yellow(files)}  ${chalk.green(commits)}  ${chalk.magenta(loc)}  ${chalk.gray(lastActive)}\n`;
+
+    // Show top files owned by this developer
+    if (dev.topFiles.length > 0) {
+      for (let i = 0; i < dev.topFiles.length; i++) {
+        const file = dev.topFiles[i];
+        const isLast = i === dev.topFiles.length - 1;
+        const prefix = isLast ? '└─' : '├─';
+
+        // Shorten file path for display
+        let filePath = file.path;
+        const maxPathLen = 50;
+        if (filePath.length > maxPathLen) {
+          filePath = `...${filePath.slice(-(maxPathLen - 3))}`;
+        }
+
+        // Format stats with proper spacing
+        const fileCommits = String(file.commits).padStart(3);
+        const fileLoc = file.loc >= 1000 ? `${(file.loc / 1000).toFixed(1)}k` : String(file.loc);
+
+        // Align the numeric columns
+        output += chalk.dim(
+          `  ${chalk.gray(prefix)} ${filePath.padEnd(maxPathLen)}  ${chalk.green(fileCommits)}  ${chalk.magenta(fileLoc.padStart(6))}\n`
+        );
+      }
+    }
   }
 
   return output;
@@ -222,8 +259,8 @@ function formatRelativeTime(date: Date): string {
  */
 export const ownersCommand = new Command('owners')
   .description('Show developer contributions and code ownership')
-  .option('-n, --limit <number>', 'Number of developers to show', '10')
-  .option('--json', 'Output as JSON', false)
+  .option('-n, --limit <number>', 'Number of top developers to display (by files owned)', '10')
+  .option('--json', 'Output as JSON (includes all developers)', false)
   .action(async (options) => {
     try {
       const config = await loadConfig();
@@ -247,28 +284,12 @@ export const ownersCommand = new Command('owners')
         process.exit(0);
       }
 
-      // Get all files first (before closing store)
-      const allFiles = store.getCodeMetadata({ snapshotId: latestSnapshot.id, limit: 10000 });
-      const totalFiles = allFiles.length;
-
-      // Check if file_authors data exists
-      const fileAuthors = store.getFileAuthors(latestSnapshot.id);
-      if (fileAuthors.size === 0) {
-        store.close();
-        logger.warn('No author contribution data found.');
-        console.log('');
-        console.log(chalk.yellow('📌 This feature requires re-indexing your repository:'));
-        console.log('');
-        console.log(chalk.white('   dev index .'));
-        console.log('');
-        console.log(
-          chalk.dim('   This is a one-time operation. Future updates will maintain author data.')
-        );
-        console.log('');
-        process.exit(0);
-      }
-
-      const developers = calculateDeveloperOwnership(store, latestSnapshot.id, repositoryPath);
+      // Calculate developer ownership on-demand (uses fast batched git call)
+      const developers = await calculateDeveloperOwnership(
+        store,
+        latestSnapshot.id,
+        repositoryPath
+      );
       store.close();
 
       if (developers.length === 0) {
@@ -297,6 +318,7 @@ export const ownersCommand = new Command('owners')
       console.log('');
 
       // Add summary insights
+      const totalFiles = developers.reduce((sum, d) => sum + d.files, 0);
       const totalCommits = developers.reduce((sum, d) => sum + d.commits, 0);
       const topContributor = developers[0];
 

@@ -150,11 +150,6 @@ export interface IndexUpdatedEvent {
   isIncremental?: boolean;
   /** Per-file code metadata for metrics storage */
   codeMetadata?: CodeMetadata[];
-  /** Per-file author contributions for ownership tracking */
-  authorContributions?: Map<
-    string,
-    Array<{ authorEmail: string; commitCount: number; lastCommit: Date | null }>
-  >;
 }
 
 export interface IndexErrorEvent {

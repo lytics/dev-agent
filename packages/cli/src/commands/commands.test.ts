@@ -82,7 +82,7 @@ describe('CLI Commands', () => {
       );
     });
 
-    it('should display storage size after indexing', async () => {
+    it('should display indexing summary without storage size', async () => {
       const indexDir = path.join(testDir, 'index-test');
       await fs.mkdir(indexDir, { recursive: true });
 
@@ -120,13 +120,15 @@ export class Calculator {
       exitSpy.mockRestore();
       console.log = originalConsoleLog;
 
-      // Verify storage size is in the output (new compact format shows it after duration)
-      const storageSizeLog = loggedMessages.find(
-        (msg) => msg.includes('Duration:') || msg.includes('Storage:')
-      );
-      expect(storageSizeLog).toBeDefined();
-      // Check for storage size in compact format: "Duration: X • Storage: Y"
-      expect(loggedMessages.some((msg) => /\d+(\.\d+)?\s*(B|KB|MB|GB)/.test(msg))).toBe(true);
+      // Verify summary shows duration (storage size calculated on-demand in `dev stats`)
+      const durationLog = loggedMessages.find((msg) => msg.includes('Duration:'));
+      expect(durationLog).toBeDefined();
+      // Verify storage size is NOT shown (deferred to `dev stats`)
+      const hasStorageSize = loggedMessages.some((msg) => msg.includes('Storage:'));
+      expect(hasStorageSize).toBe(false);
+      // Verify indexed stats are shown
+      const indexedLog = loggedMessages.find((msg) => msg.includes('Indexed:'));
+      expect(indexedLog).toBeDefined();
     }, 30000); // 30s timeout for indexing
   });
 });
