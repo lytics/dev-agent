@@ -4,10 +4,10 @@
  */
 
 export const latestVersion = {
-  version: '0.8.0',
-  title: 'Developer Insights & Performance',
+  version: '0.8.2',
+  title: 'Massive Indexing Performance & UX Improvements',
   date: 'December 13, 2025',
   summary:
-    'New dev map, dev activity, and dev owners commands with major performance improvements (35-224x faster) and persistent metrics.',
-  link: '/updates#v080--developer-insights--performance',
+    '184% faster indexing with zero silent gaps, section-based progress display, and context-aware dev owners command.',
+  link: '/updates#v082--massive-indexing-performance--ux-improvements',
 } as const;

@@ -9,6 +9,155 @@ What's new in dev-agent. We ship improvements regularly to help AI assistants un
 
 ---
 
+## v0.8.2 — Massive Indexing Performance & UX Improvements
+
+*December 13, 2025*
+
+**184% faster indexing with zero silent gaps and context-aware developer insights.**
+
+### What's New
+
+**⚡ Performance Improvements (184% Faster)**
+
+Eliminated performance bottlenecks throughout the indexing pipeline:
+
+- **63x faster metadata collection** — Single batched git command replaces 863 individual calls
+- **Removed storage size calculation** — Deferred to on-demand in `dev stats` (saves 1-3s)
+- **Simplified ownership tracking** — Author contributions calculated on-demand (1s vs pre-indexing overhead)
+- **Total speedup** — Indexing completes in ~33s vs ~95s (61s improvement!)
+
+**🎨 Section-Based Progress Display**
+
+No more silent gaps during indexing. Clean, informative output inspired by Homebrew and Cargo:
+
+```bash
+dev index .
+
+✓ Scanning Repository (3.2s)
+  433 files → 2,525 components
+
+✓ Embedding Vectors (20.7s)
+  2,525 documents
+
+✓ Git History (4.4s)
+  252 commits
+
+✓ GitHub Issues/PRs (7.8s)
+  163 documents
+
+✓ Repository indexed successfully!
+
+  Indexed: 433 files • 2,525 components • 252 commits • 163 GitHub docs
+  Duration: 33.5s
+
+💡 Next steps:
+   dev map       Explore codebase structure
+   dev owners    See contributor stats
+   dev activity  Find active files
+```
+
+**Applied to 4 commands:** `dev index`, `dev update`, `dev git index`, `dev github index`
+
+**🔍 Context-Aware `dev owners` Command**
+
+Completely redesigned to provide actionable insights based on your current context:
+
+**Three Intelligent Modes:**
+
+1. **Changed Files Mode** — Shows ownership of uncommitted changes (perfect for PR reviews)
+2. **Root Directory Mode** — High-level overview of top areas (`packages/cli/`, `packages/core/`)
+3. **Subdirectory Mode** — Detailed expertise for the specific area you're in
+
+**Smart Ownership Display:**
+
+```bash
+# Your file (minimal noise)
+└─ src/auth.ts
+     @you • 50 commits • Last: 6 months ago
+
+# Your file + recent activity by others (coordination warning)
+└─ src/auth.ts
+     @you • 50 commits • Last: 6 months ago
+     ⚠️  Recent activity by @alice (yesterday)
+
+💡 Suggested reviewers: @alice
+
+# Someone else's stale file (review required)
+└─ ⚠️  src/legacy.ts
+     @alice • 12 commits • Last: 2 years ago
+
+# New file (no history)
+└─ 🆕 src/feature.ts
+     New file
+```
+
+**Key Features:**
+
+- **Asymmetric icons** — Only flags exceptions (⚠️ others' files, 🆕 new files)
+- **Last touched timestamps** — Catches stale code and active development
+- **Recent activity detection** — Warns when others recently modified your files
+- **Suggested reviewers** — Auto-identifies who to loop in for code reviews
+- **Real-time git log analysis** — Works for uncommitted changes
+- **Git root detection** — Works from any subdirectory
+
+### Architecture Simplifications
+
+This release removes unnecessary complexity while improving performance:
+
+- **Removed `file_authors` SQLite table** — On-demand calculation is fast enough (1s)
+- **Removed `appendFileAuthors()` and `getFileAuthors()` from MetricsStore**
+- **Removed `authorContributions` from IndexUpdatedEvent**
+- **Cleaner separation** — Metrics for analytics, ownership for developer insights
+
+### UX Improvements
+
+**More frequent progress updates:**
+- Scanner logs every 2 batches or 10 seconds (was every 50 files)
+- Debug logs for slow file processing (>5s)
+- Maximum 1-second gaps between progress updates
+
+**Better grouping in `dev owners`:**
+- Groups by GitHub handle instead of email (merges multiple emails per developer)
+- Monorepo-aware directory grouping (2 levels for `packages/`, `apps/`)
+
+**Graceful degradation:**
+- Verbose mode and non-TTY environments show traditional logs
+- TTY detection for CI/CD compatibility
+
+### Before & After
+
+**Before:**
+```
+[14:27:37] typescript 3450/3730 (92%)
+           ← 3 MINUTES OF SILENCE
+[14:30:09] typescript 3600/3730 (97%)
+           ← EMBEDDING COMPLETES
+           ← 63 SECONDS OF SILENCE  
+[14:31:12] Starting git extraction
+```
+
+**After:**
+```
+✓ Scanning Repository (3.2s)
+  433 files → 2,525 components
+
+✓ Embedding Vectors (20.7s)
+  2,525 documents
+
+✓ Git History (4.4s)
+  252 commits
+```
+
+### Migration
+
+No breaking changes for end users. Internal APIs changed:
+- `IndexUpdatedEvent` no longer includes `authorContributions`
+- `MetricsStore` ownership methods removed (use on-demand calculation)
+
+No re-index required. Changes take effect immediately.
+
+---
+
 ## v0.8.0 — Developer Insights & Performance
 
 *December 13, 2025*
