@@ -592,6 +592,29 @@ export class RepositoryIndexer {
   }
 
   /**
+   * Get update plan showing which files will be processed
+   * Useful for displaying a plan before running update
+   */
+  async getUpdatePlan(options: { since?: Date } = {}): Promise<{
+    changed: string[];
+    added: string[];
+    deleted: string[];
+    total: number;
+  } | null> {
+    if (!this.state) {
+      return null;
+    }
+
+    const { changed, added, deleted } = await this.detectChangedFiles(options.since);
+    return {
+      changed,
+      added,
+      deleted,
+      total: changed.length + added.length + deleted.length,
+    };
+  }
+
+  /**
    * Enrich language stats with change frequency data
    * Non-blocking: returns original stats if git analysis fails
    */

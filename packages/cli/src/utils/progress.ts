@@ -57,6 +57,23 @@ export class ProgressRenderer {
   }
 
   /**
+   * Update section with formatted progress including rate
+   */
+  updateSectionWithRate(processed: number, total: number, unit: string, startTime: number): void {
+    if (total === 0) {
+      this.updateSection('Discovering...');
+      return;
+    }
+
+    const pct = Math.round((processed / total) * 100);
+    const elapsed = (Date.now() - startTime) / 1000;
+    const rate = elapsed > 0 ? processed / elapsed : 0;
+    this.updateSection(
+      `${processed.toLocaleString()}/${total.toLocaleString()} ${unit} (${pct}%, ${rate.toFixed(0)} ${unit}/sec)`
+    );
+  }
+
+  /**
    * Mark current section as complete and move to next
    */
   completeSection(summary: string, duration?: number): void {

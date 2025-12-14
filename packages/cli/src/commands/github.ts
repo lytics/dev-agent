@@ -133,11 +133,11 @@ Related:
                 }
 
                 // Update embedding progress
-                const pct = Math.round(
-                  (progress.documentsProcessed / progress.totalDocuments) * 100
-                );
-                progressRenderer.updateSection(
-                  `${progress.documentsProcessed}/${progress.totalDocuments} documents (${pct}%)`
+                progressRenderer.updateSectionWithRate(
+                  progress.documentsProcessed,
+                  progress.totalDocuments,
+                  'documents',
+                  embeddingStartTime
                 );
               }
             },
