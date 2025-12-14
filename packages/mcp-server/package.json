@@ -1,6 +1,6 @@
 {
   "name": "@lytics/dev-agent-mcp",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "MCP server for dev-agent with extensible adapter framework",
   "private": true,
   "main": "./dist/src/index.js",
