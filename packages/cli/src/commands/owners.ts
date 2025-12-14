@@ -374,83 +374,7 @@ function formatSubdirectoryMode(
   if (relevantDevs.length === 1) {
     output += chalk.dim(`💡 Tip: You're the main contributor here\n`);
   } else {
-    output += chalk.dim(
-      `💡 Tip: Run ${chalk.cyan("'dev owners --all'")} to see all ${relevantDevs.length} contributors\n`
-    );
-  }
-
-  return output;
-}
-
-/**
- * Format developer stats as a table (legacy --all mode)
- */
-function formatDeveloperTable(developers: DeveloperStats[]): string {
-  if (developers.length === 0) return '';
-
-  // Calculate column widths based on display names
-  const maxNameLen = Math.max(...developers.map((d) => d.displayName.length), 15);
-  const nameWidth = Math.min(maxNameLen, 30);
-
-  // Header - add 5 extra spaces after DEVELOPER to accommodate longer file paths
-  const extraSpacing = '     '; // 5 extra spaces for file path display
-  let output = chalk.bold(
-    `${'DEVELOPER'.padEnd(nameWidth)}${extraSpacing}  ${'FILES'.padStart(6)}  ${'COMMITS'.padStart(8)}  ${'LOC'.padStart(8)}  ${'LAST ACTIVE'}\n`
-  );
-
-  // Separator (calculate exact width including extra spacing)
-  const separatorWidth = nameWidth + 5 + 2 + 6 + 2 + 8 + 2 + 8 + 2 + 12;
-  output += chalk.dim(`${'─'.repeat(separatorWidth)}\n`);
-
-  // Rows
-  for (const dev of developers) {
-    // Truncate display name if needed
-    let displayName = dev.displayName;
-    if (displayName.length > nameWidth) {
-      displayName = `${displayName.slice(0, nameWidth - 3)}...`;
-    }
-    displayName = displayName.padEnd(nameWidth);
-
-    const files = String(dev.files).padStart(6);
-    const commits = String(dev.commits).padStart(8);
-
-    // Format LOC with K suffix if >= 1000
-    const locStr =
-      dev.linesOfCode >= 1000 ? `${(dev.linesOfCode / 1000).toFixed(1)}k` : String(dev.linesOfCode);
-    const loc = locStr.padStart(8);
-
-    const lastActive = dev.lastActive ? formatRelativeTime(dev.lastActive) : 'unknown';
-
-    // Add extra spacing to match header
-    output += `${chalk.cyan(displayName)}${extraSpacing}  ${chalk.yellow(files)}  ${chalk.green(commits)}  ${chalk.magenta(loc)}  ${chalk.gray(lastActive)}\n`;
-
-    // Show top files owned by this developer
-    if (dev.topFiles.length > 0) {
-      for (let i = 0; i < dev.topFiles.length; i++) {
-        const file = dev.topFiles[i];
-        const isLast = i === dev.topFiles.length - 1;
-        const prefix = isLast ? '└─' : '├─';
-
-        // Calculate file path width to align with columns
-        // Tree takes 5 chars: "  ├─ "
-        // File path should extend to where FILES column ends, plus 5 extra chars
-        const filePathWidth = nameWidth + 2 + 6 - 5 + 5;
-        let filePath = file.path;
-        if (filePath.length > filePathWidth) {
-          filePath = `...${filePath.slice(-(filePathWidth - 3))}`;
-        }
-
-        // Format numeric columns to match header (COMMITS=8, LOC=8)
-        const fileCommits = String(file.commits).padStart(8);
-        const fileLoc = file.loc >= 1000 ? `${(file.loc / 1000).toFixed(1)}k` : String(file.loc);
-        const fileLocPadded = fileLoc.padStart(8);
-
-        // Align exactly with header columns
-        output += chalk.dim(
-          `  ${chalk.gray(prefix)} ${filePath.padEnd(filePathWidth)}  ${chalk.green(fileCommits)}  ${chalk.magenta(fileLocPadded)}\n`
-        );
-      }
-    }
+    output += chalk.dim(`💡 Tip: ${relevantDevs.length} contributors work in this area\n`);
   }
 
   return output;
@@ -478,7 +402,6 @@ function formatRelativeTime(date: Date): string {
 export const ownersCommand = new Command('owners')
   .description('Show code ownership and developer contributions (context-aware)')
   .option('-n, --limit <number>', 'Number of developers to display (default: 10)', '10')
-  .option('--all', 'Show all contributors (legacy table view)', false)
   .option('--json', 'Output as JSON', false)
   .action(async (options) => {
     try {
@@ -523,30 +446,6 @@ export const ownersCommand = new Command('owners')
         console.log(
           JSON.stringify({ developers: topDevelopers, total: developers.length }, null, 2)
         );
-        return;
-      }
-
-      // Legacy --all mode: show table of all contributors
-      if (options.all) {
-        const limit = Number.parseInt(options.limit, 10);
-        const topDevelopers = developers.slice(0, limit);
-
-        console.log('');
-        console.log(
-          chalk.bold.cyan(`👥 Developer Contributions (${developers.length} total contributors)`)
-        );
-        console.log('');
-        console.log(formatDeveloperTable(topDevelopers));
-        console.log('');
-
-        const totalFiles = developers.reduce((sum, d) => sum + d.files, 0);
-        const totalCommits = developers.reduce((sum, d) => sum + d.commits, 0);
-
-        console.log(chalk.dim('Summary:'));
-        console.log(
-          chalk.dim(`  • ${totalFiles} files total, ${totalCommits.toLocaleString()} commits`)
-        );
-        console.log('');
         return;
       }
 
