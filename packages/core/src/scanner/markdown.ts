@@ -22,7 +22,12 @@ export class MarkdownScanner implements Scanner {
     return ext === '.md' || ext === '.mdx';
   }
 
-  async scan(files: string[], repoRoot: string, _logger?: Logger): Promise<Document[]> {
+  async scan(
+    files: string[],
+    repoRoot: string,
+    _logger?: Logger,
+    _onProgress?: (filesProcessed: number, totalFiles: number) => void
+  ): Promise<Document[]> {
     const documents: Document[] = [];
 
     for (const file of files) {

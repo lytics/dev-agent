@@ -2,7 +2,6 @@
 
 import chalk from 'chalk';
 import { Command } from 'commander';
-import { activityCommand } from './commands/activity.js';
 import { cleanCommand } from './commands/clean.js';
 import { compactCommand } from './commands/compact.js';
 import { dashboardCommand } from './commands/dashboard.js';
@@ -13,7 +12,6 @@ import { indexCommand } from './commands/index.js';
 import { initCommand } from './commands/init.js';
 import { mapCommand } from './commands/map.js';
 import { mcpCommand } from './commands/mcp.js';
-import { ownersCommand } from './commands/owners.js';
 import { planCommand } from './commands/plan.js';
 import { searchCommand } from './commands/search.js';
 import { statsCommand } from './commands/stats.js';
@@ -42,8 +40,6 @@ program.addCommand(gitCommand);
 program.addCommand(mapCommand);
 program.addCommand(updateCommand);
 program.addCommand(statsCommand);
-program.addCommand(ownersCommand);
-program.addCommand(activityCommand);
 program.addCommand(dashboardCommand);
 program.addCommand(compactCommand);
 program.addCommand(cleanCommand);

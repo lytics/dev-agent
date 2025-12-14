@@ -148,7 +148,12 @@ export class GoScanner implements Scanner {
     }
   }
 
-  async scan(files: string[], repoRoot: string, logger?: Logger): Promise<Document[]> {
+  async scan(
+    files: string[],
+    repoRoot: string,
+    logger?: Logger,
+    onProgress?: (filesProcessed: number, totalFiles: number) => void
+  ): Promise<Document[]> {
     const documents: Document[] = [];
     const total = files.length;
     const errors: Array<{
@@ -180,9 +185,15 @@ export class GoScanner implements Scanner {
       const file = files[i];
       const fileStartTime = Date.now();
 
-      // Log progress every 50 files OR every 10 seconds
+      // Report progress via callback every 50 files OR every 10 seconds
       const now = Date.now();
       const timeSinceLastLog = now - lastLogTime;
+
+      if (onProgress && i > 0 && (i % 50 === 0 || timeSinceLastLog > 10000)) {
+        onProgress(i, total);
+      }
+
+      // Log progress every 50 files OR every 10 seconds
       if (logger && i > 0 && (i % 50 === 0 || timeSinceLastLog > 10000)) {
         lastLogTime = now;
         const elapsed = now - startTime;

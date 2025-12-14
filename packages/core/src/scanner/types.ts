@@ -87,8 +87,14 @@ export interface Scanner {
    * @param files - List of files to scan (relative paths)
    * @param repoRoot - Repository root path
    * @param logger - Optional logger for progress output
+   * @param onProgress - Optional callback for progress updates
    */
-  scan(files: string[], repoRoot: string, logger?: Logger): Promise<Document[]>;
+  scan(
+    files: string[],
+    repoRoot: string,
+    logger?: Logger,
+    onProgress?: (filesProcessed: number, totalFiles: number) => void
+  ): Promise<Document[]>;
 
   /**
    * Check if this scanner can handle a file

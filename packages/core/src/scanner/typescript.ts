@@ -70,7 +70,12 @@ export class TypeScriptScanner implements Scanner {
     });
   }
 
-  async scan(files: string[], repoRoot: string, logger?: Logger): Promise<Document[]> {
+  async scan(
+    files: string[],
+    repoRoot: string,
+    logger?: Logger,
+    onProgress?: (filesProcessed: number, totalFiles: number) => void
+  ): Promise<Document[]> {
     // Initialize project with lenient type checking enabled
     // - Allows cross-file symbol resolution for better callee extraction
     // - Keeps strict checks disabled to avoid blocking on type errors
@@ -213,6 +218,14 @@ export class TypeScriptScanner implements Scanner {
 
       const now = Date.now();
       const timeSinceLastLog = now - lastLogTime;
+
+      // Report progress via callback: every 2 batches OR every 10 seconds OR last batch
+      if (
+        onProgress &&
+        (batchIndex % 2 === 0 || timeSinceLastLog > 10000 || batchIndex === batches.length - 1)
+      ) {
+        onProgress(processedCount, total);
+      }
 
       // Log progress: every 2 batches OR every 10 seconds OR last batch
       if (

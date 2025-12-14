@@ -61,7 +61,7 @@ export class ProgressRenderer {
    */
   updateSectionWithRate(processed: number, total: number, unit: string, startTime: number): void {
     if (total === 0) {
-      this.updateSection('Discovering...');
+      this.updateSection('Discovering repository... this process may take 3-5 minutes');
       return;
     }
 
@@ -195,8 +195,6 @@ export function formatFinalSummary(stats: {
   // Next steps
   lines.push(chalk.dim('💡 Next steps:'));
   lines.push(`   ${chalk.cyan('dev map')}       ${chalk.dim('Explore codebase structure')}`);
-  lines.push(`   ${chalk.cyan('dev owners')}    ${chalk.dim('See contributor stats')}`);
-  lines.push(`   ${chalk.cyan('dev activity')}  ${chalk.dim('Find active files')}`);
   lines.push('');
 
   return lines.join('\n');
