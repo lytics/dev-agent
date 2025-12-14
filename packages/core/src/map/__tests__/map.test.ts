@@ -485,8 +485,9 @@ describe('Codebase Map', () => {
       const output = formatCodebaseMap(map, { includeHotPaths: true });
 
       expect(output).toContain('## Hot Paths');
-      expect(output).toContain('src/core.ts');
+      expect(output).toContain('**core.ts**'); // Filename in bold
       expect(output).toContain('2 refs');
+      expect(output).toContain('src'); // Directory path on separate line
     });
   });
 

@@ -100,6 +100,8 @@ async function loadCurrentStats(): Promise<{
       totalDocuments: state.totalDocuments || 0,
       byType: state.byType || {},
       byState: state.byState || {},
+      issuesByState: state.issuesByState,
+      prsByState: state.prsByState,
       lastIndexed: state.lastIndexed || '',
       indexDuration: state.indexDuration || 0,
     };
@@ -217,6 +219,8 @@ What You'll See:
               totalDocuments: number;
               byType: { issue?: number; pull_request?: number };
               byState: { open?: number; closed?: number; merged?: number };
+              issuesByState?: { open: number; closed: number };
+              prsByState?: { open: number; closed: number; merged: number };
               lastIndexed: string;
             } | null) || undefined,
         });

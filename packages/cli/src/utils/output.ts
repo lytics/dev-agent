@@ -142,18 +142,26 @@ export function formatGitHubSummary(githubStats: {
   totalDocuments: number;
   byType: { issue?: number; pull_request?: number };
   byState: { open?: number; closed?: number; merged?: number };
+  issuesByState?: { open: number; closed: number };
+  prsByState?: { open: number; closed: number; merged: number };
   lastIndexed: string;
 }): string {
   const issues = githubStats.byType.issue || 0;
   const prs = githubStats.byType.pull_request || 0;
-  const open = githubStats.byState.open || 0;
-  const merged = githubStats.byState.merged || 0;
+
+  // Use per-type state counts if available (new format), fall back to aggregate (old format)
+  const issuesOpen = githubStats.issuesByState?.open ?? 0;
+  const issuesClosed = githubStats.issuesByState?.closed ?? 0;
+  const prsOpen = githubStats.prsByState?.open ?? 0;
+  const prsMerged = githubStats.prsByState?.merged ?? 0;
 
   const timeSince = getTimeSince(new Date(githubStats.lastIndexed));
 
   return [
     `🔗 ${chalk.bold(githubStats.repository)} • ${formatNumber(githubStats.totalDocuments)} documents`,
-    `   ${chalk.gray(issues.toString())} issues • ${chalk.gray(prs.toString())} PRs • ${chalk.gray(open.toString())} open • ${chalk.gray(merged.toString())} merged • Synced ${timeSince}`,
+    `   Issues: ${chalk.gray(issues.toString())} total (${issuesOpen} open, ${issuesClosed} closed)`,
+    `   Pull Requests: ${chalk.gray(prs.toString())} total (${prsOpen} open, ${prsMerged} merged)`,
+    `   Last synced: ${timeSince}`,
   ].join('\n');
 }
 
@@ -369,6 +377,8 @@ export function printRepositoryStats(data: {
     totalDocuments: number;
     byType: { issue?: number; pull_request?: number };
     byState: { open?: number; closed?: number; merged?: number };
+    issuesByState?: { open: number; closed: number };
+    prsByState?: { open: number; closed: number; merged: number };
     lastIndexed: string;
   } | null;
 }): void {
@@ -471,19 +481,21 @@ export function printRepositoryStats(data: {
     const issues = githubStats.byType.issue || 0;
     const prs = githubStats.byType.pull_request || 0;
 
+    // Use per-type state counts if available (new format), fall back to aggregate (old format)
+    const issuesOpen = githubStats.issuesByState?.open ?? githubStats.byState.open ?? 0;
+    const issuesClosed = githubStats.issuesByState?.closed ?? githubStats.byState.closed ?? 0;
+    const prsOpen = githubStats.prsByState?.open ?? githubStats.byState.open ?? 0;
+    const prsMerged = githubStats.prsByState?.merged ?? githubStats.byState.merged ?? 0;
+
     if (issues > 0) {
-      const openIssues = githubStats.byState.open || 0;
-      const closedIssues = githubStats.byState.closed || 0;
       output.log(
-        `  Issues: ${chalk.bold(issues.toString())} total (${chalk.green(`${openIssues} open`)}, ${chalk.gray(`${closedIssues} closed`)})`
+        `  Issues: ${chalk.bold(issues.toString())} total (${issuesOpen} open, ${issuesClosed} closed)`
       );
     }
 
     if (prs > 0) {
-      const openPRs = githubStats.byState.open || 0;
-      const mergedPRs = githubStats.byState.merged || 0;
       output.log(
-        `  Pull Requests: ${chalk.bold(prs.toString())} total (${chalk.green(`${openPRs} open`)}, ${chalk.magenta(`${mergedPRs} merged`)})`
+        `  Pull Requests: ${chalk.bold(prs.toString())} total (${prsOpen} open, ${prsMerged} merged)`
       );
     }
 
@@ -905,6 +917,8 @@ export function printGitHubStats(githubStats: {
   totalDocuments: number;
   byType: { issue?: number; pull_request?: number; discussion?: number };
   byState: { open?: number; closed?: number; merged?: number };
+  issuesByState?: { open: number; closed: number };
+  prsByState?: { open: number; closed: number; merged: number };
   lastIndexed: string;
   indexDuration?: number;
 }): void {
@@ -912,9 +926,12 @@ export function printGitHubStats(githubStats: {
   const prs = githubStats.byType.pull_request || 0;
   const discussions = githubStats.byType.discussion || 0;
 
-  const openCount = githubStats.byState.open || 0;
-  const closedCount = githubStats.byState.closed || 0;
-  const mergedCount = githubStats.byState.merged || 0;
+  // Use per-type state counts if available (new format), fall back to aggregate (old format)
+  const issueOpen = githubStats.issuesByState?.open ?? 0;
+  const issueClosed = githubStats.issuesByState?.closed ?? 0;
+  const prOpen = githubStats.prsByState?.open ?? 0;
+  const prClosed = githubStats.prsByState?.closed ?? 0;
+  const prMerged = githubStats.prsByState?.merged ?? 0;
 
   const timeSince = getTimeSince(new Date(githubStats.lastIndexed));
 
@@ -928,9 +945,6 @@ export function printGitHubStats(githubStats: {
   // Issues breakdown
   if (issues > 0) {
     const issueStates: string[] = [];
-    // Calculate issue-specific counts (open + closed, no merged for issues)
-    const issueOpen = openCount > 0 ? openCount : 0;
-    const issueClosed = closedCount > 0 ? closedCount : 0;
 
     if (issueOpen > 0) {
       issueStates.push(`${chalk.green('●')} ${issueOpen} open`);
@@ -949,12 +963,12 @@ export function printGitHubStats(githubStats: {
   // Pull requests breakdown
   if (prs > 0) {
     const prStates: string[] = [];
-    // For PRs, we show open and merged
-    const prOpen = openCount > 0 ? openCount : 0;
-    const prMerged = mergedCount > 0 ? mergedCount : 0;
 
     if (prOpen > 0) {
       prStates.push(`${chalk.green('●')} ${prOpen} open`);
+    }
+    if (prClosed > 0) {
+      prStates.push(`${chalk.gray('●')} ${prClosed} closed`);
     }
     if (prMerged > 0) {
       prStates.push(`${chalk.magenta('●')} ${prMerged} merged`);

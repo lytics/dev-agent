@@ -7,6 +7,7 @@ import * as path from 'node:path';
 import type { Logger } from '@lytics/kero';
 import type { LocalGitExtractor } from '../git/extractor';
 import type { RepositoryIndexer } from '../indexer';
+import { getFileIcon } from '../utils/icons';
 import type { SearchResult } from '../vector/types';
 import type {
   ChangeFrequency,
@@ -484,26 +485,6 @@ function computeHotPaths(docs: SearchResult[], maxPaths: number): HotPath[] {
     .slice(0, maxPaths);
 
   return sorted;
-}
-
-/**
- * Get file icon based on extension
- */
-function getFileIcon(ext: string): string {
-  const iconMap: Record<string, string> = {
-    ts: '📘',
-    tsx: '⚛️',
-    js: '📜',
-    jsx: '⚛️',
-    go: '🐹',
-    py: '🐍',
-    rs: '🦀',
-    md: '📝',
-    json: '📋',
-    yaml: '⚙️',
-    yml: '⚙️',
-  };
-  return iconMap[ext] || '📄';
 }
 
 /**

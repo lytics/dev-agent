@@ -178,6 +178,21 @@ export class GitHubIndexer {
       {} as Record<string, number>
     );
 
+    // Calculate states per type for accurate reporting
+    const issuesByState = { open: 0, closed: 0 };
+    const prsByState = { open: 0, closed: 0, merged: 0 };
+
+    for (const doc of enrichedDocs) {
+      if (doc.type === 'issue') {
+        if (doc.state === 'open') issuesByState.open++;
+        else if (doc.state === 'closed') issuesByState.closed++;
+      } else if (doc.type === 'pull_request') {
+        if (doc.state === 'open') prsByState.open++;
+        else if (doc.state === 'closed') prsByState.closed++;
+        else if (doc.state === 'merged') prsByState.merged++;
+      }
+    }
+
     // Update state
     this.state = {
       version: INDEXER_VERSION,
@@ -186,6 +201,8 @@ export class GitHubIndexer {
       totalDocuments: enrichedDocs.length,
       byType: byType as Record<'issue' | 'pull_request' | 'discussion', number>,
       byState: byState as Record<'open' | 'closed' | 'merged', number>,
+      issuesByState,
+      prsByState,
     };
 
     // Save state to disk
@@ -202,6 +219,8 @@ export class GitHubIndexer {
       totalDocuments: enrichedDocs.length,
       byType: byType as Record<'issue' | 'pull_request' | 'discussion', number>,
       byState: byState as Record<'open' | 'closed' | 'merged', number>,
+      issuesByState,
+      prsByState,
       lastIndexed: this.state.lastIndexed,
       indexDuration: durationMs,
     };
@@ -398,6 +417,8 @@ export class GitHubIndexer {
       totalDocuments: this.state.totalDocuments,
       byType: this.state.byType,
       byState: this.state.byState,
+      issuesByState: this.state.issuesByState,
+      prsByState: this.state.prsByState,
       lastIndexed: this.state.lastIndexed,
       indexDuration: 0,
     };
