@@ -4,10 +4,10 @@
  */
 
 export const latestVersion = {
-  version: '0.8.4',
-  title: 'Refocus on Semantic Value',
+  version: '0.8.5',
+  title: 'Enhanced Pattern Analysis & Performance',
   date: 'December 14, 2025',
   summary:
-    'Removed git analytics commands to focus on unique semantic capabilities. Cleaner codebase, clearer value proposition.',
-  link: '/updates#v084--refocus-on-semantic-value',
+    'Refactored dev_inspect with 5-10x faster pattern analysis, comprehensive code comparison across 5 pattern categories, and improved semantic search accuracy.',
+  link: '/updates#v085--enhanced-pattern-analysis--performance',
 } as const;

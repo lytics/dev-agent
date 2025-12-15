@@ -11,12 +11,19 @@ dev-agent provides nine tools through the Model Context Protocol (MCP). These to
 | [`dev_map`](/docs/tools/dev-map) | Codebase structure overview with change frequency |
 | [`dev_history`](/docs/tools/dev-history) | Semantic search over git commits ✨ v0.4 |
 | [`dev_plan`](/docs/tools/dev-plan) | Assemble context for GitHub issues |
-| [`dev_inspect`](/docs/tools/dev-inspect) | Inspect files (compare implementations, check patterns) |
+| [`dev_inspect`](/docs/tools/dev-inspect) | File pattern analysis (finds similar code, compares 5 pattern categories) ✨ v0.8.5 |
 | [`dev_gh`](/docs/tools/dev-gh) | Search GitHub issues and PRs |
 | [`dev_status`](/docs/tools/dev-status) | Check repository indexing status |
 | [`dev_health`](/docs/tools/dev-health) | Monitor MCP server health |
 
-## New in v0.5.0
+## New in v0.8.5
+
+- **`dev_inspect`** — Refactored for comprehensive pattern analysis (5 categories)
+- **Performance** — 5-10x faster pattern analysis via batch scanning (500-1000ms)
+- **Accuracy** — Semantic similarity using document embeddings, extension filtering
+- **Simplified API** — Streamlined interface (no action parameter needed)
+
+## v0.5.0
 
 - **Enhanced indexing** — Arrow functions, React hooks, and exported constants now extracted
 - **`dev_search`** — Better coverage of modern JavaScript patterns (hooks, utilities, configs)

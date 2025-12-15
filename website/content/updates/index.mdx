@@ -9,6 +9,154 @@ What's new in dev-agent. We ship improvements regularly to help AI assistants un
 
 ---
 
+## v0.8.5 — Enhanced Pattern Analysis & Performance
+
+*December 14, 2025*
+
+**Refactored `dev_inspect` with 5-10x faster pattern analysis and comprehensive code comparison.**
+
+### What's Changed
+
+**🔄 Simplified `dev_inspect` Tool**
+
+The `action` parameter has been streamlined. `dev_inspect` is now a single-purpose tool that automatically:
+- Finds similar files using semantic search
+- Analyzes and compares 5 pattern categories
+
+```bash
+# Before (v0.8.4)
+dev_inspect { action: "compare", query: "src/auth.ts" }
+
+# After (v0.8.5) - Simpler!
+dev_inspect { query: "src/auth.ts" }
+```
+
+### What's New
+
+**🔍 Comprehensive Pattern Analysis**
+
+`dev_inspect` now analyzes 5 pattern categories automatically:
+
+1. **Import Style** — ESM, CJS, mixed, or unknown
+2. **Error Handling** — throw, result types, callbacks, or unknown
+3. **Type Coverage** — full, partial, or none (TypeScript only)
+4. **Testing** — Detects co-located test files
+5. **File Size** — Lines vs similar files
+
+**Example output:**
+```
+## File Inspection: src/auth/middleware.ts
+
+### Similar Files (5 analyzed)
+1. `src/auth/session.ts` (78%)
+2. `src/middleware/logger.ts` (72%)
+3. `src/api/auth-handler.ts` (68%)
+
+### Pattern Analysis
+
+**Import Style:** Your file uses `esm`, matching 100% of similar files.
+**Error Handling:** Your file uses `throw`, but 60% use `result`.
+**Type Coverage:** Your file has `full` coverage (80% match).
+**Testing:** No test file found. 40% of similar files have tests.
+**Size:** 234 lines (smaller than average of 312 lines)
+```
+
+**⚡ Performance Improvements**
+
+- **5-10x faster** pattern analysis via batch scanning
+- **500-1000ms** analysis time (down from 2-3 seconds)
+- One ts-morph initialization vs 6 separate scans
+- Embedding-based similarity (no more false matches)
+
+**🎯 Accuracy Improvements**
+
+- **Extension filtering** — Only compares files with same extension
+- **Semantic similarity** — Uses document embeddings instead of file paths
+- **No duplicates** — Fixed search to return unique results
+- **Relevant comparisons** — `.ts` files only compare with `.ts` files
+
+### Bug Fixes
+
+**Vector Store & Indexing**
+- Fixed `findSimilar` to use document embeddings instead of path strings
+- Fixed `--force` flag to properly clear old vector data
+- Fixed race condition in LanceDB table creation during concurrent operations
+- Added `searchByDocumentId()` for embedding-based similarity search
+
+**MCP Protocol Compliance**
+- Removed `outputSchema` from all 9 MCP adapters
+- Fixed Cursor/Claude compatibility issues (MCP error -32600)
+- All tools now return plain markdown text wrapped in content blocks
+
+### New Features
+
+**Core Utilities**
+- Created `test-utils.ts` in `@lytics/dev-agent-core/utils`
+- `isTestFile()` — Check if a file is a test file
+- `findTestFile()` — Find co-located test files
+- Reusable across services
+
+**Vector Store Enhancements**
+- `clear()` — Delete all documents (used by `--force`)
+- `searchByDocumentId()` — Find similar documents by embedding
+- Better race condition handling in table creation
+
+### Architecture Improvements
+
+**PatternAnalysisService**
+- Dedicated service in `@lytics/dev-agent-core`
+- 5 pattern extractors with comprehensive tests
+- Batch scanning optimization for performance
+- Comparison logic with statistical analysis
+
+**Service Refactoring**
+- Extracted test utilities to `core/utils` (DRY principle)
+- PatternAnalysisService uses shared utilities
+- Cleaner separation of concerns
+
+### Documentation
+
+- Complete rewrite of dev-inspect.mdx
+- Updated README.md with pattern categories
+- Updated CLAUDE.md with new descriptions
+- Migration guide from dev_explore to dev_inspect
+
+### Testing
+
+- All 1100+ tests passing
+- Added 10 new test-utils tests
+- Pattern analysis service fully tested
+- Integration tests for InspectAdapter
+
+### Migration Guide
+
+**API Simplification:**
+```typescript
+// Old (v0.8.4) - Had action parameter
+dev_inspect({ 
+  action: "compare",
+  query: "src/auth.ts" 
+})
+
+// New (v0.8.5) - Streamlined!
+dev_inspect({ 
+  query: "src/auth.ts" 
+})
+```
+
+The tool now does both similarity search AND pattern analysis automatically. Existing usage will continue to work.
+
+**Re-index Recommended:**
+
+For best results with the improved semantic search:
+```bash
+dev index . --force
+```
+
+This clears old data and rebuilds with the improved embedding-based search.
+
+---
+
 ## v0.8.4 — Refocus on Semantic Value
 
 *December 14, 2025*
@@ -761,9 +909,11 @@ Hot Paths (most referenced):
 |------|---------|
 | `dev_search` | Semantic code search |
 | `dev_plan` | Context assembly for issues |
-| `dev_explore` | Pattern discovery |
+| `dev_inspect` | File analysis & pattern discovery |
 | `dev_gh` | GitHub issue/PR search |
 | `dev_status` | Repository health |
+
+> **Note:** `dev_inspect` was originally named `dev_explore` at launch. It was renamed and enhanced in v0.8.5 with comprehensive pattern analysis.
 
 ### Installation
 

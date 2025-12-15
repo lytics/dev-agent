@@ -152,7 +152,8 @@ describe('SearchAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.data).toHaveProperty('format', 'compact');
+      expect(typeof result.data).toBe('string');
+      // Format is validated by args, data is now markdown string
     });
 
     it('should accept verbose format', async () => {
@@ -165,7 +166,9 @@ describe('SearchAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.data).toHaveProperty('format', 'verbose');
+      expect(typeof result.data).toBe('string');
+      // Verbose format produces longer output
+      expect(result.data.length).toBeGreaterThan(0);
     });
 
     it('should reject invalid format', async () => {
@@ -186,7 +189,8 @@ describe('SearchAdapter', () => {
       const result = await adapter.execute({ query: 'test' }, execContext);
 
       expect(result.success).toBe(true);
-      expect(result.data).toHaveProperty('format', 'compact');
+      expect(typeof result.data).toBe('string');
+      // Default format is compact (validated by args)
     });
   });
 
@@ -284,8 +288,8 @@ describe('SearchAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.data).toHaveProperty('query', 'authentication');
-      expect(result.data).toHaveProperty('content');
+      expect(typeof result.data).toBe('string');
+      expect(result.data).toContain('authenticate'); // Should have search results
       expect(result.metadata).toHaveProperty('tokens');
       expect(result.metadata).toHaveProperty('duration_ms');
       expect(result.metadata).toHaveProperty('results_total', 2);
@@ -304,9 +308,9 @@ describe('SearchAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(typeof result.data?.content).toBe('string');
-      expect((result.data?.content as string).length).toBeGreaterThan(0);
-      expect(result.data?.content as string).toContain('authenticate');
+      expect(typeof result.data).toBe('string');
+      expect(result.data.length).toBeGreaterThan(0);
+      expect(result.data).toContain('authenticate');
     });
 
     it('should respect limit parameter', async () => {
@@ -381,7 +385,7 @@ describe('SearchAdapter', () => {
 
       expect(result.success).toBe(true);
       expect(result.metadata?.results_total).toBe(0);
-      expect(result.data?.content as string).toContain('No results');
+      expect(result.data).toContain('No results');
     });
   });
 

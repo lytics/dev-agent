@@ -8,17 +8,7 @@
     "declarationMap": true,
     "types": ["node", "vitest/globals"]
   },
-  "references": [
-    { "path": "../core" },
-    { "path": "../logger" },
-    { "path": "../types" }
-  ],
+  "references": [{ "path": "../core" }, { "path": "../logger" }, { "path": "../types" }],
   "include": ["src/**/*"],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "**/*.test.ts",
-    "**/*.spec.ts",
-    "**/__tests__/**"
-  ]
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts", "**/__tests__/**"]
 }

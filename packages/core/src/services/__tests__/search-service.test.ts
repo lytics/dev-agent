@@ -139,10 +139,8 @@ describe('SearchService', () => {
 
       const mockIndexer: RepositoryIndexer = {
         initialize: vi.fn().mockResolvedValue(undefined),
-        search: vi
-          .fn()
-          .mockResolvedValueOnce([targetFile]) // First call to find the file
-          .mockResolvedValueOnce(similarResults), // Second call to find similar
+        getAll: vi.fn().mockResolvedValue([targetFile, ...similarResults]),
+        searchByDocumentId: vi.fn().mockResolvedValue([targetFile, ...similarResults]),
         close: vi.fn().mockResolvedValue(undefined),
       } as unknown as RepositoryIndexer;
 
@@ -154,7 +152,8 @@ describe('SearchService', () => {
         threshold: 0.8,
       });
 
-      expect(mockIndexer.search).toHaveBeenCalledTimes(2);
+      expect(mockIndexer.getAll).toHaveBeenCalledOnce();
+      expect(mockIndexer.searchByDocumentId).toHaveBeenCalledOnce();
       expect(results).toHaveLength(2); // Should exclude the original file
       expect(results.find((r) => r.metadata.path === 'src/payments/process.ts')).toBeUndefined();
     });
@@ -162,7 +161,7 @@ describe('SearchService', () => {
     it('should return empty array when file not found', async () => {
       const mockIndexer: RepositoryIndexer = {
         initialize: vi.fn().mockResolvedValue(undefined),
-        search: vi.fn().mockResolvedValue([]), // File not found
+        getAll: vi.fn().mockResolvedValue([]), // File not found
         close: vi.fn().mockResolvedValue(undefined),
       } as unknown as RepositoryIndexer;
 

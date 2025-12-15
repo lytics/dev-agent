@@ -9,8 +9,5 @@
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "references": [
-    { "path": "../logger" }
-  ]
+  "references": [{ "path": "../logger" }]
 }
-

@@ -8,7 +8,9 @@
  * - Explicit return types
  */
 
-import { v4 as uuidv4 } from 'uuid';
+// Mock uuid for fixture purposes (not a real dependency)
+const uuidv4 = () => '00000000-0000-0000-0000-000000000000';
+
 import type { User, ValidationError } from './types';
 
 export type Result<T, E = Error> = { ok: true; value: T } | { ok: false; error: E };

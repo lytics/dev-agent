@@ -69,6 +69,26 @@ export interface MCPMetadata {
   // Related files (optional)
   /** Number of related test files found */
   related_files_count?: number;
+
+  // Inspect adapter (optional)
+  /** Number of similar files found */
+  similar_files_count?: number;
+  /** Number of patterns analyzed */
+  patterns_analyzed?: number;
+  /** Output format used */
+  format?: string;
+
+  // Map adapter (optional)
+  /** Total components in the map */
+  total_components?: number;
+  /** Total directories in the map */
+  total_directories?: number;
+  /** Depth of the map */
+  depth?: number;
+  /** Focus directory of the map */
+  focus?: string;
+  /** Whether output was truncated */
+  truncated?: boolean;
 }
 
 // Tool Result

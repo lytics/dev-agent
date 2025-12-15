@@ -109,10 +109,8 @@ describe('HistoryAdapter', () => {
 
         expect(result.success).toBe(true);
         expect(mockGitIndexer.search).toHaveBeenCalledWith('authentication token', { limit: 10 });
-        expect(result.data).toMatchObject({
-          searchType: 'semantic',
-          query: 'authentication token',
-        });
+        expect(result.data).toContain('# Git History');
+        expect(result.data).toContain('authentication token');
       });
 
       it('should respect limit option', async () => {
@@ -124,15 +122,11 @@ describe('HistoryAdapter', () => {
       it('should include commit summaries in data', async () => {
         const result = await adapter.execute({ query: 'test' }, mockContext);
 
-        expect(result.data?.commits).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({
-              hash: 'abc123d',
-              subject: 'feat: add authentication token handling',
-              author: 'Test User',
-            }),
-          ])
-        );
+        expect(result.success).toBe(true);
+        // Check formatted string includes commit details
+        expect(result.data).toContain('abc123d');
+        expect(result.data).toContain('feat: add authentication token handling');
+        expect(result.data).toContain('Test User');
       });
     });
 
@@ -149,10 +143,8 @@ describe('HistoryAdapter', () => {
           follow: true,
           noMerges: true,
         });
-        expect(result.data).toMatchObject({
-          searchType: 'file',
-          file: 'src/auth/token.ts',
-        });
+        expect(result.data).toContain('File History');
+        expect(result.data).toContain('src/auth/token.ts');
       });
 
       it('should pass since and author filters', async () => {
@@ -196,22 +188,22 @@ describe('HistoryAdapter', () => {
       it('should include formatted content', async () => {
         const result = await adapter.execute({ query: 'test' }, mockContext);
 
-        expect(result.data?.content).toContain('# Git History');
-        expect(result.data?.content).toContain('abc123d');
-        expect(result.data?.content).toContain('feat: add authentication token handling');
+        expect(result.data).toContain('# Git History');
+        expect(result.data).toContain('abc123d');
+        expect(result.data).toContain('feat: add authentication token handling');
       });
 
       it('should include file changes in output', async () => {
         const result = await adapter.execute({ query: 'test' }, mockContext);
 
-        expect(result.data?.content).toContain('src/auth/token.ts');
+        expect(result.data).toContain('src/auth/token.ts');
       });
 
       it('should include issue/PR refs in output', async () => {
         const result = await adapter.execute({ query: 'test' }, mockContext);
 
-        expect(result.data?.content).toContain('#123');
-        expect(result.data?.content).toContain('#456');
+        expect(result.data).toContain('#123');
+        expect(result.data).toContain('#456');
       });
     });
 
@@ -231,7 +223,7 @@ describe('HistoryAdapter', () => {
 
         expect(result.success).toBe(true);
         // Should truncate due to token budget
-        expect(result.data?.content).toContain('token budget reached');
+        expect(result.data).toContain('token budget reached');
       });
     });
 

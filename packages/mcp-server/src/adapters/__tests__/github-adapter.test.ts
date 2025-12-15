@@ -5,7 +5,6 @@
 import type { GitHubService } from '@lytics/dev-agent-core';
 import type { GitHubDocument, GitHubSearchResult } from '@lytics/dev-agent-subagents';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GitHubOutput } from '../../schemas/index.js';
 import { GitHubAdapter } from '../built-in/github-adapter';
 import type { ToolExecutionContext } from '../types';
 
@@ -186,9 +185,9 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect((result.data as GitHubOutput)?.content).toContain('GitHub Search Results');
-      expect((result.data as GitHubOutput)?.content).toContain('#1');
-      expect((result.data as GitHubOutput)?.content).toContain('Test Issue');
+      expect(result.data).toContain('GitHub Search Results');
+      expect(result.data).toContain('#1');
+      expect(result.data).toContain('Test Issue');
     });
 
     it('should search with filters', async () => {
@@ -236,7 +235,7 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect((result.data as GitHubOutput)?.content).toContain('No matching issues or PRs found');
+      expect(result.data).toContain('No matching issues or PRs found');
     });
 
     it('should include token footer in search results', async () => {
@@ -260,7 +259,7 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      const content = (result.data as GitHubOutput)?.content;
+      const content = result.data;
       expect(content).toBeDefined();
       // Token info is now in metadata, not content
       expect(result.metadata).toHaveProperty('tokens');
@@ -283,9 +282,9 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect((result.data as GitHubOutput)?.content).toContain('Issue #1');
-      expect((result.data as GitHubOutput)?.content).toContain('Test Issue');
-      expect((result.data as GitHubOutput)?.content).toContain('testuser');
+      expect(result.data).toContain('Issue #1');
+      expect(result.data).toContain('Test Issue');
+      expect(result.data).toContain('testuser');
     });
 
     it('should get issue context in verbose format', async () => {
@@ -302,10 +301,10 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect((result.data as GitHubOutput)?.content).toContain('**Related Issues:** #2, #3');
-      expect((result.data as GitHubOutput)?.content).toContain('**Related PRs:** #10');
-      expect((result.data as GitHubOutput)?.content).toContain('**Linked Files:** `src/test.ts`');
-      expect((result.data as GitHubOutput)?.content).toContain('**Mentions:** @developer1');
+      expect(result.data).toContain('**Related Issues:** #2, #3');
+      expect(result.data).toContain('**Related PRs:** #10');
+      expect(result.data).toContain('**Linked Files:** `src/test.ts`');
+      expect(result.data).toContain('**Mentions:** @developer1');
     });
 
     it('should handle issue not found', async () => {
@@ -357,9 +356,9 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect((result.data as GitHubOutput)?.content).toContain('Related Issues/PRs');
-      expect((result.data as GitHubOutput)?.content).toContain('#2');
-      expect((result.data as GitHubOutput)?.content).toContain('Related Issue');
+      expect(result.data).toContain('Related Issues/PRs');
+      expect(result.data).toContain('#2');
+      expect(result.data).toContain('Related Issue');
     });
 
     it('should handle no related items', async () => {
@@ -378,7 +377,7 @@ describe('GitHubAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect((result.data as GitHubOutput)?.content).toContain('No related issues or PRs found');
+      expect(result.data).toContain('No related issues or PRs found');
     });
   });
 
@@ -411,12 +410,11 @@ describe('GitHubAdapter', () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
-        const output = result.data as GitHubOutput;
-        expect(output.content).toContain('Related Issue 1');
-        expect(output.content).toContain('Related Issue 2');
-        expect(output.content).toContain('90% similar'); // Score shown as percentage
-        expect(output.resultsTotal).toBe(2);
-        expect(output.resultsReturned).toBe(2);
+        expect(result.data).toContain('Related Issue 1');
+        expect(result.data).toContain('Related Issue 2');
+        expect(result.data).toContain('90% similar'); // Score shown as percentage
+        expect(result.metadata?.results_total).toBe(2);
+        expect(result.metadata?.results_returned).toBe(2);
       }
 
       expect(mockGitHubService.getContext).toHaveBeenCalledWith(1);
@@ -437,8 +435,7 @@ describe('GitHubAdapter', () => {
 
       expect(result.success).toBe(true);
       if (result.success) {
-        const output = result.data as GitHubOutput;
-        expect(output.content).toContain('No related issues or PRs found');
+        expect(result.data).toContain('No related issues or PRs found');
       }
     });
   });

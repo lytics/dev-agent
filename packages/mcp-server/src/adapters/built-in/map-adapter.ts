@@ -212,6 +212,11 @@ export class MapAdapter extends ToolAdapter {
           duration_ms,
           timestamp: new Date().toISOString(),
           cached: false,
+          total_components: map.totalComponents,
+          total_directories: map.totalDirectories,
+          depth,
+          focus: focus || undefined,
+          truncated,
         },
       };
     } catch (error) {
