@@ -177,13 +177,13 @@ Then provide:
               text: `Find code that is similar to "${args.file_path}":
 
 Use dev_inspect with:
-- action: "compare"
 - query: "${args.file_path}"${args.threshold ? `\n- threshold: ${args.threshold}` : ''}
+- format: "verbose"
 
 Then explain:
-1. What patterns the file uses
+1. What patterns the file uses (import style, error handling, type coverage)
 2. Other files with similar patterns
-3. How they relate (dependencies, parallel implementations, etc.)
+3. How they compare (consistent vs different patterns)
 4. Opportunities for refactoring or code reuse`,
             },
           },
@@ -265,10 +265,10 @@ Provide:
 Use dev_refs to find what calls or is called by functions in this file.
 
 Alternatively, use dev_inspect with:
-- action: "compare"
 - query: "${args.file_path}"
+- format: "verbose"
 
-to find similar implementations.
+to find similar implementations and pattern analysis.
 
 Then explain:
 1. What this file depends on (imports)

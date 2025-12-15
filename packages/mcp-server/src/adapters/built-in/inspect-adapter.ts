@@ -5,8 +5,11 @@
  * Provides file-level analysis: similarity comparison and pattern consistency checking.
  */
 
-import type { SearchService } from '@lytics/dev-agent-core';
-import type { SimilarCodeResult } from '@lytics/dev-agent-subagents';
+import {
+  PatternAnalysisService,
+  type PatternComparison,
+  type SearchService,
+} from '@lytics/dev-agent-core';
 import { InspectArgsSchema, type InspectOutput, InspectOutputSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter.js';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types.js';
@@ -23,22 +26,19 @@ export interface InspectAdapterConfig {
 /**
  * InspectAdapter - Deep file analysis
  *
- * Provides similarity comparison and pattern validation
- * through the dev_inspect MCP tool.
- *
- * Actions:
- * - compare: Find similar implementations in the codebase
- * - validate: Check against codebase patterns (placeholder for future)
+ * Provides comprehensive file inspection: finds similar code and analyzes
+ * patterns against the codebase. Returns facts (not judgments) for AI to interpret.
  */
 export class InspectAdapter extends ToolAdapter {
   metadata = {
     name: 'inspect',
-    version: '1.0.0',
-    description: 'Deep file analysis and pattern checking',
+    version: '2.0.0',
+    description: 'Comprehensive file inspection with pattern analysis',
   };
 
   private repositoryPath: string;
   private searchService: SearchService;
+  private patternService: PatternAnalysisService;
   private defaultLimit: number;
   private defaultThreshold: number;
   private defaultFormat: 'compact' | 'verbose';
@@ -47,6 +47,9 @@ export class InspectAdapter extends ToolAdapter {
     super();
     this.repositoryPath = config.repositoryPath;
     this.searchService = config.searchService;
+    this.patternService = new PatternAnalysisService({
+      repositoryPath: config.repositoryPath,
+    });
     this.defaultLimit = config.defaultLimit ?? 10;
     this.defaultThreshold = config.defaultThreshold ?? 0.7;
     this.defaultFormat = config.defaultFormat ?? 'compact';
@@ -69,25 +72,22 @@ export class InspectAdapter extends ToolAdapter {
     return {
       name: 'dev_inspect',
       description:
-        'Inspect specific files for deep analysis. "compare" finds similar implementations, ' +
-        '"validate" checks against codebase patterns. Takes a file path (not a search query).',
+        'Inspect a file for pattern analysis. Finds similar code and compares patterns ' +
+        '(error handling, naming, types, structure). Returns facts about how this file ' +
+        'compares to similar code, without making judgments.',
       inputSchema: {
         type: 'object',
         properties: {
-          action: {
-            type: 'string',
-            enum: ['compare', 'validate'],
-            description:
-              'Inspection action: "compare" (find similar code), "validate" (check patterns)',
-          },
           query: {
             type: 'string',
             description: 'File path to inspect (e.g., "src/auth/middleware.ts")',
           },
           limit: {
             type: 'number',
-            description: `Maximum number of results (default: ${this.defaultLimit})`,
+            description: `Number of similar files to compare against (default: ${this.defaultLimit})`,
             default: this.defaultLimit,
+            minimum: 1,
+            maximum: 50,
           },
           threshold: {
             type: 'number',
@@ -104,16 +104,11 @@ export class InspectAdapter extends ToolAdapter {
             default: this.defaultFormat,
           },
         },
-        required: ['action', 'query'],
+        required: ['query'],
       },
       outputSchema: {
         type: 'object',
         properties: {
-          action: {
-            type: 'string',
-            enum: ['compare', 'validate'],
-            description: 'Inspection action performed',
-          },
           query: {
             type: 'string',
             description: 'File path inspected',
@@ -124,10 +119,14 @@ export class InspectAdapter extends ToolAdapter {
           },
           content: {
             type: 'string',
-            description: 'Formatted inspection results',
+            description: 'Markdown-formatted inspection results',
+          },
+          similarFilesCount: {
+            type: 'number',
+            description: 'Number of similar files analyzed',
           },
         },
-        required: ['action', 'query', 'format', 'content'],
+        required: ['query', 'format', 'content', 'similarFilesCount', 'patternsAnalyzed'],
       },
     };
   }
@@ -139,54 +138,31 @@ export class InspectAdapter extends ToolAdapter {
       return validation.error;
     }
 
-    const { action, query, limit, threshold, format } = validation.data;
+    const { query, limit, threshold, format } = validation.data;
 
     try {
-      context.logger.debug('Executing inspection', {
-        action,
+      context.logger.debug('Executing file inspection', {
         query,
         limit,
         threshold,
-        viaAgent: this.hasCoordinator(),
+        format,
       });
 
-      let content: string;
-
-      // Try routing through agent if coordinator is available
-      if (this.hasCoordinator() && action === 'compare') {
-        const agentResult = await this.executeViaAgent(query, limit, threshold, format);
-
-        if (agentResult) {
-          return {
-            success: true,
-            data: {
-              action,
-              query,
-              format,
-              content: agentResult,
-            },
-          };
-        }
-        // Fall through to direct execution if agent dispatch failed
-        context.logger.debug('Agent dispatch returned null, falling back to direct execution');
-      }
-
-      // Direct execution (fallback or no coordinator)
-      switch (action) {
-        case 'compare':
-          content = await this.compareImplementations(query, limit, threshold, format);
-          break;
-        case 'validate':
-          content = await this.validatePatterns(query, format);
-          break;
-      }
+      // Perform comprehensive file inspection
+      const { content, similarFilesCount, patternsAnalyzed } = await this.inspectFile(
+        query,
+        limit,
+        threshold,
+        format
+      );
 
       // Validate output with Zod
       const outputData: InspectOutput = {
-        action,
         query,
         format,
         content,
+        similarFilesCount,
+        patternsAnalyzed,
       };
 
       const outputValidation = InspectOutputSchema.safeParse(outputData);
@@ -194,6 +170,12 @@ export class InspectAdapter extends ToolAdapter {
         context.logger.error('Output validation failed', { error: outputValidation.error });
         throw new Error(`Output validation failed: ${outputValidation.error.message}`);
       }
+
+      context.logger.info('File inspection completed', {
+        query,
+        similarFilesCount,
+        contentLength: content.length,
+      });
 
       return {
         success: true,
@@ -237,153 +219,230 @@ export class InspectAdapter extends ToolAdapter {
   }
 
   /**
-   * Execute similarity comparison via agent
-   * Returns formatted content string, or null if dispatch fails
+   * Comprehensive file inspection
+   *
+   * Finds similar files and analyzes patterns in one operation.
+   * Returns markdown-formatted results.
    */
-  private async executeViaAgent(
+  private async inspectFile(
     filePath: string,
     limit: number,
     threshold: number,
     format: string
-  ): Promise<string | null> {
-    // Build request payload
-    const payload = {
-      action: 'similar',
-      filePath,
-      limit,
-      threshold,
-    };
-
-    // Dispatch to ExplorerAgent
-    const response = await this.dispatchToAgent('explorer', payload);
-
-    if (!response) {
-      return null;
-    }
-
-    // Check for error response
-    if (response.type === 'error') {
-      this.logger?.warn('ExplorerAgent returned error', {
-        error: response.payload.error,
-      });
-      return null;
-    }
-
-    // Extract result from response payload
-    const result = response.payload as unknown as SimilarCodeResult;
-
-    // Format the result
-    if (format === 'verbose') {
-      return this.formatSimilarVerbose(
-        result.referenceFile,
-        result.similar.map((r) => ({
-          id: r.id,
-          score: r.score,
-          metadata: r.metadata as Record<string, unknown>,
-        }))
-      );
-    }
-
-    return this.formatSimilarCompact(
-      result.referenceFile,
-      result.similar.map((r) => ({
-        id: r.id,
-        score: r.score,
-        metadata: r.metadata as Record<string, unknown>,
-      }))
-    );
-  }
-
-  /**
-   * Compare implementations - find similar code
-   */
-  private async compareImplementations(
-    filePath: string,
-    limit: number,
-    threshold: number,
-    format: string
-  ): Promise<string> {
-    const results = await this.searchService.findSimilar(filePath, {
+  ): Promise<{ content: string; similarFilesCount: number; patternsAnalyzed: number }> {
+    // Step 1: Find similar files
+    const similarResults = await this.searchService.findSimilar(filePath, {
       limit: limit + 1,
       threshold,
     });
 
     // Exclude the reference file itself
-    const filteredResults = results.filter((r) => r.metadata.path !== filePath).slice(0, limit);
+    const filteredResults = similarResults
+      .filter((r) => r.metadata.path !== filePath)
+      .slice(0, limit);
 
     if (filteredResults.length === 0) {
-      return `## Similar Code\n\n**Reference:** \`${filePath}\`\n\nNo similar code found. The file may be unique in the repository.`;
+      return {
+        content: `## File Inspection: ${filePath}\n\n**Status:** No similar files found. This file may be unique in the repository.`,
+        similarFilesCount: 0,
+        patternsAnalyzed: 0,
+      };
     }
 
-    if (format === 'verbose') {
-      return this.formatSimilarVerbose(filePath, filteredResults);
-    }
+    // Step 2: Analyze patterns for target file and similar files
+    const similarFilePaths = filteredResults.map((r) => r.metadata.path as string);
+    const patternComparison = await this.patternService.comparePatterns(filePath, similarFilePaths);
 
-    return this.formatSimilarCompact(filePath, filteredResults);
+    // Step 3: Generate comprehensive inspection report
+    const content =
+      format === 'verbose'
+        ? await this.formatInspectionVerbose(filePath, filteredResults, patternComparison)
+        : await this.formatInspectionCompact(filePath, filteredResults, patternComparison);
+
+    return {
+      content,
+      similarFilesCount: filteredResults.length,
+      patternsAnalyzed: 5, // Currently analyzing 5 pattern categories
+    };
   }
 
   /**
-   * Validate patterns - check against codebase patterns
-   * TODO: Implement pattern consistency validation
+   * Format inspection results in compact mode
+   *
+   * Includes: similar files list + pattern summary
    */
-  private async validatePatterns(filePath: string, format: string): Promise<string> {
-    // Placeholder implementation
-    return `## Pattern Validation\n\n**File:** \`${filePath}\`\n\n**Status:** Feature coming soon\n\nThis action will validate:\n- Naming conventions vs. similar files\n- Error handling patterns\n- Code structure consistency\n- Framework-specific best practices\n\nUse \`dev_inspect { action: "compare", query: "${filePath}" }\` to see similar implementations in the meantime.`;
-  }
-
-  /**
-   * Format similar code results in compact mode
-   */
-  private formatSimilarCompact(
+  private async formatInspectionCompact(
     filePath: string,
-    results: Array<{ id: string; score: number; metadata: Record<string, unknown> }>
-  ): string {
+    similarFiles: Array<{ id: string; score: number; metadata: Record<string, unknown> }>,
+    patterns: PatternComparison
+  ): Promise<string> {
     const lines = [
-      '## Similar Code',
+      `## File Inspection: ${filePath}`,
       '',
-      `**Reference:** \`${filePath}\``,
-      `**Found:** ${results.length} similar files`,
-      '',
+      `### Similar Files (${similarFiles.length} analyzed)`,
     ];
 
-    for (const result of results.slice(0, 5)) {
-      const score = (result.score * 100).toFixed(0);
-      lines.push(`- \`${result.metadata.path}\` [${score}% similar]`);
+    // Show top 5 similar files
+    for (let i = 0; i < Math.min(5, similarFiles.length); i++) {
+      const file = similarFiles[i];
+      const score = (file.score * 100).toFixed(0);
+      lines.push(`${i + 1}. \`${file.metadata.path}\` (${score}%)`);
     }
 
-    if (results.length > 5) {
-      lines.push('', `_...and ${results.length - 5} more files_`);
+    if (similarFiles.length > 5) {
+      lines.push(`..._${similarFiles.length - 5} more_`);
+    }
+
+    lines.push('');
+    lines.push('### Pattern Analysis');
+    lines.push('');
+
+    // Import Style
+    if (patterns.importStyle.yourFile !== patterns.importStyle.common) {
+      lines.push(
+        `**Import Style:** Your file uses \`${patterns.importStyle.yourFile}\`, but ${patterns.importStyle.percentage}% of similar files use \`${patterns.importStyle.common}\`.`
+      );
+    }
+
+    // Error Handling
+    if (patterns.errorHandling.yourFile !== patterns.errorHandling.common) {
+      lines.push(
+        `**Error Handling:** Your file uses \`${patterns.errorHandling.yourFile}\`, but ${patterns.errorHandling.percentage}% of similar files use \`${patterns.errorHandling.common}\`.`
+      );
+    }
+
+    // Type Annotations
+    if (patterns.typeAnnotations.yourFile !== patterns.typeAnnotations.common) {
+      lines.push(
+        `**Type Coverage:** Your file has \`${patterns.typeAnnotations.yourFile}\` type coverage, but ${patterns.typeAnnotations.percentage}% of similar files have \`${patterns.typeAnnotations.common}\`.`
+      );
+    }
+
+    // Testing
+    if (patterns.testing.yourFile !== (patterns.testing.percentage === 100)) {
+      const testStatus = patterns.testing.yourFile ? 'has' : 'is missing';
+      lines.push(
+        `**Testing:** This file ${testStatus} a test file. ${patterns.testing.percentage}% (${patterns.testing.count.withTest}/${patterns.testing.count.total}) of similar files have tests.`
+      );
+    }
+
+    // File Size
+    if (patterns.fileSize.deviation !== 'similar') {
+      const comparison = patterns.fileSize.deviation === 'larger' ? 'larger than' : 'smaller than';
+      lines.push(
+        `**Size:** ${patterns.fileSize.yourFile} lines (${comparison} average of ${patterns.fileSize.average} lines)`
+      );
+    }
+
+    if (lines.length === 5) {
+      lines.push('**Status:** All patterns consistent with similar files.');
     }
 
     return lines.join('\n');
   }
 
   /**
-   * Format similar code results in verbose mode
+   * Format inspection results in verbose mode
+   *
+   * Includes: detailed similar files + comprehensive pattern analysis
    */
-  private formatSimilarVerbose(
+  private async formatInspectionVerbose(
     filePath: string,
-    results: Array<{ id: string; score: number; metadata: Record<string, unknown> }>
-  ): string {
+    similarFiles: Array<{ id: string; score: number; metadata: Record<string, unknown> }>,
+    patterns: PatternComparison
+  ): Promise<string> {
     const lines = [
-      '## Similar Code Analysis',
+      `## File Inspection: ${filePath}`,
       '',
-      `**Reference File:** \`${filePath}\``,
-      `**Total Matches:** ${results.length}`,
+      `### Similar Files Analysis (${similarFiles.length} analyzed)`,
       '',
     ];
 
-    for (const result of results) {
-      const score = (result.score * 100).toFixed(1);
-      const type = result.metadata.type || 'file';
-      const name = result.metadata.name || result.metadata.path;
+    // Show all similar files with details
+    for (let i = 0; i < Math.min(10, similarFiles.length); i++) {
+      const file = similarFiles[i];
+      const score = (file.score * 100).toFixed(1);
+      const type = file.metadata.type || 'file';
+      const name = file.metadata.name || file.metadata.path;
 
-      lines.push(`### ${name}`);
-      lines.push(`- **Path:** \`${result.metadata.path}\``);
-      lines.push(`- **Type:** ${type}`);
-      lines.push(`- **Similarity:** ${score}%`);
-      lines.push('');
+      lines.push(
+        `${i + 1}. **${name}** (\`${file.metadata.path}\`) - ${score}% similar, type: ${type}`
+      );
     }
+
+    if (similarFiles.length > 10) {
+      lines.push(`..._${similarFiles.length - 10} more files_`);
+    }
+
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+    lines.push('### Comprehensive Pattern Analysis');
+    lines.push('');
+
+    // 1. Import Style
+    lines.push('#### 1. Import Style');
+    lines.push(`- **Your File:** \`${patterns.importStyle.yourFile}\``);
+    lines.push(
+      `- **Common Style:** \`${patterns.importStyle.common}\` (${patterns.importStyle.percentage}% of similar files)`
+    );
+    if (Object.keys(patterns.importStyle.distribution).length > 1) {
+      lines.push('- **Distribution:**');
+      for (const [style, count] of Object.entries(patterns.importStyle.distribution)) {
+        const pct = Math.round(((count as number) / similarFiles.length) * 100);
+        lines.push(`  - ${style}: ${count} files (${pct}%)`);
+      }
+    }
+    lines.push('');
+
+    // 2. Error Handling
+    lines.push('#### 2. Error Handling');
+    lines.push(`- **Your File:** \`${patterns.errorHandling.yourFile}\``);
+    lines.push(
+      `- **Common Style:** \`${patterns.errorHandling.common}\` (${patterns.errorHandling.percentage}% of similar files)`
+    );
+    if (Object.keys(patterns.errorHandling.distribution).length > 1) {
+      lines.push('- **Distribution:**');
+      for (const [style, count] of Object.entries(patterns.errorHandling.distribution)) {
+        const pct = Math.round(((count as number) / similarFiles.length) * 100);
+        lines.push(`  - ${style}: ${count} files (${pct}%)`);
+      }
+    }
+    lines.push('');
+
+    // 3. Type Annotations
+    lines.push('#### 3. Type Annotation Coverage');
+    lines.push(`- **Your File:** \`${patterns.typeAnnotations.yourFile}\``);
+    lines.push(
+      `- **Common Coverage:** \`${patterns.typeAnnotations.common}\` (${patterns.typeAnnotations.percentage}% of similar files)`
+    );
+    if (Object.keys(patterns.typeAnnotations.distribution).length > 1) {
+      lines.push('- **Distribution:**');
+      for (const [coverage, count] of Object.entries(patterns.typeAnnotations.distribution)) {
+        const pct = Math.round(((count as number) / similarFiles.length) * 100);
+        lines.push(`  - ${coverage}: ${count} files (${pct}%)`);
+      }
+    }
+    lines.push('');
+
+    // 4. Test Coverage
+    lines.push('#### 4. Test Coverage');
+    lines.push(`- **Your File:** ${patterns.testing.yourFile ? 'Has test file' : 'No test file'}`);
+    lines.push(
+      `- **Similar Files:** ${patterns.testing.count.withTest}/${patterns.testing.count.total} have tests (${patterns.testing.percentage}%)`
+    );
+    lines.push('');
+
+    // 5. File Size
+    lines.push('#### 5. File Size');
+    lines.push(`- **Your File:** ${patterns.fileSize.yourFile} lines`);
+    lines.push(`- **Average:** ${patterns.fileSize.average} lines`);
+    lines.push(`- **Median:** ${patterns.fileSize.median} lines`);
+    lines.push(`- **Range:** ${patterns.fileSize.range[0]} - ${patterns.fileSize.range[1]} lines`);
+    lines.push(
+      `- **Assessment:** Your file is ${patterns.fileSize.deviation} relative to similar files`
+    );
+    lines.push('');
 
     return lines.join('\n');
   }
