@@ -155,9 +155,9 @@ describe('RefsAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.data?.callees).toBeDefined();
-      expect(result.data?.callees.length).toBe(3);
-      expect(result.data?.callees[0].name).toBe('fetchIssue');
+      // Check formatted string includes callees
+      expect(result.data).toContain('Callees');
+      expect(result.data).toContain('fetchIssue');
     });
 
     it('should include callee file paths when available', async () => {
@@ -167,13 +167,9 @@ describe('RefsAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      const callees = result.data?.callees;
-      expect(callees?.find((c: { name: string }) => c.name === 'fetchIssue')?.file).toBe(
-        'src/github.ts'
-      );
-      expect(
-        callees?.find((c: { name: string }) => c.name === 'analyzeCode')?.file
-      ).toBeUndefined();
+      // Check formatted string includes file path
+      expect(result.data).toContain('fetchIssue');
+      expect(result.data).toContain('src/github.ts');
     });
 
     it('should not include callers when direction is callees', async () => {
@@ -183,7 +179,8 @@ describe('RefsAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.data?.callers).toBeUndefined();
+      // When direction is callees, output should not include callers section
+      expect(result.data).not.toContain('Callers:');
     });
   });
 
@@ -195,9 +192,11 @@ describe('RefsAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.data?.callers).toBeDefined();
+      // Check formatted string includes callers
+      expect(result.data).toContain('Callers');
       // runPlan and main both call createPlan
-      expect(result.data?.callers.length).toBe(2);
+      expect(result.data).toContain('runPlan');
+      expect(result.data).toContain('main');
     });
 
     it('should not include callees when direction is callers', async () => {
@@ -207,7 +206,8 @@ describe('RefsAdapter', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.data?.callees).toBeUndefined();
+      // When direction is callers, output should not include callees section
+      expect(result.data).not.toContain('Callees:');
     });
   });
 
@@ -216,16 +216,18 @@ describe('RefsAdapter', () => {
       const result = await adapter.execute({ name: 'createPlan', direction: 'both' }, execContext);
 
       expect(result.success).toBe(true);
-      expect(result.data?.callees).toBeDefined();
-      expect(result.data?.callers).toBeDefined();
+      // Check formatted string includes both sections
+      expect(result.data).toContain('Callees');
+      expect(result.data).toContain('Callers');
     });
 
     it('should use both as default direction', async () => {
       const result = await adapter.execute({ name: 'createPlan' }, execContext);
 
       expect(result.success).toBe(true);
-      expect(result.data?.callees).toBeDefined();
-      expect(result.data?.callers).toBeDefined();
+      // Check formatted string includes both sections
+      expect(result.data).toContain('Callees');
+      expect(result.data).toContain('Callers');
     });
   });
 
@@ -234,19 +236,19 @@ describe('RefsAdapter', () => {
       const result = await adapter.execute({ name: 'createPlan' }, execContext);
 
       expect(result.success).toBe(true);
-      expect(result.data?.target).toBeDefined();
-      expect(result.data?.target.name).toBe('createPlan');
-      expect(result.data?.target.file).toBe('src/planner.ts');
-      expect(result.data?.target.type).toBe('function');
+      // Check formatted string includes target information
+      expect(result.data).toContain('createPlan');
+      expect(result.data).toContain('src/planner.ts');
+      expect(result.data).toContain('function');
     });
 
     it('should format output as markdown', async () => {
       const result = await adapter.execute({ name: 'createPlan' }, execContext);
 
       expect(result.success).toBe(true);
-      expect(result.data?.content).toContain('# References for createPlan');
-      expect(result.data?.content).toContain('## Callees');
-      expect(result.data?.content).toContain('## Callers');
+      expect(result.data).toContain('# References for createPlan');
+      expect(result.data).toContain('## Callees');
+      expect(result.data).toContain('## Callers');
     });
 
     it('should include token count in metadata', async () => {

@@ -145,6 +145,15 @@ export class InspectAdapter extends ToolAdapter {
       return {
         success: true,
         data: content,
+        metadata: {
+          tokens: content.length / 4, // Rough estimate
+          duration_ms: 0, // Calculated by MCP server
+          timestamp: new Date().toISOString(),
+          cached: false,
+          similar_files_count: similarFilesCount,
+          patterns_analyzed: patternsAnalyzed,
+          format,
+        },
       };
     } catch (error) {
       context.logger.error('Inspection failed', { error });

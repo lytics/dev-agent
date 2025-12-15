@@ -4,7 +4,6 @@
 
 import type { GitHubService, StatsService } from '@lytics/dev-agent-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { StatusOutput } from '../../schemas/index.js';
 import { StatusAdapter } from '../built-in/status-adapter';
 import type { AdapterContext, ToolExecutionContext } from '../types';
 
@@ -181,11 +180,10 @@ describe('StatusAdapter', () => {
         const result = await adapter.execute({}, mockExecutionContext);
 
         expect(result.success).toBe(true);
-        expect((result.data as StatusOutput)?.section).toBe('summary');
-        expect((result.data as StatusOutput)?.format).toBe('compact');
-        expect((result.data as StatusOutput)?.content).toContain('Dev-Agent Status');
-        expect((result.data as StatusOutput)?.content).toContain('Repository:');
-        expect((result.data as StatusOutput)?.content).toContain('2341 files indexed');
+        // Check content (section/format no longer in output structure)
+        expect(result.data).toContain('Dev-Agent Status');
+        expect(result.data).toContain('Repository:');
+        expect(result.data).toContain('2341 files indexed');
       });
 
       it('should return verbose summary when requested', async () => {
@@ -195,10 +193,10 @@ describe('StatusAdapter', () => {
         );
 
         expect(result.success).toBe(true);
-        expect((result.data as StatusOutput)?.content).toContain('Detailed');
-        expect((result.data as StatusOutput)?.content).toContain('Repository');
-        expect((result.data as StatusOutput)?.content).toContain('Vector Indexes');
-        expect((result.data as StatusOutput)?.content).toContain('Health Checks');
+        expect(result.data).toContain('Detailed');
+        expect(result.data).toContain('Repository');
+        expect(result.data).toContain('Vector Indexes');
+        expect(result.data).toContain('Health Checks');
       });
 
       it('should handle repository not indexed', async () => {
@@ -207,7 +205,7 @@ describe('StatusAdapter', () => {
         const result = await adapter.execute({}, mockExecutionContext);
 
         expect(result.success).toBe(true);
-        expect((result.data as StatusOutput)?.content).toContain('not indexed');
+        expect(result.data).toContain('not indexed');
       });
 
       it('should include GitHub section in summary', async () => {
@@ -216,9 +214,9 @@ describe('StatusAdapter', () => {
         const result = await adapter.execute({}, mockExecutionContext);
 
         expect(result.success).toBe(true);
-        expect((result.data as StatusOutput)?.content).toContain('GitHub');
+        expect(result.data).toContain('GitHub');
         // GitHub stats may or may not be available depending on initialization
-        const content = (result.data as StatusOutput)?.content || '';
+        const content = result.data || '';
         const hasGitHub = content.includes('GitHub');
         expect(hasGitHub).toBe(true);
       });
@@ -229,9 +227,9 @@ describe('StatusAdapter', () => {
         const result = await adapter.execute({ section: 'repo' }, mockExecutionContext);
 
         expect(result.success).toBe(true);
-        expect((result.data as StatusOutput)?.content).toContain('Repository Index');
-        expect((result.data as StatusOutput)?.content).toContain('2341');
-        expect((result.data as StatusOutput)?.content).toContain('1234');
+        expect(result.data).toContain('Repository Index');
+        expect(result.data).toContain('2341');
+        expect(result.data).toContain('1234');
       });
 
       it('should return repository status in verbose format', async () => {
@@ -241,8 +239,8 @@ describe('StatusAdapter', () => {
         );
 
         expect(result.success).toBe(true);
-        expect((result.data as StatusOutput)?.content).toContain('Documents Indexed:');
-        expect((result.data as StatusOutput)?.content).toContain('Vectors Stored:');
+        expect(result.data).toContain('Documents Indexed:');
+        expect(result.data).toContain('Vectors Stored:');
       });
 
       it('should handle repository not indexed', async () => {
@@ -251,8 +249,8 @@ describe('StatusAdapter', () => {
         const result = await adapter.execute({ section: 'repo' }, mockExecutionContext);
 
         expect(result.success).toBe(true);
-        expect((result.data as StatusOutput)?.content).toContain('Not indexed');
-        expect((result.data as StatusOutput)?.content).toContain('dev index');
+        expect(result.data).toContain('Not indexed');
+        expect(result.data).toContain('dev index');
       });
     });
 
@@ -263,10 +261,10 @@ describe('StatusAdapter', () => {
         const result = await adapter.execute({ section: 'indexes' }, mockExecutionContext);
 
         expect(result.success).toBe(true);
-        expect((result.data as StatusOutput)?.content).toContain('Vector Indexes');
-        expect((result.data as StatusOutput)?.content).toContain('Code Index');
-        expect((result.data as StatusOutput)?.content).toContain('GitHub Index');
-        expect((result.data as StatusOutput)?.content).toContain('1234 embeddings');
+        expect(result.data).toContain('Vector Indexes');
+        expect(result.data).toContain('Code Index');
+        expect(result.data).toContain('GitHub Index');
+        expect(result.data).toContain('1234 embeddings');
       });
 
       it('should return indexes status in verbose format', async () => {
@@ -278,11 +276,11 @@ describe('StatusAdapter', () => {
         );
 
         expect(result.success).toBe(true);
-        expect((result.data as StatusOutput)?.content).toContain('Code Index');
-        expect((result.data as StatusOutput)?.content).toContain('Documents:');
-        expect((result.data as StatusOutput)?.content).toContain('GitHub Index');
+        expect(result.data).toContain('Code Index');
+        expect(result.data).toContain('Documents:');
+        expect(result.data).toContain('GitHub Index');
         // GitHub section should be present, may show stats or "Not indexed"
-        const content = (result.data as StatusOutput)?.content || '';
+        const content = result.data || '';
         const hasGitHubInfo = content.includes('Not indexed') || content.includes('Documents:');
         expect(hasGitHubInfo).toBe(true);
       });
@@ -295,7 +293,7 @@ describe('StatusAdapter', () => {
         const result = await adapter.execute({ section: 'github' }, mockExecutionContext);
 
         expect(result.success).toBe(true);
-        expect((result.data as StatusOutput)?.content).toContain('GitHub Integration');
+        expect(result.data).toContain('GitHub Integration');
         // May show stats or "Not indexed" depending on initialization
       });
 
@@ -308,7 +306,7 @@ describe('StatusAdapter', () => {
         );
 
         expect(result.success).toBe(true);
-        expect((result.data as StatusOutput)?.content).toContain('GitHub Integration');
+        expect(result.data).toContain('GitHub Integration');
         // May include Configuration or Not indexed message
       });
 
@@ -323,8 +321,8 @@ describe('StatusAdapter', () => {
         const result = await newAdapter.execute({ section: 'github' }, mockExecutionContext);
 
         expect(result.success).toBe(true);
-        expect((result.data as StatusOutput)?.content).toContain('Not indexed');
-        expect((result.data as StatusOutput)?.content).toContain('dev gh index');
+        expect(result.data).toContain('Not indexed');
+        expect(result.data).toContain('dev gh index');
       });
     });
 
@@ -333,8 +331,8 @@ describe('StatusAdapter', () => {
         const result = await adapter.execute({ section: 'health' }, mockExecutionContext);
 
         expect(result.success).toBe(true);
-        expect((result.data as StatusOutput)?.content).toContain('Health Checks');
-        expect((result.data as StatusOutput)?.content).toContain('✅');
+        expect(result.data).toContain('Health Checks');
+        expect(result.data).toContain('✅');
       });
 
       it('should return health status in verbose format', async () => {
@@ -344,9 +342,9 @@ describe('StatusAdapter', () => {
         );
 
         expect(result.success).toBe(true);
-        expect((result.data as StatusOutput)?.content).toContain('Health Checks');
+        expect(result.data).toContain('Health Checks');
         // Verbose includes details
-        expect((result.data as StatusOutput)?.content.length).toBeGreaterThan(100);
+        expect(result.data.length).toBeGreaterThan(100);
       });
     });
 
@@ -444,7 +442,7 @@ describe('StatusAdapter', () => {
       const result = await adapter.execute({ section: 'summary' }, mockExecutionContext);
 
       expect(result.success).toBe(true);
-      expect((result.data as StatusOutput)?.content).toContain('ago');
+      expect(result.data).toContain('ago');
     });
   });
 
@@ -457,7 +455,7 @@ describe('StatusAdapter', () => {
 
       expect(result.success).toBe(true);
       // Should contain some size format (KB, MB, GB, or B)
-      expect((result.data as StatusOutput)?.content).toMatch(/\d+(\.\d+)?\s*(B|KB|MB|GB)/);
+      expect(result.data).toMatch(/\d+(\.\d+)?\s*(B|KB|MB|GB)/);
     });
   });
 });

@@ -8,16 +8,6 @@ import { ConsoleLogger } from '../../utils/logger';
 import { MapAdapter } from '../built-in/map-adapter';
 import type { AdapterContext, ToolExecutionContext } from '../types';
 
-/** Type for MapAdapter result data */
-interface MapResultData {
-  content: string;
-  totalComponents: number;
-  totalDirectories: number;
-  depth: number;
-  focus: string | null;
-  truncated: boolean;
-}
-
 describe('MapAdapter', () => {
   let mockIndexer: RepositoryIndexer;
   let adapter: MapAdapter;
@@ -151,72 +141,64 @@ describe('MapAdapter', () => {
   describe('Map Generation', () => {
     it('should generate map with default options', async () => {
       const result = await adapter.execute({}, execContext);
-      const data = result.data as MapResultData;
 
       expect(result.success).toBe(true);
-      expect(data.content).toContain('# Codebase Map');
-      expect(data.totalComponents).toBeGreaterThan(0);
-      expect(data.totalDirectories).toBeGreaterThan(0);
+      expect(result.data).toContain('# Codebase Map');
+      expect(result.metadata?.total_components).toBeGreaterThan(0);
+      expect(result.metadata?.total_directories).toBeGreaterThan(0);
     });
 
     it('should respect depth parameter', async () => {
       const result = await adapter.execute({ depth: 1 }, execContext);
-      const data = result.data as MapResultData;
 
       expect(result.success).toBe(true);
-      expect(data.depth).toBe(1);
+      expect(result.metadata?.depth).toBe(1);
     });
 
     it('should respect focus parameter', async () => {
       const result = await adapter.execute({ focus: 'packages/core' }, execContext);
-      const data = result.data as MapResultData;
 
       expect(result.success).toBe(true);
-      expect(data.focus).toBe('packages/core');
+      expect(result.metadata?.focus).toBe('packages/core');
     });
 
     it('should include exports when requested', async () => {
       // Use deeper depth to reach leaf directories with exports
       const result = await adapter.execute({ includeExports: true, depth: 5 }, execContext);
-      const data = result.data as MapResultData;
 
       expect(result.success).toBe(true);
-      expect(data.content).toContain('exports:');
+      expect(result.data).toContain('exports:');
     });
 
     it('should exclude exports when requested', async () => {
       const result = await adapter.execute({ includeExports: false }, execContext);
-      const data = result.data as MapResultData;
 
       expect(result.success).toBe(true);
       // Content should not have exports line
-      expect(data.content).not.toContain('exports:');
+      expect(result.data).not.toContain('exports:');
     });
   });
 
   describe('Output Format', () => {
     it('should include tree structure', async () => {
       const result = await adapter.execute({}, execContext);
-      const data = result.data as MapResultData;
 
       expect(result.success).toBe(true);
-      expect(data.content).toMatch(/[├└]/);
+      expect(result.data).toMatch(/[├└]/);
     });
 
     it('should include component counts', async () => {
       const result = await adapter.execute({}, execContext);
-      const data = result.data as MapResultData;
 
       expect(result.success).toBe(true);
-      expect(data.content).toMatch(/\d+ components/);
+      expect(result.data).toMatch(/\d+ components/);
     });
 
     it('should include total summary', async () => {
       const result = await adapter.execute({}, execContext);
-      const data = result.data as MapResultData;
 
       expect(result.success).toBe(true);
-      expect(data.content).toContain('**Total:**');
+      expect(result.data).toContain('**Total:**');
     });
   });
 
