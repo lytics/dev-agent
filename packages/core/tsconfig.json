@@ -14,7 +14,8 @@
     "dist",
     "**/*.test.ts",
     "**/*.spec.ts",
-    "**/__tests__/**"
+    "**/__tests__/**",
+    "**/__fixtures__/**"
   ],
   "references": [
     { "path": "../logger" },

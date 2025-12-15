@@ -30,9 +30,8 @@ export const BaseQuerySchema = z.object({
 
 export const InspectArgsSchema = z
   .object({
-    action: z.enum(['compare', 'validate']),
     query: z.string().min(1, 'Query must be a non-empty string (file path)'),
-    limit: z.number().int().min(1).max(100).default(10),
+    limit: z.number().int().min(1).max(50).default(10),
     threshold: z.number().min(0).max(1).default(0.7),
     format: FormatSchema.default('compact'),
   })
@@ -338,10 +337,11 @@ export type RefsOutput = z.infer<typeof RefsOutputSchema>;
  * Inspect output schema
  */
 export const InspectOutputSchema = z.object({
-  action: z.string(),
   query: z.string(),
   format: z.string(),
   content: z.string(),
+  similarFilesCount: z.number(),
+  patternsAnalyzed: z.number(),
 });
 
 export type InspectOutput = z.infer<typeof InspectOutputSchema>;

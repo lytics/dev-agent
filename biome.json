@@ -26,6 +26,12 @@
           }
         }
       }
+    },
+    {
+      "includes": ["**/__fixtures__/**"],
+      "linter": {
+        "enabled": false
+      }
     }
   ],
   "formatter": {

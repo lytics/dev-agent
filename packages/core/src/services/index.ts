@@ -20,6 +20,22 @@ export {
 } from './health-service.js';
 export { MetricsService, type MetricsServiceConfig } from './metrics-service.js';
 export {
+  type ErrorHandlingComparison,
+  type ErrorHandlingPattern,
+  type FilePatterns,
+  type FileSizeComparison,
+  type FileSizePattern,
+  type ImportStyleComparison,
+  type ImportStylePattern,
+  type PatternAnalysisConfig,
+  PatternAnalysisService,
+  type PatternComparison,
+  type TestingComparison,
+  type TestingPattern,
+  type TypeAnnotationComparison,
+  type TypeAnnotationPattern,
+} from './pattern-analysis-service.js';
+export {
   SearchService,
   type SearchServiceConfig,
   type SimilarityOptions,
