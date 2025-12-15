@@ -158,12 +158,19 @@ Assemble context for issue #42
 **Note:** This tool no longer generates task breakdowns. It provides comprehensive context so the AI assistant can create better plans.
 
 ### `dev_inspect` - File Analysis
-Inspect specific files, compare implementations, validate patterns.
+Inspect files for pattern analysis. Finds similar code and compares patterns (error handling, type coverage, imports, testing).
 
 ```
-Compare src/auth/middleware.ts with similar implementations
-Validate pattern consistency in src/hooks/useAuth.ts
+Inspect src/auth/middleware.ts for patterns
+Check how src/hooks/useAuth.ts compares to similar hooks
 ```
+
+**Pattern Categories:**
+- Import style (ESM vs CJS)
+- Error handling (throw vs result types)
+- Type coverage (full, partial, none)
+- Test coverage (co-located test files)
+- File size relative to similar code
 
 ### `dev_status` - Repository Status
 View indexing status, component health, and repository information.

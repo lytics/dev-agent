@@ -124,19 +124,24 @@ export class SearchService {
   async findSimilar(filePath: string, options?: SimilarityOptions): Promise<SearchResult[]> {
     const indexer = await this.getIndexer();
     try {
-      // Search for documents from the target file
-      const fileResults = await indexer.search(filePath, { limit: 5 });
-      if (fileResults.length === 0) {
+      // Step 1: Get all documents from the target file
+      const allDocs = await indexer.getAll({ limit: 10000 });
+      const fileDocuments = allDocs.filter((doc) => doc.metadata.path === filePath);
+
+      if (fileDocuments.length === 0) {
+        this.logger?.warn({ filePath }, 'No indexed documents found for file');
         return [];
       }
 
-      // Use the path as query to find similar code patterns
-      const results = await indexer.search(filePath, {
-        limit: (options?.limit ?? 10) + 1, // +1 to account for the file itself
+      // Step 2: Use the first document's embedding to find similar documents
+      // This is more accurate than searching by file path string
+      const referenceDocId = fileDocuments[0].id;
+      const results = await indexer.searchByDocumentId(referenceDocId, {
+        limit: (options?.limit ?? 10) + fileDocuments.length, // +N to account for the file's own documents
         scoreThreshold: options?.threshold ?? 0.7,
       });
 
-      // Filter out the original file
+      // Step 3: Filter out documents from the same file
       return results.filter((r) => r.metadata.path !== filePath);
     } finally {
       await indexer.close();

@@ -75,9 +75,25 @@ export class LanceDBVectorStore implements VectorStore {
 
       if (!this.table) {
         // Create table on first add
-        this.table = await this.connection.createTable(this.tableName, data);
-        // Create scalar index on 'id' column for fast upsert operations
-        await this.ensureIdIndex();
+        try {
+          this.table = await this.connection.createTable(this.tableName, data);
+          // Create scalar index on 'id' column for fast upsert operations
+          await this.ensureIdIndex();
+        } catch (createError) {
+          // Handle race condition: another process might have created the table
+          if (createError instanceof Error && createError.message.includes('already exists')) {
+            // Open the existing table
+            this.table = await this.connection.openTable(this.tableName);
+            // Now add the data using mergeInsert
+            await this.table
+              .mergeInsert('id')
+              .whenMatchedUpdateAll()
+              .whenNotMatchedInsertAll()
+              .execute(data);
+          } else {
+            throw createError;
+          }
+        }
       } else {
         // Use mergeInsert to prevent duplicates (upsert operation)
         // This updates existing documents with the same ID or inserts new ones
@@ -170,6 +186,42 @@ export class LanceDBVectorStore implements VectorStore {
   }
 
   /**
+   * Find similar documents to a given document by ID
+   * Uses the document's existing embedding for efficient similarity search
+   */
+  async searchByDocumentId(
+    documentId: string,
+    options: SearchOptions = {}
+  ): Promise<SearchResult[]> {
+    if (!this.table) {
+      return [];
+    }
+
+    try {
+      // Get the document and its embedding
+      const results = await this.table
+        .query()
+        .where(`id = '${documentId}'`)
+        .select(['id', 'vector'])
+        .limit(1)
+        .toArray();
+
+      if (results.length === 0) {
+        return []; // Document not found
+      }
+
+      const documentEmbedding = results[0].vector as number[];
+
+      // Use the document's embedding to find similar documents
+      return this.search(documentEmbedding, options);
+    } catch (error) {
+      throw new Error(
+        `Failed to search by document ID: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
    * Get a document by ID
    */
   async get(id: string): Promise<EmbeddingDocument | null> {
@@ -218,6 +270,27 @@ export class LanceDBVectorStore implements VectorStore {
     } catch (error) {
       throw new Error(
         `Failed to delete documents: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Clear all documents from the store (destructive operation)
+   */
+  async clear(): Promise<void> {
+    if (!this.connection) {
+      return;
+    }
+
+    try {
+      // Drop the table if it exists
+      if (this.table) {
+        await this.connection.dropTable('documents');
+        this.table = null;
+      }
+    } catch (error) {
+      throw new Error(
+        `Failed to clear vector store: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }

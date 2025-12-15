@@ -5,7 +5,7 @@
 
 import type { SearchService } from '@lytics/dev-agent-core';
 import { CompactFormatter, type FormatMode, VerboseFormatter } from '../../formatters';
-import { SearchArgsSchema, type SearchOutput, SearchOutputSchema } from '../../schemas/index.js';
+import { SearchArgsSchema } from '../../schemas/index.js';
 import { findRelatedTestFiles, formatRelatedFiles } from '../../utils/related-files';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
@@ -123,24 +123,6 @@ export class SearchAdapter extends ToolAdapter {
         },
         required: ['query'],
       },
-      outputSchema: {
-        type: 'object',
-        properties: {
-          query: {
-            type: 'string',
-            description: 'The search query that was executed',
-          },
-          format: {
-            type: 'string',
-            description: 'The output format used',
-          },
-          content: {
-            type: 'string',
-            description: 'Formatted search results',
-          },
-        },
-        required: ['query', 'format', 'content'],
-      },
     };
   }
 
@@ -212,22 +194,10 @@ export class SearchAdapter extends ToolAdapter {
         duration_ms,
       });
 
-      // Validate output with Zod
-      const outputData: SearchOutput = {
-        query: query as string,
-        format,
-        content: formatted.content + relatedFilesSection,
-      };
-
-      const outputValidation = SearchOutputSchema.safeParse(outputData);
-      if (!outputValidation.success) {
-        context.logger.error('Output validation failed', { error: outputValidation.error });
-        throw new Error(`Output validation failed: ${outputValidation.error.message}`);
-      }
-
+      // Return markdown content (MCP will wrap in content blocks)
       return {
         success: true,
-        data: outputValidation.data,
+        data: formatted.content + relatedFilesSection,
         metadata: {
           tokens: formatted.tokens,
           duration_ms,

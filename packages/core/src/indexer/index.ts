@@ -92,6 +92,13 @@ export class RepositoryIndexer {
     const _documentsIndexed = 0;
 
     try {
+      // Clear vector store if force re-index requested
+      if (options.force) {
+        options.logger?.info('Force re-index requested, clearing existing vectors');
+        await this.vectorStorage.clear();
+        this.state = null; // Reset state to force fresh scan
+      }
+
       // Phase 1: Scan repository
       const onProgress = options.onProgress;
       onProgress?.({
@@ -524,6 +531,14 @@ export class RepositoryIndexer {
    */
   async search(query: string, options?: SearchOptions): Promise<SearchResult[]> {
     return this.vectorStorage.search(query, options);
+  }
+
+  /**
+   * Find similar documents to a given document by ID
+   * More efficient than search() as it reuses the document's existing embedding
+   */
+  async searchByDocumentId(documentId: string, options?: SearchOptions): Promise<SearchResult[]> {
+    return this.vectorStorage.searchByDocumentId(documentId, options);
   }
 
   /**
