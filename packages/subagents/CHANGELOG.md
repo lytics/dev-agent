@@ -1,5 +1,12 @@
 # @lytics/dev-agent-subagents
 
+## 0.5.4
+
+### Patch Changes
+
+- Updated dependencies [d3d2126]
+  - @lytics/dev-agent-core@0.9.3
+
 ## 0.5.3
 
 ### Patch Changes
