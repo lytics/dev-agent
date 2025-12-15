@@ -106,6 +106,18 @@ export class VectorStorage {
   }
 
   /**
+   * Find similar documents to a given document by ID
+   * More efficient than search() as it reuses the document's existing embedding
+   */
+  async searchByDocumentId(documentId: string, options?: SearchOptions): Promise<SearchResult[]> {
+    if (!this.initialized) {
+      throw new Error('VectorStorage not initialized. Call initialize() first.');
+    }
+
+    return this.store.searchByDocumentId(documentId, options);
+  }
+
+  /**
    * Get all documents without semantic search (fast scan)
    * Use this when you need all documents and don't need relevance ranking
    * This is 10-20x faster than search() as it skips embedding generation
@@ -138,6 +150,18 @@ export class VectorStorage {
     }
 
     await this.store.delete(ids);
+  }
+
+  /**
+   * Clear all documents from the store (destructive operation)
+   * Used for force re-indexing
+   */
+  async clear(): Promise<void> {
+    if (!this.initialized) {
+      throw new Error('VectorStorage not initialized. Call initialize() first.');
+    }
+
+    await this.store.clear();
   }
 
   /**

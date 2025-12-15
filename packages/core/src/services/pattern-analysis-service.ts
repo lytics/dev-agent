@@ -9,6 +9,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { scanRepository } from '../scanner';
 import type { Document } from '../scanner/types';
+import { findTestFile, isTestFile } from '../utils/test-utils';
 import type {
   ErrorHandlingComparison,
   ErrorHandlingPattern,
@@ -65,35 +66,50 @@ export class PatternAnalysisService {
 
     const documents = result.documents.filter((d) => d.metadata.file === filePath);
 
-    // Step 2: Get file stats and content
-    const fullPath = path.join(this.config.repositoryPath, filePath);
-    const [stat, content] = await Promise.all([fs.stat(fullPath), fs.readFile(fullPath, 'utf-8')]);
-
-    const lines = content.split('\n').length;
-
-    // Step 3: Extract all patterns
-    return {
-      fileSize: {
-        lines,
-        bytes: stat.size,
-      },
-      testing: await this.analyzeTesting(filePath),
-      importStyle: await this.analyzeImportsFromFile(filePath, documents),
-      errorHandling: this.analyzeErrorHandling(content),
-      typeAnnotations: this.analyzeTypes(documents),
-    };
+    // Step 2: Use the optimized analysis method
+    return this.analyzeFileWithDocs(filePath, documents);
   }
 
   /**
    * Compare patterns between target file and similar files
+   *
+   * OPTIMIZED: Batch scans all files in one pass to avoid repeated ts-morph initialization
    *
    * @param targetFile - Target file to analyze
    * @param similarFiles - Array of similar file paths
    * @returns Pattern comparison results
    */
   async comparePatterns(targetFile: string, similarFiles: string[]): Promise<PatternComparison> {
-    const targetPatterns = await this.analyzeFile(targetFile);
-    const similarPatterns = await Promise.all(similarFiles.map((f) => this.analyzeFile(f)));
+    // OPTIMIZATION: Batch scan all files at once (5-10x faster than individual scans)
+    const allFiles = [targetFile, ...similarFiles];
+    const batchResult = await scanRepository({
+      repoRoot: this.config.repositoryPath,
+      include: allFiles,
+    });
+
+    // Group documents by file for fast lookup
+    const docsByFile = new Map<string, Document[]>();
+    for (const doc of batchResult.documents) {
+      const file = doc.metadata.file;
+      if (!docsByFile.has(file)) {
+        docsByFile.set(file, []);
+      }
+      const docs = docsByFile.get(file);
+      if (docs) {
+        docs.push(doc);
+      }
+    }
+
+    // Analyze target file with cached documents
+    const targetPatterns = await this.analyzeFileWithDocs(
+      targetFile,
+      docsByFile.get(targetFile) || []
+    );
+
+    // Analyze similar files in parallel with cached documents
+    const similarPatterns = await Promise.all(
+      similarFiles.map((f) => this.analyzeFileWithDocs(f, docsByFile.get(f) || []))
+    );
 
     return {
       fileSize: this.compareFileSize(
@@ -119,6 +135,36 @@ export class PatternAnalysisService {
     };
   }
 
+  /**
+   * Analyze file patterns using pre-scanned documents (faster)
+   *
+   * @param filePath - Relative path from repository root
+   * @param documents - Pre-scanned documents for this file
+   * @returns Pattern analysis results
+   */
+  private async analyzeFileWithDocs(
+    filePath: string,
+    documents: Document[]
+  ): Promise<FilePatterns> {
+    // Step 1: Get file stats and content
+    const fullPath = path.join(this.config.repositoryPath, filePath);
+    const [stat, content] = await Promise.all([fs.stat(fullPath), fs.readFile(fullPath, 'utf-8')]);
+
+    const lines = content.split('\n').length;
+
+    // Step 2: Extract all patterns (using cached documents)
+    return {
+      fileSize: {
+        lines,
+        bytes: stat.size,
+      },
+      testing: await this.analyzeTesting(filePath),
+      importStyle: await this.analyzeImportsFromFile(filePath, documents),
+      errorHandling: this.analyzeErrorHandling(content),
+      typeAnnotations: this.analyzeTypes(documents),
+    };
+  }
+
   // ========================================================================
   // Pattern Extractors (MVP: 5 core patterns)
   // ========================================================================
@@ -130,11 +176,11 @@ export class PatternAnalysisService {
    */
   private async analyzeTesting(filePath: string): Promise<TestingPattern> {
     // Skip if already a test file
-    if (this.isTestFile(filePath)) {
+    if (isTestFile(filePath)) {
       return { hasTest: false };
     }
 
-    const testFile = await this.findTestFile(filePath);
+    const testFile = await findTestFile(filePath, this.config.repositoryPath);
     return {
       hasTest: testFile !== null,
       testPath: testFile || undefined,
@@ -440,35 +486,4 @@ export class PatternAnalysisService {
   // ========================================================================
   // Utility Methods
   // ========================================================================
-
-  /**
-   * Check if a path is a test file
-   */
-  private isTestFile(filePath: string): boolean {
-    return filePath.includes('.test.') || filePath.includes('.spec.');
-  }
-
-  /**
-   * Find test file for a source file
-   *
-   * Checks for common patterns: *.test.*, *.spec.*
-   */
-  private async findTestFile(sourcePath: string): Promise<string | null> {
-    const ext = path.extname(sourcePath);
-    const base = sourcePath.slice(0, -ext.length);
-
-    const patterns = [`${base}.test${ext}`, `${base}.spec${ext}`];
-
-    for (const testPath of patterns) {
-      const fullPath = path.join(this.config.repositoryPath, testPath);
-      try {
-        await fs.access(fullPath);
-        return testPath;
-      } catch {
-        // File doesn't exist, try next pattern
-      }
-    }
-
-    return null;
-  }
 }

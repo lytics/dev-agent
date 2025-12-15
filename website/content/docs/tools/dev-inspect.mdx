@@ -1,114 +1,146 @@
 # dev_inspect
 
-Inspect specific files for deep analysis. Find similar implementations and check pattern consistency.
+Inspect a file for pattern analysis. Finds similar code and compares patterns like error handling, type coverage, imports, and testing.
 
 ## Usage
 
 ```
-dev_inspect(action, query, format?, limit?, threshold?)
+dev_inspect(query, format?, limit?, threshold?)
 ```
 
 ## Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `action` | `"compare"` \| `"validate"` | required | Inspection type |
 | `query` | string | required | File path to inspect |
 | `format` | `"compact"` \| `"verbose"` | `"compact"` | Output format |
-| `limit` | number | 10 | Maximum results (for compare) |
+| `limit` | number | 10 | Maximum similar files to analyze |
 | `threshold` | number | 0.7 | Similarity threshold (0-1) |
 
-## Actions
+## What It Does
 
-### Compare Implementations
+`dev_inspect` performs comprehensive file analysis in two steps:
 
-Find similar code implementations:
+1. **Finds similar files** - Uses semantic search to find code with similar structure/purpose
+2. **Analyzes patterns** - Compares error handling, type coverage, imports, testing, and file size
 
-> "Use dev_inspect with action compare, query 'src/hooks/useAuth.ts'"
-
-```
-Similar to: src/hooks/useAuth.ts
-
-1. [92%] src/hooks/useSession.ts - Session management hook
-2. [87%] src/hooks/useUser.ts - User data hook
-3. [81%] src/auth/hooks/usePermissions.ts - Permissions hook
-```
-
-**Use this to:**
-- Find existing patterns before writing new code
-- Discover alternative implementations
-- Ensure consistency across similar features
-
-### Validate Patterns (Coming Soon)
-
-Check code against codebase patterns:
-
-> "Use dev_inspect with action validate, query 'src/hooks/useAuth.ts'"
-
-```
-Pattern Validation
-
-File: src/hooks/useAuth.ts
-
-Status: Feature coming soon
-
-This action will validate:
-- Naming conventions vs. similar files
-- Error handling patterns
-- Code structure consistency
-- Framework-specific best practices
-```
+This helps you understand how your file compares to similar code in the repository.
 
 ## Examples
 
-### Find Similar Components
+### Basic Inspection
 
-> "Use dev_inspect action compare, query 'src/components/Button.tsx'"
+> "Use dev_inspect with query 'src/auth/middleware.ts'"
 
-Returns other button-like components in the codebase.
+```
+## File Inspection: src/auth/middleware.ts
 
-### High Similarity Only
+### Similar Files (5 analyzed)
+1. `src/auth/session.ts` (78%)
+2. `src/middleware/logger.ts` (72%)
+3. `src/api/auth-handler.ts` (68%)
 
-> "Use dev_inspect action compare, query 'src/utils/date.ts', threshold 0.9"
+### Pattern Analysis
 
-Only returns very similar code (90%+ match).
+**Import Style:** Your file uses `esm`, matching 100% of similar files.
+**Error Handling:** Your file uses `throw`, but 60% of similar files use `result`.
+**Type Coverage:** Your file has `full` type coverage, matching 80% of similar files.
+**Testing:** No test file found. 40% of similar files have tests.
+**Size:** 234 lines (smaller than average of 312 lines)
+```
 
 ### Verbose Output
 
-> "Use dev_inspect action compare, query 'src/api/client.ts', format 'verbose'"
+> "Use dev_inspect with query 'packages/core/src/indexer/index.ts', format 'verbose'"
 
-Returns detailed information about each similar file.
+Returns detailed pattern distribution and statistics for each pattern category.
+
+### High Similarity Only
+
+> "Use dev_inspect with query 'src/utils/date.ts', threshold 0.9"
+
+Only analyzes very similar files (90%+ match).
+
+## Pattern Categories
+
+`dev_inspect` analyzes 5 key patterns:
+
+| Pattern | What It Checks |
+|---------|----------------|
+| **Import Style** | `esm`, `cjs`, `mixed`, or `unknown` |
+| **Error Handling** | `throw`, `result`, `callback`, or `unknown` |
+| **Type Coverage** | `full`, `partial`, or `none` (TypeScript only) |
+| **Testing** | Whether a co-located test file exists |
+| **File Size** | Line count vs. similar files |
+
+## Output Formats
+
+### Compact (Default)
+
+Shows pattern summary with actionable insights:
+
+```
+**Error Handling:** Your file uses `throw`, but 60% of similar files use `result`.
+```
+
+Highlights differences from similar files to guide improvements.
+
+### Verbose
+
+Shows full pattern distribution:
+
+```
+#### Error Handling
+- **Your File:** `throw`
+- **Common Style:** `result` (60% of similar files)
+- **Distribution:**
+  - result: 3 files (60%)
+  - throw: 2 files (40%)
+```
 
 ## Use Cases
 
 | Use Case | Description |
 |----------|-------------|
-| **Code Review** | Find how others solved similar problems |
-| **Refactoring** | Discover patterns before consolidating |
+| **Code Review** | Check if your code follows project patterns |
+| **Refactoring** | Understand pattern usage before making changes |
+| **Consistency** | Ensure new code matches similar implementations |
 | **Learning** | See how patterns are used across the codebase |
-| **Consistency** | Ensure new code follows established patterns |
 
 ## Workflow
 
 **Typical usage pattern:**
 
 1. **Search** for concepts: `dev_search { query: "authentication middleware" }`
-2. **Inspect** what you found: `dev_inspect { action: "compare", query: "src/auth/middleware.ts" }`
+2. **Inspect** what you found: `dev_inspect { query: "src/auth/middleware.ts" }`
 3. **Analyze** dependencies: `dev_refs { name: "authMiddleware" }`
 
 ## Tips
 
 > **Always provide a file path.** Unlike `dev_search`, `dev_inspect` requires a specific file to analyze.
 
-> **Use compare for patterns.** Finding similar implementations helps maintain consistency.
+> **Extension filtering.** Only compares files with the same extension (e.g., `.ts` with `.ts`).
 
-> **Validate is coming soon.** Pattern validation will analyze naming, structure, and best practices.
+> **Use after search.** `dev_inspect` is most valuable after finding relevant files with `dev_search`.
+
+> **Pattern-driven insights.** Focus on patterns where your file differs from similar code.
+
+## Performance
+
+`dev_inspect` is optimized for speed:
+- Batch scanning (5-10x faster than individual scans)
+- Semantic similarity matching (not just path-based)
+- Extension-based filtering for relevant comparisons
+
+Typical analysis time: **500-1000ms** for 5 similar files.
 
 ## Migration from dev_explore
 
 If you previously used `dev_explore`:
 
-- `action: "similar"` → `dev_inspect { action: "compare" }`
-- `action: "pattern"` → Use `dev_search` instead
-- `action: "relationships"` → Use `dev_refs` instead
+- `dev_explore { action: "similar", query: "file.ts" }` → `dev_inspect { query: "file.ts" }`
+- `dev_explore { action: "validate", query: "file.ts" }` → `dev_inspect { query: "file.ts" }` (now does both!)
+- `dev_explore { action: "pattern" }` → Use `dev_search` instead
+- `dev_explore { action: "relationships" }` → Use `dev_refs` instead
 
+**Key change:** `dev_inspect` no longer requires an `action` parameter. It automatically finds similar files AND performs pattern analysis in one call.

@@ -339,7 +339,7 @@ export type RefsOutput = z.infer<typeof RefsOutputSchema>;
 export const InspectOutputSchema = z.object({
   query: z.string(),
   format: z.string(),
-  content: z.string(),
+  markdown: z.string(),
   similarFilesCount: z.number(),
   patternsAnalyzed: z.number(),
 });

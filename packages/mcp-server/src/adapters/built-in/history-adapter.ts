@@ -5,7 +5,7 @@
 
 import type { GitCommit, GitIndexer, LocalGitExtractor } from '@lytics/dev-agent-core';
 import { estimateTokensForText, startTimer } from '../../formatters/utils';
-import { HistoryArgsSchema, type HistoryOutput, HistoryOutputSchema } from '../../schemas/index.js';
+import { HistoryArgsSchema, type HistoryOutput } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
 import { validateArgs } from '../validation.js';
@@ -115,53 +115,6 @@ export class HistoryAdapter extends ToolAdapter {
         // Note: At least one of query or file is required (validated in execute)
         required: [],
       },
-      outputSchema: {
-        type: 'object',
-        properties: {
-          searchType: {
-            type: 'string',
-            enum: ['semantic', 'file'],
-            description: 'Type of history search performed',
-          },
-          query: {
-            type: 'string',
-            description: 'Semantic search query (if applicable)',
-          },
-          file: {
-            type: 'string',
-            description: 'File path (if file history)',
-          },
-          commits: {
-            type: 'array',
-            description: 'List of commit summaries',
-            items: {
-              type: 'object',
-              properties: {
-                hash: {
-                  type: 'string',
-                },
-                subject: {
-                  type: 'string',
-                },
-                author: {
-                  type: 'string',
-                },
-                date: {
-                  type: 'string',
-                },
-                filesChanged: {
-                  type: 'number',
-                },
-              },
-            },
-          },
-          content: {
-            type: 'string',
-            description: 'Formatted commit history',
-          },
-        },
-        required: ['searchType', 'commits', 'content'],
-      },
     };
   }
 
@@ -211,7 +164,7 @@ export class HistoryAdapter extends ToolAdapter {
       const tokens = estimateTokensForText(content);
 
       // Validate output with Zod
-      const outputData: HistoryOutput = {
+      const _outputData: HistoryOutput = {
         searchType,
         query: query || undefined,
         file: file || undefined,
@@ -225,15 +178,10 @@ export class HistoryAdapter extends ToolAdapter {
         content,
       };
 
-      const outputValidation = HistoryOutputSchema.safeParse(outputData);
-      if (!outputValidation.success) {
-        context.logger.error('Output validation failed', { error: outputValidation.error });
-        throw new Error(`Output validation failed: ${outputValidation.error.message}`);
-      }
-
+      // Return formatted content (MCP will wrap in content blocks)
       return {
         success: true,
-        data: outputValidation.data,
+        data: content,
         metadata: {
           tokens,
           duration_ms,

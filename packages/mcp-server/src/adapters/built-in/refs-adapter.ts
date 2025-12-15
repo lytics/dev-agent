@@ -5,7 +5,7 @@
 
 import type { CalleeInfo, SearchResult, SearchService } from '@lytics/dev-agent-core';
 import { estimateTokensForText, startTimer } from '../../formatters/utils';
-import { RefsArgsSchema, type RefsOutput, RefsOutputSchema } from '../../schemas/index.js';
+import { RefsArgsSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
 import { validateArgs } from '../validation.js';
@@ -104,43 +104,6 @@ export class RefsAdapter extends ToolAdapter {
         },
         required: ['name'],
       },
-      outputSchema: {
-        type: 'object',
-        properties: {
-          name: {
-            type: 'string',
-            description: 'Function/method name queried',
-          },
-          direction: {
-            type: 'string',
-            enum: ['callees', 'callers', 'both'],
-            description: 'Direction of query',
-          },
-          content: {
-            type: 'string',
-            description: 'Formatted reference information',
-          },
-          target: {
-            type: 'object',
-            description: 'Target function details',
-            properties: {
-              name: { type: 'string' },
-              file: { type: 'string' },
-              line: { type: 'number' },
-              type: { type: 'string' },
-            },
-          },
-          callees: {
-            type: 'array',
-            description: 'Functions called by target (if requested)',
-          },
-          callers: {
-            type: 'array',
-            description: 'Functions calling target (if requested)',
-          },
-        },
-        required: ['name', 'direction', 'content', 'target'],
-      },
     };
   }
 
@@ -212,25 +175,10 @@ export class RefsAdapter extends ToolAdapter {
 
       const tokens = estimateTokensForText(content);
 
-      // Validate output with Zod
-      const outputData: RefsOutput = {
-        name,
-        direction,
-        content,
-        target: result.target,
-        callees: result.callees,
-        callers: result.callers,
-      };
-
-      const outputValidation = RefsOutputSchema.safeParse(outputData);
-      if (!outputValidation.success) {
-        context.logger.error('Output validation failed', { error: outputValidation.error });
-        throw new Error(`Output validation failed: ${outputValidation.error.message}`);
-      }
-
+      // Return formatted content (MCP will wrap in content blocks)
       return {
         success: true,
-        data: outputValidation.data,
+        data: content,
         metadata: {
           tokens,
           duration_ms,

@@ -168,7 +168,7 @@ Once installed, AI tools gain access to:
 - **`dev_map`** - Codebase structure with component counts and change frequency
 - **`dev_history`** - Semantic search over git commits (who changed what and why)
 - **`dev_plan`** - Assemble context for GitHub issues (code + history + patterns)
-- **`dev_inspect`** - Inspect files (compare similar implementations, check patterns)
+- **`dev_inspect`** - Inspect files for pattern analysis (finds similar code, compares error handling, types, imports, testing)
 - **`dev_gh`** - Search GitHub issues/PRs semantically
 - **`dev_status`** - Repository indexing status
 - **`dev_health`** - Server health checks

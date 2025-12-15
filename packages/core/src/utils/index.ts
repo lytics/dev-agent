@@ -6,4 +6,5 @@ export * from './concurrency';
 export * from './file-validator';
 export * from './icons';
 export * from './retry';
+export * from './test-utils';
 export * from './wasm-resolver';

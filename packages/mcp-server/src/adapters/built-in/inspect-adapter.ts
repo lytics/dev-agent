@@ -10,7 +10,7 @@ import {
   type PatternComparison,
   type SearchService,
 } from '@lytics/dev-agent-core';
-import { InspectArgsSchema, type InspectOutput, InspectOutputSchema } from '../../schemas/index.js';
+import { InspectArgsSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter.js';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types.js';
 import { validateArgs } from '../validation.js';
@@ -106,28 +106,6 @@ export class InspectAdapter extends ToolAdapter {
         },
         required: ['query'],
       },
-      outputSchema: {
-        type: 'object',
-        properties: {
-          query: {
-            type: 'string',
-            description: 'File path inspected',
-          },
-          format: {
-            type: 'string',
-            description: 'Output format used',
-          },
-          content: {
-            type: 'string',
-            description: 'Markdown-formatted inspection results',
-          },
-          similarFilesCount: {
-            type: 'number',
-            description: 'Number of similar files analyzed',
-          },
-        },
-        required: ['query', 'format', 'content', 'similarFilesCount', 'patternsAnalyzed'],
-      },
     };
   }
 
@@ -156,30 +134,17 @@ export class InspectAdapter extends ToolAdapter {
         format
       );
 
-      // Validate output with Zod
-      const outputData: InspectOutput = {
-        query,
-        format,
-        content,
-        similarFilesCount,
-        patternsAnalyzed,
-      };
-
-      const outputValidation = InspectOutputSchema.safeParse(outputData);
-      if (!outputValidation.success) {
-        context.logger.error('Output validation failed', { error: outputValidation.error });
-        throw new Error(`Output validation failed: ${outputValidation.error.message}`);
-      }
-
       context.logger.info('File inspection completed', {
         query,
         similarFilesCount,
+        patternsAnalyzed,
         contentLength: content.length,
       });
 
+      // Return markdown content (MCP will wrap in content blocks)
       return {
         success: true,
-        data: outputValidation.data,
+        data: content,
       };
     } catch (error) {
       context.logger.error('Inspection failed', { error });
@@ -230,15 +195,25 @@ export class InspectAdapter extends ToolAdapter {
     threshold: number,
     format: string
   ): Promise<{ content: string; similarFilesCount: number; patternsAnalyzed: number }> {
-    // Step 1: Find similar files
+    // Step 1: Find similar files (request slightly more to account for extension filtering)
     const similarResults = await this.searchService.findSimilar(filePath, {
-      limit: limit + 1,
+      limit: limit + 5, // Small buffer for extension filtering
       threshold,
     });
 
-    // Exclude the reference file itself
+    // Get the file extension for filtering
+    const targetExtension = filePath.split('.').pop()?.toLowerCase() || '';
+
+    // Exclude the reference file itself and filter by extension
     const filteredResults = similarResults
-      .filter((r) => r.metadata.path !== filePath)
+      .filter((r) => {
+        const path = r.metadata.path as string;
+        if (path === filePath) return false; // Exclude self
+
+        // Only compare files with the same extension
+        const ext = path.split('.').pop()?.toLowerCase() || '';
+        return ext === targetExtension;
+      })
       .slice(0, limit);
 
     if (filteredResults.length === 0) {

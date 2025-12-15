@@ -7,7 +7,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { GitHubService, StatsService } from '@lytics/dev-agent-core';
 import { estimateTokensForText } from '../../formatters/utils';
-import { StatusArgsSchema, type StatusOutput, StatusOutputSchema } from '../../schemas/index.js';
+import { StatusArgsSchema } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
 import { validateArgs } from '../validation.js';
@@ -166,28 +166,6 @@ export class StatusAdapter extends ToolAdapter {
         },
         required: [],
       },
-      outputSchema: {
-        type: 'object',
-        properties: {
-          content: {
-            type: 'string',
-            description: 'Status report content in markdown format',
-          },
-          section: {
-            type: 'string',
-            description: 'The section that was displayed',
-          },
-          format: {
-            type: 'string',
-            description: 'The format that was used',
-          },
-          length: {
-            type: 'number',
-            description: 'Length of the content in characters',
-          },
-        },
-        required: ['content', 'section', 'format', 'length'],
-      },
     };
   }
 
@@ -212,23 +190,10 @@ export class StatusAdapter extends ToolAdapter {
 
       context.logger.info('Status check completed', { section, format, duration_ms });
 
-      // Validate output with Zod (ensures type safety)
-      const outputData: StatusOutput = {
-        section,
-        format,
-        content,
-        length: content.length,
-      };
-
-      const outputValidation = StatusOutputSchema.safeParse(outputData);
-      if (!outputValidation.success) {
-        context.logger.error('Output validation failed', { error: outputValidation.error });
-        throw new Error(`Output validation failed: ${outputValidation.error.message}`);
-      }
-
+      // Return formatted content (MCP will wrap in content blocks)
       return {
         success: true,
-        data: outputValidation.data,
+        data: content,
         metadata: {
           tokens,
           duration_ms,

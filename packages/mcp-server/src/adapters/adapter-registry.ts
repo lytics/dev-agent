@@ -178,6 +178,14 @@ export class AdapterRegistry {
   }
 
   /**
+   * Get tool definition by name
+   */
+  getToolDefinition(toolName: string): ToolDefinition | undefined {
+    const adapter = this.adapters.get(toolName);
+    return adapter?.getToolDefinition();
+  }
+
+  /**
    * Get all registered tool names
    */
   getToolNames(): string[] {

@@ -10,7 +10,7 @@ import type {
   GitHubSearchResult,
 } from '@lytics/dev-agent-types/github';
 import { estimateTokensForText } from '../../formatters/utils';
-import { GitHubArgsSchema, type GitHubOutput, GitHubOutputSchema } from '../../schemas/index.js';
+import { GitHubArgsSchema, type GitHubOutput } from '../../schemas/index.js';
 import { ToolAdapter } from '../tool-adapter';
 import type { AdapterContext, ToolDefinition, ToolExecutionContext, ToolResult } from '../types';
 import { validateArgs } from '../validation.js';
@@ -114,32 +114,6 @@ export class GitHubAdapter extends ToolAdapter {
         },
         required: ['action'],
       },
-      outputSchema: {
-        type: 'object',
-        properties: {
-          action: {
-            type: 'string',
-            description: 'The action that was executed',
-          },
-          format: {
-            type: 'string',
-            description: 'The output format used',
-          },
-          content: {
-            type: 'string',
-            description: 'Formatted GitHub data',
-          },
-          resultsTotal: {
-            type: 'number',
-            description: 'Total number of results found (for search/related actions)',
-          },
-          resultsReturned: {
-            type: 'number',
-            description: 'Number of results returned (for search/related actions)',
-          },
-        },
-        required: ['action', 'format', 'content'],
-      },
     };
   }
 
@@ -196,7 +170,7 @@ export class GitHubAdapter extends ToolAdapter {
       const tokens = estimateTokensForText(content);
 
       // Validate output with Zod
-      const outputData: GitHubOutput = {
+      const _outputData: GitHubOutput = {
         action,
         format,
         content,
@@ -204,15 +178,10 @@ export class GitHubAdapter extends ToolAdapter {
         resultsReturned: resultsReturned > 0 ? resultsReturned : undefined,
       };
 
-      const outputValidation = GitHubOutputSchema.safeParse(outputData);
-      if (!outputValidation.success) {
-        context.logger.error('Output validation failed', { error: outputValidation.error });
-        throw new Error(`Output validation failed: ${outputValidation.error.message}`);
-      }
-
+      // Return formatted content (MCP will wrap in content blocks)
       return {
         success: true,
-        data: outputValidation.data,
+        data: content,
         metadata: {
           tokens,
           duration_ms,

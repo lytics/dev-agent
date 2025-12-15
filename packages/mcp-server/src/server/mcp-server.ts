@@ -290,7 +290,7 @@ export class MCPServer {
     }
 
     // Format response according to MCP protocol
-    // The content field must be an array of content blocks
+    // Always return content blocks (even for tools with outputSchema)
     return {
       content: [
         {
