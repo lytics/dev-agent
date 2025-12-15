@@ -1,5 +1,14 @@
 # @lytics/dev-agent-integrations
 
+## 0.1.20
+
+### Patch Changes
+
+- Updated dependencies [d3d2126]
+  - @lytics/dev-agent-core@0.9.3
+  - @lytics/dev-agent-cli@0.6.1
+  - @lytics/dev-agent-subagents@0.5.4
+
 ## 0.1.19
 
 ### Patch Changes
